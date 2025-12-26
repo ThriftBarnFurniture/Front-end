@@ -1,0 +1,153 @@
+/* =========================================================
+   Shop landing (uses global tokens)
+   ========================================================= */
+
+.page {
+  min-height: calc(100vh - 1px);
+  background:
+    var(--color-bg);
+
+  display: grid;
+  place-items: center;
+
+  padding: 110px var(--gutter) 60px;
+}
+
+.wrap {
+  width: min(980px, 92vw);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(177, 15, 15, 0.12);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-lg);
+  padding: 38px 28px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.badge {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--color-brand);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.12em;
+  font-size: var(--fs-lg);
+}
+
+.title {
+  margin: 14px 0 8px;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: var(--fw-bold);
+  color: var(--color-brand-dark);
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  margin: 0 auto;
+  max-width: 640px;
+  color: #555;
+  line-height: 1.75;
+  font-size: var(--fs-lg);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-link);
+  color: #fff;
+  text-decoration: none;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.3px;
+  transition: transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
+}
+
+.icon {
+  filter: invert(1);
+}
+
+.primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-brand);
+  border: 1px solid rgba(177, 15, 15, 0.35);
+  text-decoration: none;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.3px;
+  transition: transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.secondary:hover {
+  transform: translateY(-1px);
+  background: rgba(177, 15, 15, 0.06);
+}
+
+.note {
+  margin: 18px 0 0;
+  color: var(--color-muted-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* =========================================================
+   Construction animation
+   ========================================================= */
+
+.construction {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 16px 0 8px;
+  font-size: 34px;
+}
+
+.hammer {
+  animation: hammerSwing 1.2s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+
+@keyframes hammerSwing {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-25deg); }
+}
+
+
+/* =========================================================
+   Media (1600 / 1200 / 992 / 768 / 480)
+   ========================================================= */
+
+@media (max-width: 1600px) {}
+
+@media (max-width: 1200px) {}
+
+@media (max-width: 992px) {}
+
+@media (max-width: 768px) {
+  .page { padding: 110px var(--gutter) 50px; }
+}
+
+@media (max-width: 480px) {
+  .card { padding: 30px 18px; }
+}

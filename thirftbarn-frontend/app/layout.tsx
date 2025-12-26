@@ -16,10 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="flex min-h-full flex-col bg-white">
-        <Navbar 
-          showAnnouncement={true}
-          announcement="🎉 20% OFF all items this weekend! Use code: SAVE20"
-        />
+        <Navbar />
         <main className="flex-grow bg-white">{children}</main>
         <Footer />
       </body>

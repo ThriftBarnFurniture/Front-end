@@ -1,6 +1,10 @@
+/* =========================================================
+   Store Location Section (uses global tokens)
+   ========================================================= */
+
 .store-location-section {
-  padding: 5rem 1.5rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 3rem 1.5rem;
+  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface-2) 100%);
 }
 
 .section-container {
@@ -8,16 +12,15 @@
   margin: 0 auto;
 }
 
-/* Header */
 .section-header {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .section-title {
   font-size: 2.5rem;
-  font-weight: 700;
-  color: #1a1a2e;
+  font-weight: var(--fw-bold);
+  color: var(--color-brand-dark);
   margin: 0 0 1rem 0;
 }
 
@@ -28,155 +31,36 @@
   margin: 0 auto;
 }
 
-/* Grid Layout */
-.location-grid {
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 2rem;
-  align-items: start;
-}
-
-/* Map Wrapper */
 .map-wrapper {
-  border-radius: 16px;
+  height: 500px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .map-placeholder {
   width: 100%;
-  height: 400px;
+  height: 100%;
   background: #f1f5f9;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #64748b;
+  font-size: 1.125rem;
 }
 
-/* Store Info Card */
-.store-info-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-}
+/* =========================================================
+   Media (1600 / 1200 / 992 / 768 / 480)
+   ========================================================= */
 
-.store-name {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1a1a2e;
-  margin: 0 0 1.5rem 0;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f1f5f9;
-}
+@media (max-width: 1600px) {}
 
-/* Info Blocks */
-.info-block {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
+@media (max-width: 1200px) {}
 
-.info-icon {
-  font-size: 1.5rem;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f1f5f9;
-  border-radius: 10px;
-  flex-shrink: 0;
-}
+@media (max-width: 992px) {}
 
-.info-content h4 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0 0 0.25rem 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.info-content p {
-  margin: 0;
-  color: #1a1a2e;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-.info-content a {
-  color: #3b82f6;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.info-content a:hover {
-  color: #2563eb;
-}
-
-/* Hours */
-.hours-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.25rem 0;
-}
-
-.hours-row .days {
-  color: #1a1a2e;
-}
-
-.hours-row .time {
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* Directions Button */
-.directions-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 1rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  margin-top: 0.5rem;
-}
-
-.directions-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.button-icon {
-  transition: transform 0.2s;
-}
-
-.directions-button:hover .button-icon {
-  transform: translateX(4px);
-}
-
-/* Responsive Design */
-@media (max-width: 968px) {
-  .location-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .store-info-card {
-    order: -1;
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .store-location-section {
     padding: 3rem 1rem;
   }
@@ -185,12 +69,9 @@
     font-size: 2rem;
   }
 
-  .store-info-card {
-    padding: 1.5rem;
-  }
-
-  .hours-row {
-    flex-direction: column;
-    gap: 0.25rem;
+  .map-wrapper {
+    height: 400px;
   }
 }
+
+@media (max-width: 480px) {}

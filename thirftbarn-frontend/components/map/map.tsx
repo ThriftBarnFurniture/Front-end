@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import './map.css';
-import { createCircularPinIcon, createCustomDivIcon, createImageIcon } from './customMarker';
+
+type StoreHours = { days: string; time: string };
 
 interface MapProps {
   latitude: number;
@@ -12,71 +14,103 @@ interface MapProps {
   zoom?: number;
   logoUrl: string;
   storeName: string;
-  storeAddress: string;
-  markerStyle?: 'image' | 'custom' | 'circular';
+  addressLine1: string;
+  addressLine2?: string;
+  phone?: string;
+  email?: string;
+  hours?: StoreHours[];
 }
 
 const Map: React.FC<MapProps> = ({
   latitude,
   longitude,
-  zoom = 15,
+  zoom = 9,
   logoUrl,
   storeName,
-  storeAddress,
-  markerStyle = 'circular',
+  addressLine1,
+  addressLine2,
+  phone,
+  email,
+  hours = [],
 }) => {
-  const [isClient, setIsClient] = useState(false);
+  const markerIcon = useMemo(
+    () =>
+      L.icon({
+        iconUrl: '/Icon-MapPin.svg',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+        popupAnchor: [0, -40],
+      }),
+    []
+  );
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Don't render on server side
-  if (!isClient) {
-    return (
-      <div className="map-loading">
-        <div className="map-loading-spinner"></div>
-        <p>Loading map...</p>
-      </div>
-    );
-  }
-
-  // Choose marker style
-  const getIcon = () => {
-    switch (markerStyle) {
-      case 'image':
-        return createImageIcon(logoUrl, [50, 50]);
-      case 'custom':
-        return createCustomDivIcon(logoUrl);
-      case 'circular':
-      default:
-        return createCircularPinIcon(logoUrl);
-    }
-  };
+  const googleDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
 
   return (
     <MapContainer
       center={[latitude, longitude]}
-      zoom={zoom}
-      scrollWheelZoom={false}
-      className="map-container"
+      zoom={9}
+      scrollWheelZoom={true}
+      className="map-container" // Matches CSS now
+      style={{ height: '100%', width: '100%' }} // Inline backup
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
-      <Marker position={[latitude, longitude]} icon={getIcon()}>
-        <Popup>
+
+      <Marker position={[latitude, longitude]} icon={markerIcon}>
+        <Popup maxWidth={300}>
           <div className="popup-content">
-            <h3>{storeName}</h3>
-            <p>{storeAddress}</p>
+            <div className="popup-header">
+              <img src={logoUrl} alt={`${storeName} logo`} className="popup-logo" />
+              <h3>{storeName}</h3>
+            </div>
+
+            <div className="popup-section">
+              <p className="popup-label">Address</p>
+              <p className="popup-text">{addressLine1}, {addressLine2}</p>
+            </div>
+
+            {(phone || email) && (
+              <div className="popup-section">
+                <p className="popup-label">Contact</p>
+                {phone && (
+                  <p className="popup-text">
+                    <a className="popup-link" href={`tel:${phone}`}>
+                      {phone}
+                    </a>
+                  </p>
+                )}
+                {email && (
+                  <p className="popup-text">
+                    <a className="popup-link" href={`mailto:${email}`}>
+                      {email}
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {hours.length > 0 && (
+              <div className="popup-section">
+                <p className="popup-label">Hours</p>
+                {hours.map((h, idx) => (
+                  <div key={idx} className="popup-hours-row">
+                    <span className="popup-hours-days">{h.days}</span>
+                    <span className="popup-hours-time">{h.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`}
+              href={googleDirectionsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="directions-link"
             >
-              Get Directions
+              Get Directions →
             </a>
           </div>
         </Popup>

@@ -4,7 +4,7 @@ import StoreLocationSection from '@/components/map/storeLocationSection';
 
 
 export default function Home() {
-    const myStoreInfo = {
+  const myStoreInfo = {
     name: 'Thrift Barn Furniture',
     address: '2786 ON-34',
     city: 'Hawkesbury, ON K6A 2R2',
@@ -23,7 +23,7 @@ export default function Home() {
   return (
     <main className={styles.page}>
       {/* ===== HERO ===== */}
-      <section className={styles.hero}>
+      <section id="hero" className={styles.hero}>
         {/* Background image */}
         <Image
           src="/Hero-bg.jpg"
@@ -59,48 +59,47 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== DISCOVER SECTION ===== */}
-      <section className={styles.discover}>
-        <div className={styles.discoverInner}>
-          <div className={styles.discoverGrid}>
+      {/* ===== ABOUT SECTION ===== */}
+      <section id="about" className={styles.aboutSection}>
+        <div className={styles.aboutPanel}>
+          <div className={styles.aboutGrid}>
             {/* Left text block */}
-            <div className={styles.discoverLeft}>
-              <div className={styles.discoverIcon}>
+            <div className={styles.aboutLeft}>
+              <div className={styles.aboutIcon}>
                 <Image src="/Icon-Leaf.svg" alt="Maple" width={40} height={40} />
               </div>
 
-              <h2 className={styles.discoverTitle}>
+              <h2 className={styles.aboutTitle}>
                 DISCOVER TREASURES IN <br /> EVERY CORNER.
               </h2>
 
-              <p className={styles.discoverText}>
-                In hac habitasse platea dictumst. Praesent a erat gravida, lobortis dui at,
-                gravida nisi. Class aptent taciti sociosqu ad litora torquent per conubia
-                nostra, per inceptos himenaeos. Nullam molestie ornare nisi, nec iaculis
-                mi congue eu.
+              <p className={styles.aboutText}>
+                At Thrift Barn Furniture, we envision a Canada where sustainable living and
+                community building go hand-in-hand. By championing the recirculation of quality
+                used furniture, we see a future where Canadian owned businesses pave the path
+                toward a healthier planet. When Canadians think of thrift, they will think of
+                Thrift Barn Furniture!
               </p>
             </div>
 
             {/* Right large photo circle */}
-            <div className={styles.discoverRight}>
-              <div className={styles.bigCircle}>PHOTO</div>
-            </div>
-
-            {/* Bottom-left circles */}
-            <div className={styles.discoverBottomLeft}>
-              <div className={styles.midCircle}>PHOTO</div>
-              <div className={styles.smallCircle}>PHOTO</div>
-            </div>
-
-            {/* Bottom-right text block */}
-            <div className={styles.discoverBottomRight}>
-              <h3 className={styles.loremTitle}>Lorem Ipsum</h3>
-              <p className={styles.loremText}>
-                In hac habitasse platea dictumst. Praesent a erat gravida, lobortis dui at,
-                gravida nisi. Class aptent taciti sociosqu ad litora torquent per conubia
-                nostra, per inceptos himenaeos. Nullam molestie ornare nisi, nec iaculis
-                mi congue eu.
-              </p>
+            <div className={styles.aboutRight}>
+              <div className={styles.bigCircle}>
+                <div className={styles.heroImage}>
+                  <Image
+                    src="/TBF_WideLogo.svg"
+                    alt="Thrift Barn Furniture"
+                    width={500}        // intrinsic width
+                    height={160}       // intrinsic height
+                    sizes="(max-width: 768px) 200px, 300px"
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                    }}
+                    priority
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -109,13 +108,72 @@ export default function Home() {
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />
 
-      {/* ===== MAP (INTERACTIVE CUSTOM PIN) ===== */}
-      <section className={styles.mapSection}>
-        <StoreLocationSection 
-        storeInfo={myStoreInfo}
-        logoUrl="/Icon-MapPin.svg"
-      />
+      {/* ===== CONTACT (INFO + MAP) ===== */}
+      <section id="contact" className={styles.contactSection}>
+        <div className={styles.contactPanel}>
+          {/* Top “Get in touch” block */}
+          <div className={styles.contactTop}>
+            <h2 className={styles.contactTitle}>GET IN TOUCH</h2>
+            <p className={styles.contactBlurb}>
+              Have a question about inventory, deliveries, or store hours? Reach out anytime — we’re happy to help.
+            </p>
+
+            <div className={styles.contactGrid}>
+              {/* Phone */}
+              <div className={styles.contactItem}>
+                <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
+                <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
+                <p className={styles.contactValue}>{myStoreInfo.phone}</p>
+              </div>
+
+              {/* Address */}
+              <div className={styles.contactItem}>
+                <Image src="/Icon-Barn.svg" alt="Address" width={48} height={48} />
+                <p className={styles.contactLabel}>Address:</p>
+                <p className={styles.contactValueSmall}>
+                  {myStoreInfo.address}
+                  <br />
+                  {myStoreInfo.city}
+                </p>
+              </div>
+
+              {/* Hours */}
+              <div className={styles.contactItem}>
+                <Image src="/Icon-Clock.svg" alt="Hours" width={48} height={48} />
+                <p className={styles.contactLabel}>In-Store Hours:</p>
+                <div className={styles.hoursList}>
+                  {myStoreInfo.hours.map((h) => (
+                    <p key={h.days} className={styles.contactValueSmall}>
+                      <span className={styles.hoursDays}>{h.days}:</span> {h.time}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className={styles.contactItem}>
+                <Image src="/Icon-Email.svg" alt="Email" width={48} height={48} />
+                <p className={styles.contactLabel}>Email:</p>
+                <a className={styles.contactLink} href={`mailto:${myStoreInfo.email}`}>
+                  {myStoreInfo.email}
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== RED DIVIDER LINE ===== */}
+          <div className={styles.redDivider} />
+
+          {/* Map (your existing implementation) */}
+          <div className={styles.contactMapWrap}>
+            <StoreLocationSection storeInfo={myStoreInfo} logoUrl="/Icon-MapPin.svg" />
+          </div>
+        </div>
       </section>
+
+      {/* ===== RED DIVIDER LINE ===== */}
+      <div className={styles.redDivider} />
+
     </main>
   );
 }

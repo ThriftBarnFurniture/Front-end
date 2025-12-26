@@ -1,142 +1,126 @@
+/* =========================================================
+   Footer (uses global tokens)
+   ========================================================= */
 .footer {
   width: 100%;
-  background: #fff;
+  background: var(--color-bg);
 }
 
-/* ===== BOTTOM BAR ===== */
 .bottomBar {
   background: #2b2b2b;
   color: #fff;
-  padding: 20px 18px;
+  padding: 22px var(--gutter);
 }
 
 .bottomInner {
-  max-width: 1100px;
+  max-width: var(--container-max);
   margin: 0 auto;
+
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  column-gap: 16px;
+  grid-template-columns: 1.2fr 0.8fr 1.3fr 1fr; /* brand | links | contact | follow */
+  gap: 28px;
   align-items: start;
 }
 
-/* Left logo spans all rows */
-.bottomLeft {
-  grid-column: 1;
-  grid-row: 1 / 4;
-}
-
-/* Row 1 */
-.followTitle {
-  grid-column: 2;
-  grid-row: 1;
+.colTitle {
   font-weight: 800;
-  font-size: 14px;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  opacity: 0.95;
+  text-transform: uppercase;
 }
 
-/* Row 2 underline */
-.followUnderline {
-  grid-column: 2 / 4;
-  grid-row: 2;
+.colUnderline {
   height: 1px;
-  background: rgba(255, 255, 255, 0.35);
-  margin: 6px 0 10px;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 10px 0 14px;
 }
 
-/* Row 3 Facebook */
-.bottomMid {
-  grid-column: 2;
-  grid-row: 3;
-  display: flex;
-  align-items: center;
+.brandLogo { height: auto; }
+
+.copyright {
+  margin-top: 10px;
+  font-size: var(--fs-sm);
+  color: #cfcfcf;
+}
+
+/* LINKS */
+.linkList {
+  display: grid;
   gap: 10px;
 }
 
-/* Row 3 Privacy / Terms */
-.bottomRight {
-  grid-column: 3;
-  grid-row: 3;
-  justify-self: end;
+/* CONTACT */
+.contactGrid {
+  display: grid;
+  grid-template-columns: 110px 1fr; /* label | value */
+  gap: 10px 16px;
+}
+
+.contactLabel {
+  color: #cfcfcf;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contactValue {
+  color: #cfcfcf;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.hoursRow {
   display: flex;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 14px;
 }
 
-/* Existing styles */
-.bottomLink {
-  color: #cfcfcf;
-  text-decoration: none;
-  font-size: 12px;
-}
-
-.bottomLink:hover {
-  text-decoration: underline;
-}
-
-.brandLogo {
-  height: auto;
-}
-
-.copyright {
-  font-size: 12px;
-  color: #cfcfcf;
-}
-
+/* FOLLOW */
 .followRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #cfcfcf;
-  font-size: 13px;
+  margin-bottom: 14px;
 }
 
-.followDivider {
-  width: 40px;
-  height: 2px;
-  background-color: #ffffff;
-  opacity: 0.8;
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.fbIcon {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  background: #ffffff;
-  color: #2b2b2b;
+.icon {
+  filter: invert(1);
+}
+
+.policyList {
   display: grid;
-  place-items: center;
-  font-weight: 900;
-  line-height: 1;
+  gap: 10px;
+  margin-top: 6px;
 }
 
-.followLink {
+.footerLink {
   color: #cfcfcf;
   text-decoration: none;
+  font-size: var(--fs-sm);
 }
 
-.followLink:hover {
+.footerLink:hover {
   text-decoration: underline;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 980px) {
-  .contactGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 22px;
-  }
-  .bottomInner {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  .bottomRight {
-    justify-self: center;
-    justify-content: center;
-  }
-  .bottomMid {
-    justify-self: center;
-  }
-}
 
-@media (max-width: 980px) {
+/* =========================================================
+   Media (1600 / 1200 / 992 / 768 / 480)
+   ========================================================= */
+
+@media (max-width: 1600px) {}
+
+@media (max-width: 1200px) {}
+
+@media (max-width: 992px) {
   .bottomInner {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto auto auto;
@@ -144,32 +128,21 @@
     row-gap: 12px;
   }
 
-  .bottomLeft {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: center;
-  }
-
-  .followTitle {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .followUnderline {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .bottomMid {
+  .bottomLeft,
+  .followTitle,
+  .followUnderline,
+  .bottomMid,
+  .bottomRight {
     grid-column: 1;
     grid-row: auto;
     justify-self: center;
   }
 
   .bottomRight {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: center;
     justify-content: center;
   }
 }
+
+@media (max-width: 768px) {}
+
+@media (max-width: 480px) {}

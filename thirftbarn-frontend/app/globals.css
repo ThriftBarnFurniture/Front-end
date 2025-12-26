@@ -1,22 +1,92 @@
 @import "tailwindcss";
 
+/* =========================================================
+   Thrift Barn Design System (Global Tokens)
+   ========================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Fonts */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Colors */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-text: #171717;
+  --color-muted: #666666;
+  --color-muted-2: #777777;
+  --color-border: rgba(0, 0, 0, 0.10);
+
+  /* Brand */
+  --color-brand: #b10f0f;        /* primary red */
+  --color-brand-2: #ff0000;      /* marquee red / accent */
+  --color-brand-dark: #7b0d0d;
+
+  /* Link */
+  --color-link: #2563eb;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 10px 40px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.08);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* Layout */
+  --container-max: 1100px;
+  --container-wide: 1400px;
+  --gutter: 18px;
+
+  /* Spacing scale */
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 18px;
+  --space-5: 22px;
+  --space-6: 28px;
+  --space-7: 34px;
+  --space-8: 40px;
+  --space-9: 60px;
+  --space-10: 70px;
+
+  /* Typography scale */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 18px;
+  --fs-xl: 28px;
+  --fs-2xl: 34px;
+  --fs-3xl: 42px;
+
+  /* Font weights */
+  --fw-regular: 500;
+  --fw-bold: 700;
+  --fw-black: 900;
+
+  /* Motion */
+  --ease: ease;
+  --ease-out: ease-out;
+  --dur-1: 150ms;
+  --dur-2: 220ms;
+  --dur-3: 260ms;
+
+  /* Header spacing (used by pages to avoid overlap with fixed nav) */
+  --header-offset: 100px;
+  --header-offset-mobile: 92px;
+
+  /* Map heights */
+  --map-height-desktop: 800px;
+  --map-height-mobile: 350px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 html, body {
@@ -24,12 +94,19 @@ html, body {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
 }
 
+/* Leaflet */
 .leaflet-container {
   width: 100%;
   height: 100%;
+}
+
+/* Optional: reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
