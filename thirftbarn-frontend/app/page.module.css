@@ -8,16 +8,10 @@
   padding-top: var(--header-offset);
 }
 
-@media (max-width: 480px) {
-  .page {
-    padding-top: var(--header-offset-mobile);
-  }
-}
-
 /* ===== HERO ===== */
 .hero {
   position: relative;
-  height: 640px;
+  height: 700px;
   width: 100%;
   overflow: hidden;
 }
@@ -42,7 +36,7 @@
   margin: 0 auto;
   display: grid;
   place-items: center;
-  padding: 70px var(--gutter) 40px;
+  padding: 90px var(--gutter) 40px;
 }
 
 .heroLogoWrap { margin-top: 15px; }
@@ -50,11 +44,9 @@
 .heroCtaBox {
   margin-top: 18px;
   width: min(640px, 92vw);
-  background: rgba(0, 0, 0, 0.65);
   border-radius: calc(var(--radius-md) + 4px);
   padding: 26px 22px;
   text-align: center;
-  backdrop-filter: blur(6px);
 }
 
 .heroTitle {
@@ -68,7 +60,7 @@
 .heroSubtitle {
   margin: 8px 0 18px;
   color: #fff;
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   opacity: 0.95;
 }
 
@@ -80,7 +72,7 @@
   border-radius: var(--radius-pill);
   text-decoration: none;
   font-weight: 800;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-lg);
   letter-spacing: 0.5px;
   transition: filter var(--dur-1) var(--ease);
 }
@@ -94,15 +86,8 @@
 }
 
 .aboutPanel {
-  max-width: var(--container-max);
+  max-width: var(--container-wide);
   margin: 0 auto;
-}
-
-.aboutGrid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 30px;
-  align-items: start;
 }
 
 .aboutIcon { margin-bottom: 12px; }
@@ -110,7 +95,7 @@
 .aboutTitle {
   margin: 0 0 14px;
   color: var(--color-brand-dark);
-  font-size: var(--fs-xl);
+  font-size: var(--fs-2xl);
   font-weight: var(--fw-black);
   text-transform: uppercase;
 }
@@ -119,33 +104,105 @@
   margin: 0;
   color: var(--color-muted);
   line-height: 1.7;
-  font-size: var(--fs-md);
+  font-size: 16px;
   max-width: 520px;
-}
-
-.aboutRight {
-  display: grid;
-  justify-content: end;
 }
 
 .bigCircle {
   width: 310px;
   height: 310px;
-  border-radius: var(--radius-pill);
+
+  border-radius: 50%;   /* was pill */
+  overflow: hidden;     /* IMPORTANT: crops the image */
+  position: relative;   /* needed for next/image fill */
+
   background: #dedede;
   display: grid;
   place-items: center;
-  color: var(--color-brand-dark);
-  font-weight: 800;
-  letter-spacing: 1px;
+}
+
+/* =========================
+   NEW ABOUT LAYOUT (2 rows)
+   ========================= */
+
+.aboutLayout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-rows: auto auto;
+  column-gap: 60px;
+  row-gap: 40px;
+  align-items: start;
+
+  /* pulls content away from edges like the screenshot */
+  padding-inline: clamp(24px, 6vw, 120px);
+}
+
+.aboutTopLeft { grid-column: 1; grid-row: 1; }
+.aboutTopRight { grid-column: 2; grid-row: 1; display: grid; justify-content: end; }
+
+.aboutBottomLeft { grid-column: 1; grid-row: 2; padding: 30px 0 0 0;}
+.aboutBottomRight { 
+  grid-column: 2; 
+  grid-row: 2; 
+  text-align: right;
+  padding: 30px 0 0 0;
+}
+
+/* Big circle on the right */
+.aboutCircleBig {
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: #dedede;
+}
+
+/* Two overlapping circles bottom-left */
+.aboutCircleStack {
+  position: relative;
+  width: 360px;
+  height: 260px;
+  bottom: 40px;
+}
+
+.aboutCircleSmall {
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: absolute;
+  background: #dedede;
+}
+
+.aboutCircleOverlap {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: absolute;
+  background: #ffffff;
+  left: 245px;
+  top: 115px;
+}
+
+.aboutCircleSmall2 {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: absolute;
+  background: #dedede;
+  left: 250px;
+  top: 120px;
 }
 
 /* Divider */
 .redDivider {
   height: 1px;
   background: rgba(177, 15, 15, 0.6);
-  width: min(var(--container-max), 92vw);
-  margin: 0 auto 0;
+  width: min(var(--container-wide), 92vw);
+  margin: 50px auto 0;
 }
 
 /* ===== CONTACT ===== */
@@ -155,7 +212,7 @@
 }
 
 .contactTop {
-  width: min(var(--container-max), 92vw);
+  width: min(var(--container-wide), 92vw);
   margin: 0 auto;
   padding: 60px 0 30px;
   text-align: center;
@@ -175,7 +232,7 @@
   max-width: 720px;
   color: var(--color-muted-2);
   line-height: 1.7;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-lg);
 }
 
 .contactGrid {
@@ -195,7 +252,7 @@
   margin: 0;
   color: var(--color-brand);
   font-weight: 800;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-lg);
   letter-spacing: 0.2px;
 }
 
@@ -210,7 +267,7 @@
   margin: 0;
   color: #444;
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -222,9 +279,9 @@
 .hoursDays { color: #333; font-weight: var(--fw-black); }
 
 .contactLink {
-  color: #444;
+  color: var(--color-brand);
   font-weight: 800;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-lg);
   text-decoration: none;
 }
 .contactLink:hover { text-decoration: underline; }
@@ -243,22 +300,113 @@
 }
 
 @media (max-width: 1200px) {
-  /* no-op */
+  .contactGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 992px) {
   .heroTitle { font-size: 34px; }
-  .aboutGrid { grid-template-columns: 1fr; }
-  .aboutRight { justify-content: center; }
+  .heroSubtitle { font-size: 24px; }
+
+    /* About becomes a single centered column */
+  .aboutLayout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    row-gap: 26px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  /* Force the order to match your screenshot */
+  .aboutTopLeft     { grid-column: 1; grid-row: 1; }
+  .aboutTopRight    { grid-column: 1; grid-row: 2; justify-content: center; }
+  .aboutBottomRight { grid-column: 1; grid-row: 3; text-align: center; }
+  .aboutBottomLeft  { grid-column: 1; grid-row: 4; }
+
+  /* Ensure the left block actually centers nicely */
+  .aboutTopLeft {
+    display: grid;
+    justify-items: center;
+  }
+
+  /* Big circle size + spacing like the mock */
+  .aboutCircleBig {
+    width: 260px;
+    height: 260px;
+  }
+
+  /* Lorum ipsum block centered */
+  .aboutBottomRight {
+    display: grid;
+    justify-items: center;
+  }
+
+  /* Two-circle stack centered under Lorum */
+  .aboutCircleStack {
+    width: 300px;
+    height: 230px;
+    margin-top: 6px;
+  }
+
+  .aboutCircleSmall {
+    width: 260px;
+    height: 260px;
+    left: -20px;
+    top: 0px;
+  }
+
+  .aboutCircleOverlap {
+    width: 180px;
+    height: 180px;
+    left: 155px;
+    top: 115px;
+  }
+
+  .aboutCircleSmall2 {
+    width: 170px;
+    height: 170px;
+    left: 160px;
+    top: 120px;
+  }
 }
 
 @media (max-width: 768px) {
-  .contactGrid { grid-template-columns: repeat(2, 1fr); }
   .contactMapWrap { height: var(--map-height-mobile); padding-bottom: 650px;}
 
 }
 
-@media (max-width: 480px) {
+@media (max-width: 625px) {
   .contactGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding-top: var(--header-offset-mobile);
+  }
   .contactMapWrap { height: var(--map-height-mobile); padding-bottom: 650px;}
+
+  .aboutCircleBig {
+    width: 200px;
+    height: 200px;
+  }
+
+  .aboutCircleSmall {
+    width: 200px;
+    height: 200px;
+    left: 20px;
+    top: 0px;
+  }
+
+  .aboutCircleOverlap {
+    width: 105px;
+    height: 105px;
+    left: 157px;
+    top: 107px;
+  }
+
+  .aboutCircleSmall2 {
+    width: 100px;
+    height: 100px;
+    left: 160px;
+    top: 110px;
+  }
 }

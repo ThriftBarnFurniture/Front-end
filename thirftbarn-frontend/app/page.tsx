@@ -52,7 +52,7 @@ export default function Home() {
             <h1 className={styles.heroTitle}>FURNITURE PROBLEMS?</h1>
             <p className={styles.heroSubtitle}>We have the solution.</p>
 
-            <a className={styles.heroButton} href="#visit">
+            <a className={styles.heroButton} href="https://www.facebook.com/groups/961935455087635/" target="_blank" rel="noopener noreferrer">
               Visit the Barn today!
             </a>
           </div>
@@ -62,9 +62,12 @@ export default function Home() {
       {/* ===== ABOUT SECTION ===== */}
       <section id="about" className={styles.aboutSection}>
         <div className={styles.aboutPanel}>
-          <div className={styles.aboutGrid}>
-            {/* Left text block */}
-            <div className={styles.aboutLeft}>
+
+          {/* NEW: 2-row layout like the screenshot */}
+          <div className={styles.aboutLayout}>
+
+            {/* TOP LEFT */}
+            <div className={styles.aboutTopLeft}>
               <div className={styles.aboutIcon}>
                 <Image src="/Icon-Leaf.svg" alt="Maple" width={40} height={40} />
               </div>
@@ -78,32 +81,69 @@ export default function Home() {
                 community building go hand-in-hand. By championing the recirculation of quality
                 used furniture, we see a future where Canadian owned businesses pave the path
                 toward a healthier planet. When Canadians think of thrift, they will think of
-                Thrift Barn Furniture!
+                Barn Furniture!
               </p>
             </div>
 
-            {/* Right large photo circle */}
-            <div className={styles.aboutRight}>
-              <div className={styles.bigCircle}>
-                <div className={styles.heroImage}>
+            {/* TOP RIGHT (big circle) */}
+            <div className={styles.aboutTopRight}>
+              <div className={styles.aboutCircleBig}>
+                <Image
+                  src="/barn-front.jpg"
+                  alt="Thrift Barn Furniture"
+                  fill
+                  priority
+                  sizes="(max-width: 992px) 280px, 340px"
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
+            </div>
+
+            {/* BOTTOM LEFT (two overlapping circles) */}
+            <div className={styles.aboutBottomLeft}>
+              <div className={styles.aboutCircleStack}>
+                <div className={styles.aboutCircleSmall}>
                   <Image
-                    src="/TBF_WideLogo.svg"
-                    alt="Thrift Barn Furniture"
-                    width={500}        // intrinsic width
-                    height={160}       // intrinsic height
-                    sizes="(max-width: 768px) 200px, 300px"
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                    }}
-                    priority
+                    src="/furniture.jpg"
+                    alt="Furniture"
+                    fill
+                    sizes="(max-width: 992px) 180px, 210px"
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
+
+                <div className={styles.aboutCircleOverlap} />
+                <div className={`${styles.aboutCircleSmall2}`}>
+                  <Image
+                    src="/inside_barn.jpg"
+                    alt="Furniture detail"
+                    fill
+                    sizes="(max-width: 992px) 180px, 210px"
+                    style={{ objectFit: "cover" }}
                   />
                 </div>
               </div>
             </div>
+
+            {/* BOTTOM RIGHT */}
+            <div className={styles.aboutBottomRight}>
+              <h3 className={styles.aboutTitle}>What We Do</h3>
+              <p className={styles.aboutText}>
+                On top of providing quality used furniture <br /> at unbeatable prices, 
+                we provide services such as:
+                <ul className={styles.aboutList}>
+                  <li>Delivery right to your door</li>
+                  <li>Furniture pick-up</li>
+                  <li>Furniture Removal</li>
+                  <li>Assembly & Repairs</li>
+                </ul>
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
+
 
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />
@@ -115,7 +155,7 @@ export default function Home() {
           <div className={styles.contactTop}>
             <h2 className={styles.contactTitle}>GET IN TOUCH</h2>
             <p className={styles.contactBlurb}>
-              Have a question about inventory, deliveries, or store hours? Reach out anytime — we’re happy to help.
+              Have a question about inventory, deliveries, or store hours? <br/>Reach out anytime — we’re happy to help.
             </p>
 
             <div className={styles.contactGrid}>
@@ -123,12 +163,12 @@ export default function Home() {
               <div className={styles.contactItem}>
                 <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
                 <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
-                <p className={styles.contactValue}>{myStoreInfo.phone}</p>
+                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">{myStoreInfo.phone}</a>
               </div>
 
               {/* Address */}
               <div className={styles.contactItem}>
-                <Image src="/Icon-Barn.svg" alt="Address" width={48} height={48} />
+                <Image src="/Icon-Barn.svg" alt="Address" width={80} height={80} />
                 <p className={styles.contactLabel}>Address:</p>
                 <p className={styles.contactValueSmall}>
                   {myStoreInfo.address}
@@ -139,7 +179,7 @@ export default function Home() {
 
               {/* Hours */}
               <div className={styles.contactItem}>
-                <Image src="/Icon-Clock.svg" alt="Hours" width={48} height={48} />
+                <Image src="/Icon-Clock.svg" alt="Hours" width={75} height={75} />
                 <p className={styles.contactLabel}>In-Store Hours:</p>
                 <div className={styles.hoursList}>
                   {myStoreInfo.hours.map((h) => (
@@ -152,7 +192,7 @@ export default function Home() {
 
               {/* Email */}
               <div className={styles.contactItem}>
-                <Image src="/Icon-Email.svg" alt="Email" width={48} height={48} />
+                <Image src="/Icon-Email.svg" alt="Email" width={70} height={70} />
                 <p className={styles.contactLabel}>Email:</p>
                 <a className={styles.contactLink} href={`mailto:${myStoreInfo.email}`}>
                   {myStoreInfo.email}
