@@ -2,6 +2,20 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/navbar/navbar";
 import { Footer } from "@/components/footer/footer";
+import { Permanent_Marker, Montserrat } from "next/font/google";
+
+const permanentMarker = Permanent_Marker({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-permanent-marker",
+  display: "swap",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://thriftbarnfurniture.ca"),
@@ -83,7 +97,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${permanentMarker.variable} ${montserrat.variable}`}>
       <body className="flex min-h-full flex-col bg-white">
         <Navbar />
         <main className="flex-grow bg-white">{children}</main>
