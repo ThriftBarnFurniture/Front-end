@@ -107,7 +107,7 @@ export const Footer = () => {
           </div>
           <div className={styles.colPolicy}>
             <div className={styles.policyList}>
-              <Link href="/privacy-policy" className={styles.footerLink}>
+              <Link href="/privacy" className={styles.footerLink}>
                 Privacy Policy
               </Link>
               <Link href="/terms" className={styles.footerLink}>
