@@ -1,6 +1,6 @@
 import styles from "./privacy.module.css";
 
-export default function PrivacyPage() {
+export default function Privacy() {
   return (
     <main className={styles.container}>
       <h1 className={styles.title}>Privacy Policy</h1>
