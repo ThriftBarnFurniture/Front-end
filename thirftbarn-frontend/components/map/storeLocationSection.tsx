@@ -35,7 +35,7 @@ const StoreLocationSection: React.FC<StoreLocationSectionProps> = ({
     <section className="store-location-section" id="location">
       <div className="section-container">
         <div className="section-header">
-          <h2 className="section-title">Visit Our Store</h2>
+          <h2 className="section-title">Visit Our Store.</h2>
           <p className="section-subtitle">
             Come see us in person! We&apos;d love to help you find exactly what you&apos;re looking for.
           </p>

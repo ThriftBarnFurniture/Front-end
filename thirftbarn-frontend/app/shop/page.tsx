@@ -10,7 +10,7 @@ export default function ShopPage() {
           <div className={styles.construction}>
             <span className={styles.hammer}>🔨</span>
           </div>
-          <div className={styles.badge}>UNDER CONSTRUCTION</div>
+          <div className={styles.badge}>UNDER CONSTRUCTION.</div>
           <p className={styles.subtitle}>
             We’re working diligently to get the online store running for you. <br/>
             In the meantime, you can browse all of our products on Facebook.

@@ -19,6 +19,16 @@ export const Footer = () => {
             <div className={styles.copyright}>
               © Thrift Barn Furniture, {new Date().getFullYear()}
             </div>
+            <div className={styles.colPolicyLarge}>
+              <div className={styles.policyListLarge}>
+                <Link href="/privacy-policy" className={styles.footerLink}>
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className={styles.footerLink}>
+                  Terms and Agreement
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* COL 2: Links */}
@@ -41,27 +51,23 @@ export const Footer = () => {
             <div className={styles.contactGrid}>
               <div className={styles.contactLabel}>ADDRESS:</div>
               <div className={styles.contactValue}>
-                123 Street Name,<br />
-                City Name, Province,<br />
-                A1B 2C3
+                2786 ON-34, Hawkesbury, ON, K6A 2R2
               </div>
 
               <div className={styles.contactLabel}>IN-STORE HOURS:</div>
               <div className={styles.contactValue}>
                 <div className={styles.hoursRow}>
-                  <span>Weekdays:</span>
-                  <span>8:00 - 8:00pm</span>
+                  <span>Weekdays: Closed</span>
                 </div>
                 <div className={styles.hoursRow}>
-                  <span>Weekends:</span>
-                  <span>8:00 - 8:00pm</span>
+                  <span>Weekends: 12:00-5:00 PM</span>
                 </div>
               </div>
 
               <div className={styles.contactLabel}>PHONE:</div>
               <div className={styles.contactValue}>
                 <a className={styles.footerLink} href="tel:6139153889">
-                  613-915-3889
+                  613-915-DUTY (3889)
                 </a>
               </div>
             </div>
@@ -98,7 +104,8 @@ export const Footer = () => {
                 Find us on Facebook
               </a>
             </div>
-
+          </div>
+          <div className={styles.colPolicy}>
             <div className={styles.policyList}>
               <Link href="/privacy-policy" className={styles.footerLink}>
                 Privacy Policy

@@ -6,8 +6,8 @@
 
 :root {
   /* Fonts */
-  --font-sans: "Permanent Marker", cursive;
-  --font-mono: "Montserrat", sans-serif;
+  --font-header: "Permanent Marker", cursive;
+  --font-text: "Montserrat", sans-serif;
 
   /* Colors */
   --color-bg: #ffffff;

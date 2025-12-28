@@ -75,7 +75,7 @@
   grid-template-columns: auto 1fr auto; /* logo | center space | cart */
   align-items: center;
 
-  padding: 16px 26px;
+  padding: 16px 16px;
   max-width: var(--container-wide);
   margin: 0 auto;
 
@@ -94,6 +94,7 @@
   display: flex;
   justify-content: center;    /* center links inside middle space */
   align-items: center;
+  padding-right: 120px;
   gap: 2rem;
 }
 
@@ -108,7 +109,7 @@
 .logo:hover { opacity: 0.88; }
 
 .logoImage {
-  width: 180px;
+  width: 160px;
   height: auto;
   max-width: 100%;
   transition: width var(--dur-3) var(--ease);
@@ -245,22 +246,27 @@
    ========================================================= */
 
 @media (max-width: 1200px) {
-  .navLinks { gap: 1.2rem; }
+  .navLinks { gap: 1.3rem; padding-right: 115; }
 }
 
 @media (max-width: 992px) {
   .logoImage { width: 150px; }
   .headerCompact .logoImage { width: 125px; }
-  .navLinks { gap: 0.9rem; }
+  .navLinks { gap: 0.9rem; padding-right: 90px;}
 }
 
 @media (max-width: 768px) {
   .navbar { padding: 12px 14px; }
   .headerCompact .navbar { padding: 9px 12px; }
-  .navLinks { gap: 0.7rem; }
+  .navLinks { gap: 0.7rem; padding-right: 100px;}
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
+  .logoImage { width: 110px; }
+  .navLinks { gap: 0.4rem; padding-right: 60px;}
+}
+
+@media (max-width: 500px) {
   .logoImage { width: 135px; }
   .headerCompact .logoImage { width: 105px; }
 

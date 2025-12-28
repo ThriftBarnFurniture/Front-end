@@ -11,9 +11,9 @@ export default function Home() {
     phone: '(613) 915-3889',
     email: 'thriftbarnfurniture@gmail.com',
     hours: [
-      { days: 'Monday - Friday', time: '9:00 AM - 7:00 PM' },
-      { days: 'Saturday', time: '10:00 AM - 6:00 PM' },
-      { days: 'Sunday', time: 'Closed' },
+      { days: 'Monday - Friday', time: 'Closed' },
+      { days: 'Saturday', time: '12:00 PM - 5:00 PM' },
+      { days: 'Sunday', time: '12:00 PM - 5:00 PM' },
     ],
     coordinates: {
       lat: 45.57579587217674, 
@@ -50,10 +50,10 @@ export default function Home() {
 
           <div className={styles.heroCtaBox}>
             <h1 className={styles.heroTitle}>FURNITURE PROBLEMS?</h1>
-            <p className={styles.heroSubtitle}>We have the solution.</p>
+            <p className={styles.heroSubtitle}>We have the solution!</p>
 
             <a className={styles.heroButton} href="https://www.facebook.com/groups/961935455087635/" target="_blank" rel="noopener noreferrer">
-              Visit the Barn today!
+              Visit THE BARN today
             </a>
           </div>
         </div>
@@ -73,15 +73,15 @@ export default function Home() {
               </div>
 
               <h2 className={styles.aboutTitle}>
-                DISCOVER TREASURES IN <br /> EVERY CORNER.
+                DISCOVER TREASURES IN <br /> EVERY CORNER .
               </h2>
 
               <p className={styles.aboutText}>
                 At Thrift Barn Furniture, we envision a Canada where sustainable living and
                 community building go hand-in-hand. By championing the recirculation of quality
                 used furniture, we see a future where Canadian owned businesses pave the path
-                toward a healthier planet. When Canadians think of thrift, they will think of
-                Barn Furniture!
+                toward a healthier planet. When Canadians think thrift, they think <br/>
+                Thrift Barn Furniture!
               </p>
             </div>
 
@@ -89,11 +89,11 @@ export default function Home() {
             <div className={styles.aboutTopRight}>
               <div className={styles.aboutCircleBig}>
                 <Image
-                  src="/barn-front.jpg"
+                  src="/inside_barn_closed.jpg"
                   alt="Thrift Barn Furniture"
                   fill
                   priority
-                  sizes="(max-width: 992px) 280px, 340px"
+                  sizes="(max-width: 992px) 340px, 680px"
                   style={{ objectFit: "cover" }}
                 />
               </div>
@@ -104,10 +104,10 @@ export default function Home() {
               <div className={styles.aboutCircleStack}>
                 <div className={styles.aboutCircleSmall}>
                   <Image
-                    src="/furniture.jpg"
+                    src="/snowbarn.jpg"
                     alt="Furniture"
                     fill
-                    sizes="(max-width: 992px) 180px, 210px"
+                    sizes="(max-width: 992px) 340px, 680px"
                     style={{ objectFit: "cover" }}
                   />
                 </div>
@@ -115,7 +115,7 @@ export default function Home() {
                 <div className={styles.aboutCircleOverlap} />
                 <div className={`${styles.aboutCircleSmall2}`}>
                   <Image
-                    src="/inside_barn.jpg"
+                    src="/furniture.jpg"
                     alt="Furniture detail"
                     fill
                     sizes="(max-width: 992px) 180px, 210px"
@@ -127,17 +127,18 @@ export default function Home() {
 
             {/* BOTTOM RIGHT */}
             <div className={styles.aboutBottomRight}>
-              <h3 className={styles.aboutTitle}>What We Do</h3>
+              <h3 className={styles.aboutTitle}>What We Do.</h3>
               <p className={styles.aboutText}>
-                On top of providing quality used furniture <br /> at unbeatable prices, 
-                we provide services such as:
-                <ul className={styles.aboutList}>
-                  <li>Delivery right to your door</li>
-                  <li>Furniture pick-up</li>
-                  <li>Furniture Removal</li>
-                  <li>Assembly & Repairs</li>
-                </ul>
+                Aside from providing our community with quality, ethically sourced, pre-loved 
+                furniture at a reasonable price, we provide services such as:
               </p>
+              <ul className={styles.aboutList}>
+                <li>Furniture Removal / Clear Out</li>
+                <li>Moving Services</li>
+                <li>Junk Removal Services</li>
+                <li>Delivery & Distribution</li>
+                <li>Assembly & Repairs</li>
+              </ul>
             </div>
 
           </div>
@@ -153,9 +154,9 @@ export default function Home() {
         <div className={styles.contactPanel}>
           {/* Top “Get in touch” block */}
           <div className={styles.contactTop}>
-            <h2 className={styles.contactTitle}>GET IN TOUCH</h2>
+            <h2 className={styles.contactTitle}>GET IN TOUCH.</h2>
             <p className={styles.contactBlurb}>
-              Have a question about inventory, deliveries, or store hours? <br/>Reach out anytime — we’re happy to help.
+              Have questions? <br/>Reach out anytime — we’re happy to help.
             </p>
 
             <div className={styles.contactGrid}>
@@ -163,7 +164,7 @@ export default function Home() {
               <div className={styles.contactItem}>
                 <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
                 <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
-                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">{myStoreInfo.phone}</a>
+                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">(613) 915-DUTY</a>
               </div>
 
               {/* Address */}

@@ -24,10 +24,20 @@
 
 .colTitle {
   font-weight: 800;
+  font-family: var(--font-header);
   letter-spacing: 0.08em;
   font-size: 12px;
   opacity: 0.95;
   text-transform: uppercase;
+}
+
+.colPolicy {
+  display: none;
+}
+
+.policyListLarge {
+  display: flex;
+  gap: 18px;
 }
 
 .colUnderline {
@@ -113,36 +123,85 @@
 
 
 /* =========================================================
-   Media (1600 / 1200 / 992 / 768 / 480)
+   Media (1200 / 992 / 768 / 480)
    ========================================================= */
-
-@media (max-width: 1600px) {}
 
 @media (max-width: 1200px) {}
 
 @media (max-width: 992px) {
   .bottomInner {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Links | Contact | Follow */
+    gap: 24px;
+    text-align: left;
+  }
+
+  .policyListLarge {
+    display: none;
+  }
+
+  /* First row: main columns */
+  .colLinks   { grid-column: 1; }
+  .colContact { grid-column: 2; }
+  .colFollow  { grid-column: 3; }
+
+  /* Second row: brand */
+  .colBrand {
+    grid-column: 1 / -1;
     text-align: center;
-    row-gap: 12px;
+    margin-top: 20px;
   }
 
-  .bottomLeft,
-  .followTitle,
-  .followUnderline,
-  .bottomMid,
-  .bottomRight {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: center;
-  }
-
-  .bottomRight {
+  /* Third row: policy */
+  .colPolicy {
+    grid-column: 1 / -1;
+    display: flex;
     justify-content: center;
+    gap: 18px;
   }
+
+  .brandLogo{
+    margin: 0 auto;
+  }
+  .colLinks   { order: 1; }
+  .colContact { order: 2;}
+  .colFollow  { order: 3; }
+  .colBrand   { order: 4; }
+  .colPolicy  { order: 5; }
+
+  .policyList{
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+  }
+  
 }
 
-@media (max-width: 768px) {}
+
+@media (max-width: 768px) {
+    .bottomInner {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .colContact { display: none;}
+
+  .followRow {
+    justify-content: center;
+  }
+
+  /* Optional: keep blocks from stretching full width */
+  .colLinks, .colContact, .colFollow, .colBrand, .colPolicy {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .colBrand {
+    width: 190px;
+  }
+}
 
 @media (max-width: 480px) {}

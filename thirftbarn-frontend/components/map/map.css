@@ -20,13 +20,6 @@
   margin-bottom: 0.75rem;
 }
 
-.popup-header h3 {
-  margin: 0;
-  font-size: 1.125rem;
-  color: #1a1a2e;
-  font-weight: var(--fw-bold);
-}
-
 .popup-logo {
   width: 32px;
   height: 32px;
@@ -81,20 +74,74 @@
 
 .directions-link {
   display: inline-block;
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
-  background: var(--color-link);
-  color: #fff;
-  text-decoration: none;
-  border-radius: 6px;
+  margin: 1rem auto 0;   /* centers horizontally */
+  padding: 0.6rem 1.2rem;
+  justify-content: center;
+
+  background: #c1121f;   /* red */
+  color: #ffffff;       /* white text */
+  font-family: var(--font-text);
   font-size: 0.875rem;
   font-weight: 600;
-  transition: background var(--dur-1) var(--ease);
+  border-radius: 6px;
+  margin-left: 50px;
 }
 
-.directions-link:hover {
-  background: #1d4ed8;
+
+.directions-link,
+.directions-link:visited,
+.directions-link:hover,
+.directions-link:active,
+.directions-link:focus {
+  color: #ffffff !important;
+  text-decoration: none;
 }
+
+
+/* =========================================================
+   Store Location Section
+   ========================================================= */
+
+.leaflet-popup-content h3 {
+  margin: 0;
+  font-family: var(--font-header);
+  color: var(--color-brand);
+  font-size: 1rem;
+}
+
+.leaflet-popup-content p {
+  font-family: var(--font-text);
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+/* Secondary emoji pins */
+.emoji-pin {
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid #1a1a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-pin span {
+  transform: rotate(45deg); /* counter-rotate emoji */
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Optional: different color for HQ */
+.emoji-pin.hq, .emoji-pin.dist {
+  border-color: var(--color-brand); /* blue */
+  background-color: var(--color-brand);}
+
+
+
 
 /* =========================================================
    Media (1600 / 1200 / 992 / 768 / 480)
