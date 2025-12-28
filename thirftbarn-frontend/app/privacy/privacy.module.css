@@ -1,0 +1,43 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 8rem 1.5rem;
+  font-family: var(--font-text);
+  line-height: 1.7;
+  color: #1f2937;
+}
+
+.title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #c1121f;
+  margin-bottom: 0.5rem;
+}
+
+.updated {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+/* Scoped element styles */
+.container h2 {
+  margin-top: 2.2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.container p {
+  margin: 0.75rem 0;
+}
+
+.link {
+  color: #c1121f;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
