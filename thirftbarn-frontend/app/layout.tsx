@@ -72,7 +72,7 @@ export const metadata: Metadata = {
       "Shop affordable, vintage, and second-hand furniture across Canada. Thrift Barn Furniture gives quality furniture a second life.",
     images: [
       {
-        url: "/og-image.svg",
+        url: "/crest.jpg",
         width: 1200,
         height: 630,
         alt: "Thrift Barn Furniture",
