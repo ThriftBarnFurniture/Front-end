@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     locale: "en_CA",
     url: "https://thriftbarnfurniture.ca",
     siteName: "Thrift Barn Furniture",
-    title: "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+    title: "Thrift Barn Furniture | Affordable & Accessible Furniture Recycling in Canada",
     description:
       "Shop affordable, vintage, and second-hand furniture across Canada. Thrift Barn Furniture gives quality furniture a second life.",
     images: [

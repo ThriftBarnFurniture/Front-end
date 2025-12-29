@@ -53,7 +53,7 @@ export default function Home() {
             <p className={styles.heroSubtitle}>We have the solution!</p>
 
             <a className={styles.heroButton} href="https://www.facebook.com/groups/961935455087635/" target="_blank" rel="noopener noreferrer">
-              Visit THE BARN today
+              Shop Our Massive Inventory
             </a>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default function Home() {
               </div>
 
               <h2 className={styles.aboutTitle}>
-                DISCOVER TREASURES IN <br /> EVERY CORNER .
+                DISCOVER TREASURES IN <br /> EVERY CORNER.
               </h2>
 
               <p className={styles.aboutText}>
