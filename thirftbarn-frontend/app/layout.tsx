@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/navbar/navbar";
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Footer } from "@/components/footer/footer";
 import { Permanent_Marker, Montserrat } from "next/font/google";
 
@@ -104,6 +105,7 @@ export default function RootLayout({
         <main className="flex-grow bg-white">{children}</main>
         <Footer />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
