@@ -57,7 +57,7 @@ export const Footer = () => {
               <div className={styles.contactLabel}>IN-STORE HOURS:</div>
               <div className={styles.contactValue}>
                 <div className={styles.hoursRow}>
-                  <span>Weekdays: Closed</span>
+                  <span>Weekdays: By Appointment</span>
                 </div>
                 <div className={styles.hoursRow}>
                   <span>Weekends: 12:00-5:00 PM</span>
@@ -67,7 +67,7 @@ export const Footer = () => {
               <div className={styles.contactLabel}>PHONE:</div>
               <div className={styles.contactValue}>
                 <a className={styles.footerLink} href="tel:6139153889">
-                  613-915-DUTY (3889)
+                  613-915-3889 (DUTY)
                 </a>
               </div>
             </div>

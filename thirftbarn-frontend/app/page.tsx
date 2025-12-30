@@ -11,7 +11,7 @@ export default function Home() {
     phone: '(613) 915-3889',
     email: 'thriftbarnfurniture@gmail.com',
     hours: [
-      { days: 'Monday - Friday', time: 'Closed' },
+      { days: 'Monday - Friday', time: 'By Appointment' },
       { days: 'Saturday', time: '12:00 PM - 5:00 PM' },
       { days: 'Sunday', time: '12:00 PM - 5:00 PM' },
     ],
@@ -164,7 +164,7 @@ export default function Home() {
               <div className={styles.contactItem}>
                 <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
                 <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
-                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">(613) 915-DUTY</a>
+                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">613-915-3889 (DUTY)</a>
               </div>
 
               {/* Address */}
