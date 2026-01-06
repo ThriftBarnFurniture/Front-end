@@ -1,3 +1,7 @@
+/*
+Profile page: requires login, then displays basic account info pulled from Supabase user metadata (name/email).
+*/
+
 import Link from "next/link";
 
 import styles from "../account.module.css";

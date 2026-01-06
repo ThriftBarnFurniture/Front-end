@@ -1,3 +1,7 @@
+/*
+Server helper guard: gets the Supabase user; if not logged in, redirects to /login. Returns { supabase, user }.
+*/
+
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/server";

@@ -1,3 +1,7 @@
+/*
+Orders page placeholder: requires login, but currently shows “no orders yet” messaging until you store orders in DB.
+*/
+
 import Link from "next/link";
 
 import styles from "../account.module.css";

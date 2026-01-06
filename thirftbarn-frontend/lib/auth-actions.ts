@@ -1,3 +1,13 @@
+/*
+Server actions for authentication:
+
+signup(formData): calls Supabase signUp + sets metadata (name), then redirects
+
+login(formData): email/password sign-in, redirects on success/failure
+
+signInWithGoogle(): starts Google OAuth flow and redirects to provider URL
+*/
+
 "use server";
 
 import { redirect } from "next/navigation";
@@ -42,7 +52,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/account");
+  redirect("/");
 }
 
 export async function signInWithGoogle() {
@@ -52,7 +62,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl}/auth/callback`,
+      redirectTo: `${siteUrl}`,
     },
   });
 

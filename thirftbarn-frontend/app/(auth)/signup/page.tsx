@@ -1,3 +1,7 @@
+/*
+Signup page shell/layout: renders the signup UI.
+*/
+
 import React from 'react'
 import { SignUpForm } from './components/SignUpForm'
 

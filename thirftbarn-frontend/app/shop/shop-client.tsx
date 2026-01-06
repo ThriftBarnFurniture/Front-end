@@ -1,3 +1,7 @@
+/*
+Client-side shop/catalog UI: fetches/displays products (via Supabase client), supports searching/filtering in-memory, and adds items to a localStorage cart (tbf_cart).
+*/
+
 "use client";
 
 import Image from "next/image";

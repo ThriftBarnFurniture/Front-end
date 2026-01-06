@@ -1,3 +1,7 @@
+/*
+Browser/client Supabase factory (createBrowserClient) for use in client components.
+*/
+
 import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {

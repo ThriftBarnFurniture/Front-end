@@ -1,3 +1,7 @@
+/*
+Signup form UI: collects user info (email/password + name fields) and submits to the signup server action.
+*/
+
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";

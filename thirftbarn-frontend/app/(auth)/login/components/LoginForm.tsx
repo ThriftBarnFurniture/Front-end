@@ -1,3 +1,7 @@
+/*
+The actual email/password login form UI (inputs + submit). It’s the form component used on the login page.
+*/
+
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";

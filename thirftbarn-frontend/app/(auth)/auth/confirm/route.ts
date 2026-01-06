@@ -1,3 +1,8 @@
+/*
+Email confirmation endpoint: reads token_hash, type, and next from the URL, 
+calls Supabase verifyOtp, then redirects to next on success or /error on failure.
+*/
+
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
 

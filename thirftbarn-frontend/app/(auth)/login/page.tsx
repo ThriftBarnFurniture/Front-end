@@ -1,30 +1,34 @@
+/*
+  Login page shell/layout: renders the login UI (and any surrounding page styling).
+*/
+
 import React from "react";
 import { LoginForm } from "./components/LoginForm";
+import styles from "./login.module.css";
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams?: { error?: string };
-}) {
+type LoginPageProps = {
+  searchParams?: Promise<{ error?: string; message?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const sp = (await searchParams) ?? {};
+  const error = sp.error;
+  const message = sp.message;
+
   return (
-    <main
-      style={{
-        paddingTop: "calc(var(--header-offset, 120px) + var(--space-8))",
-        paddingBottom: "var(--space-10)",
-        background: "var(--color-bg)",
-      }}
-      className="min-h-svh flex flex-col items-center justify-start px-5"
-    >
-      {searchParams?.error ? (
+    <main className={styles.page}>
+      {error ? (
         <div
           className="mb-4 w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-bold"
-          style={{
-            borderColor: "#c1121f",
-            color: "#c1121f",
-            background: "color-mix(in srgb, #c1121f 10%, transparent)",
-          }}
+          style={{ borderColor: "#b00020", color: "#b00020" }}
         >
-          {searchParams.error}
+          {decodeURIComponent(error)}
+        </div>
+      ) : null}
+
+      {message ? (
+        <div className="mb-4 w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-bold">
+          {decodeURIComponent(message)}
         </div>
       ) : null}
 
@@ -32,3 +36,4 @@ export default function LoginPage({
     </main>
   );
 }
+  

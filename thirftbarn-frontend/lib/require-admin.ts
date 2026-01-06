@@ -1,3 +1,7 @@
+/*
+Server helper guard: ensures user is logged in, then checks profiles.is_admin in Supabase. Redirects away if not an admin. Returns { supabase, user }.
+*/
+
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 

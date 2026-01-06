@@ -1,3 +1,7 @@
+/*
+Client button that triggers “Sign in with Google” (OAuth flow). Uses client-side behavior (click handlers, redirects).
+*/
+
 "use client";
 
 import { signInWithGoogle } from "@/lib/auth-actions";

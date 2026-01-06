@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
 import { createClient } from "@/utils/supabase/client";
@@ -9,6 +9,7 @@ import { createClient } from "@/utils/supabase/client";
 export const Navbar = () => {
   const [compact, setCompact] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -17,6 +18,10 @@ export const Navbar = () => {
   const supabase = useMemo(() => createClient(), []);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  // ---- dropdown menu state ----
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountWrapRef = useRef<HTMLDivElement | null>(null);
+
 
   const goToSection = (id: string) => {
     if (pathname !== "/") {
@@ -52,18 +57,40 @@ export const Navbar = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ---- NEW: load user + react to login/logout ----
+  // ---- close account menu on outside click / Escape ----
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!accountOpen) return;
+      const target = e.target as Node;
+      if (accountWrapRef.current && !accountWrapRef.current.contains(target)) {
+        setAccountOpen(false);
+      }
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccountOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
+
+
+  // ---- load user + react to login/logout ----
   useEffect(() => {
     let mounted = true;
 
     const load = async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getSession();
       if (!mounted) return;
 
-      const user = data.user;
+      const user = data.session?.user ?? null;
       setIsSignedIn(!!user);
 
-      // Prefer name, then email
       const name =
         (user?.user_metadata?.full_name as string | undefined) ||
         (user?.user_metadata?.name as string | undefined) ||
@@ -72,6 +99,7 @@ export const Navbar = () => {
 
       setDisplayName(name);
     };
+
 
     load();
 
@@ -94,12 +122,55 @@ export const Navbar = () => {
     };
   }, [supabase]);
 
+  // ---- NEW: load admin flag from profiles.is_admin ----
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdmin = async () => {
+      if (!isSignedIn) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (!cancelled) {
+        setIsAdmin(!error && !!profile?.is_admin);
+      }
+    };
+
+    loadAdmin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, supabase]);
+
   const onAccountClick = () => {
     setMobileOpen(false);
     // pick ONE:
-    router.push("/account"); // if you create app/account/page.tsx as a hub
-    // router.push("/account/profile"); // if you want direct profile
+    router.push("/account");
   };
+
+  const onSignOutClick = async () => {
+    setMobileOpen(false);
+    setAccountOpen(false);
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
 
   return (
     <header className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
@@ -157,31 +228,69 @@ export const Navbar = () => {
             <img src="/Icon-Cart.svg" alt="Cart" className={styles.cartIcon} />
           </Link>
 
-          {/* NEW: User logo / name */}
-          <button
-            type="button"
-            className={styles.userButton}
-            aria-label={isSignedIn ? "Open account" : "Sign in"}
-            onClick={() => {
-              if (!isSignedIn) router.push("/login");
-              else onAccountClick();
-            }}
-          >
-            {/* Signed out -> character image */}
-            {!isSignedIn ? (
-              <img
-                src="/Icon-User.svg"
-                alt="Guest"
-                className={styles.userAvatar}
-              />
-            ) : (
-              <>
+          {/* NEW: User logo / name + menu */}
+          <div className={styles.accountWrap} ref={accountWrapRef}>
+            <button
+              type="button"
+              className={styles.userButton}
+              aria-label={isSignedIn ? "Open account menu" : "Sign in"}
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              onClick={() => {
+                if (!isSignedIn) router.push("/login");
+                else setAccountOpen((v) => !v);
+              }}
+            >
+              {/* Signed out -> character image */}
+              {!isSignedIn ? (
+                <img src="/Icon-User.svg" alt="Guest" className={styles.userAvatar} />
+              ) : (
                 <span className={styles.userAvatarCircle} aria-hidden="true">
                   {(displayName?.trim()?.[0] ?? "U").toUpperCase()}
                 </span>
-              </>
+              )}
+            </button>
+
+            {/* Dropdown (signed in only) */}
+            {isSignedIn && accountOpen && (
+              <div className={styles.accountMenu} role="menu">
+                <button
+                  type="button"
+                  className={styles.accountMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountOpen(false);
+                    onAccountClick();
+                  }}
+                >
+                  My account
+                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className={styles.accountMenuItem}
+                    onClick={() => {
+                      setAccountOpen(false);
+                      router.push("/admin/products");
+                    }}
+                  >
+                    Manage products
+                  </button>
+                  )
+                }
+                <div className={styles.accountMenuDivider} />
+                <button
+                  type="button"
+                  className={`${styles.accountMenuItem} ${styles.accountMenuDanger}`}
+                  role="menuitem"
+                  onClick={onSignOutClick}
+                >
+                  Sign out
+                </button>
+              </div>
             )}
-          </button>
+          </div>
+
         </div>
       </nav>
 

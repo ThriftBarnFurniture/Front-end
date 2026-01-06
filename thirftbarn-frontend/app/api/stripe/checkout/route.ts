@@ -1,3 +1,15 @@
+/*
+Creates a Stripe Checkout Session:
+
+Accepts { items: [{id, qty}] }
+
+Re-reads product prices from Supabase (never trust client price)
+
+Builds Stripe line_items
+
+Returns { url } for Stripe-hosted checkout
+*/
+
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";

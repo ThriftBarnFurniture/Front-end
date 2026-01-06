@@ -1,27 +1,19 @@
-import { requireAdmin } from "@/lib/require-admin";
-import styles from "./products.module.css";
-import AdminProductsClient from "./products-client";
+import styles from "./page.module.css";
+import { ProductForm } from "./ProductForm";
 
-export default async function AdminProductsPage() {
-  const { supabase } = await requireAdmin();
-
-  const { data: products } = await supabase
-    .from("products")
-    .select("id,name,description,price_cents,currency,image_url,is_active,updated_at")
-    .order("updated_at", { ascending: false });
-
+export default function AdminProductsPage() {
   return (
     <main className={styles.page}>
-      <div className={styles.wrap}>
+      <section className={styles.card}>
         <header className={styles.header}>
-          <h1 className={styles.h1}>Admin · Products</h1>
-          <p className={styles.sub}>
-            Add / edit / delete products. Changes appear on /shop in real time.
+          <p className={styles.eyebrow}>Admin</p>
+          <h1 className={styles.title}>Manage Products</h1>
+          <p className={styles.subtitle}>
+            Upload new items to Supabase and sync them to Cloudflare for storefront visibility.
           </p>
         </header>
-
-        <AdminProductsClient products={products ?? []} />
-      </div>
+        <ProductForm />
+      </section>
     </main>
   );
 }

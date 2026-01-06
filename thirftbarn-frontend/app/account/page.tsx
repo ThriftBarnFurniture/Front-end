@@ -1,3 +1,7 @@
+/*
+Account dashboard: requires a logged-in user (requireUser()), then shows links/cards like Orders + Profile, using the user’s name/email for display.
+*/
+
 import Link from "next/link";
 
 import styles from "./account.module.css";
