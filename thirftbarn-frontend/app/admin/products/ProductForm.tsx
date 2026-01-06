@@ -20,10 +20,17 @@ export const ProductForm = () => {
         body: formData,
       });
 
-      const payload = await response.json();
+      const contentType = response.headers.get("content-type") || "";
+      const payload = contentType.includes("application/json")
+        ? await response.json()
+        : await response.text();
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Unable to save product.");
+        const errorMessage =
+          typeof payload === "string"
+            ? payload || "Unable to save product."
+            : payload?.error ?? "Unable to save product.";
+        throw new Error(errorMessage);
       }
 
       event.currentTarget.reset();

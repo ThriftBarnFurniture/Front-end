@@ -1,43 +1,5 @@
 import { NextResponse } from "next/server";
-
-const getCloudflareImageUrl = async (file: File) => {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_IMAGES_TOKEN;
-
-  if (!accountId || !apiToken) {
-    throw new Error(
-      "Missing Cloudflare Images configuration. Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_IMAGES_TOKEN."
-    );
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-      },
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Cloudflare upload failed: ${errorText}`);
-  }
-
-  const payload = await response.json();
-  const imageUrl = payload?.result?.variants?.[0] ?? payload?.result?.url;
-
-  if (!imageUrl) {
-    throw new Error("Cloudflare did not return an image URL.");
-  }
-
-  return imageUrl as string;
-};
+import { uploadProductImageToR2 } from "@/lib/r2-upload";
 
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
@@ -127,7 +89,7 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ error: "Quantity must be a whole number." }, { status: 400 });
     }
 
-    const imageUrl = await getCloudflareImageUrl(image);
+    const { publicUrl: imageUrl } = await uploadProductImageToR2(image);
     const tableName = process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
 
     const productPayload = {
