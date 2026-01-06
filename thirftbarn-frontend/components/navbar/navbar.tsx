@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
+import { createClient } from "@/utils/supabase/client";
 
 export const Navbar = () => {
   const [compact, setCompact] = useState(false);
@@ -12,11 +13,11 @@ export const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
 
-  /**
-   * Scroll to a section on the homepage.
-   * - If we are NOT on "/", navigate to "/#section".
-   * - If we are already on "/", smooth scroll to the element.
-   */
+  // ---- NEW: auth state for the user icon ----
+  const supabase = useMemo(() => createClient(), []);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
   const goToSection = (id: string) => {
     if (pathname !== "/") {
       router.push(`/#${id}`);
@@ -29,10 +30,6 @@ export const Navbar = () => {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  /**
-   * Compact navbar once the hero is out of view (home page).
-   * If there is no #hero on the page, do nothing.
-   */
   useEffect(() => {
     const hero = document.getElementById("hero");
     if (!hero) return;
@@ -46,10 +43,6 @@ export const Navbar = () => {
     return () => obs.disconnect();
   }, [pathname]);
 
-  /**
-   * Close mobile menu when resizing up to desktop.
-   * Prevents "menu stuck open" if user rotates / resizes.
-   */
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth > 400) setMobileOpen(false);
@@ -58,6 +51,55 @@ export const Navbar = () => {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // ---- NEW: load user + react to login/logout ----
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!mounted) return;
+
+      const user = data.user;
+      setIsSignedIn(!!user);
+
+      // Prefer name, then email
+      const name =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email ||
+        null;
+
+      setDisplayName(name);
+    };
+
+    load();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setIsSignedIn(!!user);
+
+      const name =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email ||
+        null;
+
+      setDisplayName(name);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const onAccountClick = () => {
+    setMobileOpen(false);
+    // pick ONE:
+    router.push("/account"); // if you create app/account/page.tsx as a hub
+    // router.push("/account/profile"); // if you want direct profile
+  };
 
   return (
     <header className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
@@ -108,11 +150,38 @@ export const Navbar = () => {
           </button>
         </div>
 
-        {/* Cart */}
-        <div className={styles.cartContainer}>
+        {/* Right side: Cart + User */}
+        <div className={styles.rightActions}>
+          {/* Cart */}
           <Link href="/cart" className={styles.cartButton} aria-label="Go to cart">
             <img src="/Icon-Cart.svg" alt="Cart" className={styles.cartIcon} />
           </Link>
+
+          {/* NEW: User logo / name */}
+          <button
+            type="button"
+            className={styles.userButton}
+            aria-label={isSignedIn ? "Open account" : "Sign in"}
+            onClick={() => {
+              if (!isSignedIn) router.push("/login");
+              else onAccountClick();
+            }}
+          >
+            {/* Signed out -> character image */}
+            {!isSignedIn ? (
+              <img
+                src="/Icon-User.svg"
+                alt="Guest"
+                className={styles.userAvatar}
+              />
+            ) : (
+              <>
+                <span className={styles.userAvatarCircle} aria-hidden="true">
+                  {(displayName?.trim()?.[0] ?? "U").toUpperCase()}
+                </span>
+              </>
+            )}
+          </button>
         </div>
       </nav>
 
@@ -142,6 +211,18 @@ export const Navbar = () => {
           }}
         >
           Contact
+        </button>
+
+        {/* NEW: mobile account entry */}
+        <button
+          type="button"
+          className={styles.mobileLink}
+          onClick={() => {
+            if (!isSignedIn) router.push("/login");
+            else onAccountClick();
+          }}
+        >
+          {isSignedIn ? "My account" : "Login"}
         </button>
       </div>
     </header>

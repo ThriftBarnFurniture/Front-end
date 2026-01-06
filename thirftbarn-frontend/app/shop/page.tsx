@@ -1,41 +1,29 @@
-import Link from "next/link";
+import { createClient } from "@/utils/supabase/server";
+import ShopClient from "./shop-client";
 import styles from "./shop.module.css";
-import Image from "next/image";
 
-export default function ShopPage() {
+export const revalidate = 0;
+
+export default async function ShopPage() {
+  const supabase = await createClient();
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id,name,description,price_cents,currency,image_url,is_active,updated_at")
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false });
+
   return (
     <main className={styles.page}>
       <section className={styles.wrap}>
-        <div className={styles.card}>
-          <div className={styles.construction}>
-            <span className={styles.hammer}>🔨</span>
-          </div>
-          <div className={styles.badge}>UNDER CONSTRUCTION.</div>
-          <p className={styles.subtitle}>
-            We’re working diligently to get the online store running for you. <br/>
-            In the meantime, you can browse all of our products on Facebook.
+        <header className={styles.header}>
+          <h1 className={styles.h1}>Shop</h1>
+          <p className={styles.sub}>
+            Live catalogue — products update in real time.
           </p>
+        </header>
 
-          <div className={styles.actions}>
-            
-            <a
-              className={styles.primary}
-              href="https://www.facebook.com/groups/961935455087635/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Image src="./facebook-circle-fill.svg" alt="Facebook Logo" width={24} height={24} className={styles.icon}/>
-            </a>
-
-            <Link className={styles.secondary} href="/#contact">
-              Contact Us
-            </Link>
-          </div>
-
-          <p className={styles.note}>
-            Thank you for your patience
-          </p>
-        </div>
+        <ShopClient initialProducts={products ?? []} />
       </section>
     </main>
   );

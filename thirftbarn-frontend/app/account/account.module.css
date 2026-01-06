@@ -1,0 +1,220 @@
+/* =========================================================
+   Account pages (matches global Thrift Barn tokens)
+   ========================================================= */
+
+.page {
+  min-height: calc(100vh - 1px);
+  background: var(--color-bg);
+
+  display: grid;
+  place-items: center;
+
+  padding: 110px var(--gutter) 60px;
+}
+
+.container {
+  width: min(980px, calc(100% - 2 * var(--space-5)));
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.titleWrap {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.h1 {
+  font-family: var(--font-header);
+  font-size: clamp(2rem, 1.6rem + 1.2vw, 3rem);
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--font-text);
+  color: var(--color-muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+
+.primaryBtn {
+  background: var(--color-brand);
+  color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.primaryBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.ghostBtn {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.ghostBtn:hover {
+  background: var(--color-surface-2);
+  transform: translateY(-1px);
+}
+
+.sectionTitle {
+  font-family: var(--font-text);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  margin: 0 0 var(--space-3);
+  color: var(--color-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.cardTitle {
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.cardText {
+  font-family: var(--font-text);
+  color: var(--color-muted);
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cardLinkRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.linkPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+
+  font-family: var(--font-text);
+  font-weight: 800;
+  font-size: 0.92rem;
+  text-decoration: none;
+  color: var(--color-text);
+
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+
+.linkPill:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.kv {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kvRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.kvRow:last-child {
+  border-bottom: none;
+}
+
+.k {
+  font-family: var(--font-text);
+  font-weight: 800;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.v {
+  font-family: var(--font-text);
+  font-weight: 700;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+@media (max-width: 520px) {
+  .kvRow {
+    grid-template-columns: 1fr;
+  }
+}
