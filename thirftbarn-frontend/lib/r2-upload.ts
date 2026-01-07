@@ -8,7 +8,7 @@ Uploads a File using PutObjectCommand
 Returns { key, publicUrl } using NEXT_PUBLIC_R2_PUBLIC_URL
 */
 
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { createHash, createHmac } from "crypto";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -44,22 +44,60 @@ export async function uploadProductImageToR2(file: File) {
 
   const key = `products/${crypto.randomUUID()}.${extFromMime(file.type)}`;
   const body = Buffer.from(await file.arrayBuffer());
+    const host = `${accountId}.r2.cloudflarestorage.com`;
+  const url = `https://${host}/${bucket}/${encodeURI(key)}`;
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = createHash("sha256").update(body).digest("hex");
+  const canonicalHeaders = [
+    `content-type:${file.type}`,
+    `host:${host}`,
+    `x-amz-content-sha256:${payloadHash}`,
+    `x-amz-date:${amzDate}`,
+    "",
+  ].join("\n");
+  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
+  const canonicalRequest = [
+    "PUT",
+    `/${bucket}/${encodeURI(key)}`,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+  const canonicalRequestHash = createHash("sha256").update(canonicalRequest).digest("hex");
+  const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, credentialScope, canonicalRequestHash].join(
+    "\n"
+  );
 
-  const s3 = new S3Client({
-    region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
+  const hmac = (key: Buffer | string, value: string) =>
+    createHmac("sha256", key).update(value, "utf8").digest();
+  const signingKey = hmac(
+    hmac(hmac(hmac(`AWS4${secretAccessKey}`, dateStamp), "auto"), "s3"),
+    "aws4_request"
+  );
+
+  const signature = createHmac("sha256", signingKey).update(stringToSign, "utf8").digest("hex");
+  const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+      Authorization: authorization,
+    },
+    body,
   });
 
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      Body: body,
-      ContentType: file.type,
-      CacheControl: "public, max-age=31536000, immutable",
-    })
-  );
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`R2 upload failed: ${errorText}`);
+  }
 
   return { key, publicUrl: `${publicBase}/${key}` };
 }
