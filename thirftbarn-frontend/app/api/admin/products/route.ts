@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { uploadProductImageToR2 } from "@/lib/r2-upload";
+import { createClient } from "@/utils/supabase/server";
+
+const MAX_IMAGE_COUNT = 5;
 
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
-  if (!endpoint) {
-    return;
-  }
+  if (!endpoint) return;
 
   const token = process.env.CLOUDFLARE_PRODUCTS_TOKEN;
   const response = await fetch(endpoint, {
@@ -21,74 +22,6 @@ const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
     const errorText = await response.text();
     throw new Error(`Cloudflare DB sync failed: ${errorText}`);
   }
-};
-
-const MAX_IMAGE_COUNT = 5;
-
-const getSupabaseConfig = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error(
-      "Missing Supabase configuration. Set NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
-    );
-  }
-
-    return { supabaseUrl, supabaseServiceKey };
-};
-
-const insertSupabaseProduct = async (
-  tableName: string,
-  payload: Record<string, unknown>
-) => {
-  const { supabaseUrl, supabaseServiceKey } = getSupabaseConfig();
-  const response = await fetch(`${supabaseUrl}/rest/v1/${tableName}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: supabaseServiceKey,
-      Authorization: `Bearer ${supabaseServiceKey}`,
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase insert failed: ${errorText}`);
-  }
-
-  const data = (await response.json()) as Record<string, unknown>[];
-  return data[0] ?? null;
-};
-const updateSupabaseProduct = async (
-  tableName: string,
-  productId: string,
-  payload: Record<string, unknown>
-) => {
-  const { supabaseUrl, supabaseServiceKey } = getSupabaseConfig();
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/${tableName}?id=eq.${encodeURIComponent(productId)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseServiceKey,
-        Authorization: `Bearer ${supabaseServiceKey}`,
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase update failed: ${errorText}`);
-  }
-
-  const data = (await response.json()) as Record<string, unknown>[];
-  return data[0] ?? null;
 };
 
 const parseImages = (formData: FormData) =>
@@ -134,12 +67,125 @@ const uploadImagesToR2 = async (images: File[]) => {
     throw new Error(`You can upload up to ${MAX_IMAGE_COUNT} images.`);
   }
 
-  const uploads = await Promise.all(images.map((image) => uploadProductImageToR2(image)));
-  return uploads.map((upload) => upload.publicUrl);
+  const uploads = await Promise.all(images.map((img) => uploadProductImageToR2(img)));
+  return uploads.map((u) => u.publicUrl);
 };
+
+async function requireAdminAndToken() {
+  const supabase = await createClient();
+
+  // Must have a session cookie
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) throw new Error(sessionError.message);
+  if (!session?.access_token) throw new Error("Not signed in.");
+
+  // Confirm user
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw new Error(userError.message);
+  if (!user) throw new Error("Not signed in.");
+
+  // Check profiles.is_admin
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profile?.is_admin) throw new Error("Admins only.");
+
+  return { accessToken: session.access_token, userId: user.id };
+}
+
+function getSupabaseUrlOrThrow() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  if (!url) throw new Error("Missing Supabase URL.");
+  return url;
+}
+
+function makeSku() {
+  // Simple unique-ish SKU: TB-<timestamp>-<random>
+  return `TB-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+function getProductsTableName() {
+  return process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
+}
+
+async function supabaseRestInsert(
+  tableName: string,
+  accessToken: string,
+  payload: Record<string, unknown>
+) {
+  const supabaseUrl = getSupabaseUrlOrThrow();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/${tableName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${accessToken}`, // ✅ user JWT so RLS can evaluate auth.uid()
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Supabase insert failed: ${errorText}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>[];
+  return data[0] ?? null;
+}
+
+async function supabaseRestUpdate(
+  tableName: string,
+  accessToken: string,
+  productId: string,
+  payload: Record<string, unknown>
+) {
+  const supabaseUrl = getSupabaseUrlOrThrow();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/${tableName}?id=eq.${encodeURIComponent(productId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken}`, // ✅ user JWT
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Supabase update failed: ${errorText}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>[];
+  return data[0] ?? null;
+}
 
 export const POST = async (request: Request) => {
   try {
+    const { accessToken, userId } = await requireAdminAndToken();
+
     const formData = await request.formData();
 
     const name = String(formData.get("name") ?? "").trim();
@@ -162,16 +208,21 @@ export const POST = async (request: Request) => {
     }
 
     if (images.length === 0) {
-      return NextResponse.json({ error: "At least one product image is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "At least one product image is required." },
+        { status: 400 }
+      );
     }
 
     const price = Number(priceValue);
     const quantity = Number(quantityValue);
 
     const imageUrls = await uploadImagesToR2(images);
-    const tableName = process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
+
+    const tableName = getProductsTableName();
 
     const productPayload = {
+      sku: makeSku(),
       name,
       description,
       category,
@@ -179,10 +230,11 @@ export const POST = async (request: Request) => {
       quantity,
       image_url: imageUrls[0],
       image_urls: imageUrls,
+      created_by: userId, // ✅ matches your schema
       created_at: new Date().toISOString(),
     };
 
-    const data = await insertSupabaseProduct(tableName, productPayload);
+    const data = await supabaseRestInsert(tableName, accessToken, productPayload);
 
     await sendToCloudflareDatabase({
       ...productPayload,
@@ -192,12 +244,15 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ product: data, imageUrls }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    // Admin/auth errors should be 401/403, but keeping it simple:
     return NextResponse.json({ error: message }, { status: 500 });
   }
 };
 
 export const PATCH = async (request: Request) => {
   try {
+    const { accessToken } = await requireAdminAndToken();
+
     const formData = await request.formData();
 
     const productId = String(formData.get("productId") ?? "").trim();
@@ -227,7 +282,7 @@ export const PATCH = async (request: Request) => {
     const price = Number(priceValue);
     const quantity = Number(quantityValue);
 
-    const tableName = process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
+    const tableName = getProductsTableName();
     const imageUrls = images.length > 0 ? await uploadImagesToR2(images) : [];
 
     const productPayload: Record<string, unknown> = {
@@ -244,7 +299,7 @@ export const PATCH = async (request: Request) => {
       productPayload.image_urls = imageUrls;
     }
 
-    const data = await updateSupabaseProduct(tableName, productId, productPayload);
+    const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
 
     await sendToCloudflareDatabase({
       ...productPayload,

@@ -10,41 +10,46 @@ export const ProductForm = () => {
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const form = event.currentTarget; // ✅ capture immediately
+
     setStatus(null);
     setIsSubmitting(true);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const selectedProductId = String(formData.get("productId") ?? "").trim();
     const method = selectedProductId ? "PATCH" : "POST";
 
     try {
-      const response = await fetch("/api/admin/products", {
+        const response = await fetch("/api/admin/products", {
         method,
         body: formData,
-      });
+        });
 
-      const contentType = response.headers.get("content-type") || "";
-      const payload = contentType.includes("application/json")
+        const contentType = response.headers.get("content-type") || "";
+        const payload = contentType.includes("application/json")
         ? await response.json()
         : await response.text();
 
-      if (!response.ok) {
+        if (!response.ok) {
         const errorMessage =
-          typeof payload === "string"
+            typeof payload === "string"
             ? payload || "Unable to save product."
             : payload?.error ?? "Unable to save product.";
         throw new Error(errorMessage);
-      }
+        }
 
-      event.currentTarget.reset();
-      setStatus("Product uploaded successfully.");
+        form.reset();       // ✅ use captured ref
+        setProductId("");   // ✅ keep state in sync with cleared input
+        setStatus("Product uploaded successfully.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong.";
-      setStatus(message);
+        const message = error instanceof Error ? error.message : "Something went wrong.";
+        setStatus(message);
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  };
+    };
+
 
   return (
     <form className={styles.form} onSubmit={onSubmit}>
