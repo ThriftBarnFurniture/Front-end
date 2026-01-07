@@ -6,6 +6,7 @@ import styles from "./page.module.css";
 export const ProductForm = () => {
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productId, setProductId] = useState("");
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -13,10 +14,12 @@ export const ProductForm = () => {
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
+    const selectedProductId = String(formData.get("productId") ?? "").trim();
+    const method = selectedProductId ? "PATCH" : "POST";
 
     try {
       const response = await fetch("/api/admin/products", {
-        method: "POST",
+        method,
         body: formData,
       });
 
@@ -45,6 +48,19 @@ export const ProductForm = () => {
 
   return (
     <form className={styles.form} onSubmit={onSubmit}>
+        <div className={styles.fieldGroup}>
+        <label className={styles.label} htmlFor="productId">
+          Product ID (optional, for updates)
+        </label>
+        <input
+          className={styles.input}
+          id="productId"
+          name="productId"
+          type="text"
+          value={productId}
+          onChange={(event) => setProductId(event.target.value)}
+        />
+      </div>
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="name">
           Product name
@@ -97,10 +113,10 @@ export const ProductForm = () => {
       </div>
 
       <div className={styles.fieldGroup}>
-        <label className={styles.label} htmlFor="image">
-          Product image
+        <label className={styles.label} htmlFor="images">
+          Product images (up to 5)
         </label>
-        <input className={styles.input} id="image" name="image" type="file" accept="image/*" required />
+        <input className={styles.input} id="images" name="images" type="file" accept="image/*" multiple required={!productId} />
       </div>
 
       <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
