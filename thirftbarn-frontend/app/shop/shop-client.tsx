@@ -6,6 +6,8 @@ Client-side shop/catalog UI: fetches/displays products (via Supabase client), su
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import styles from "./shop.module.css";
@@ -31,6 +33,7 @@ function formatMoney(cents: number, currency: string) {
 
 export default function ShopClient({ initialProducts }: { initialProducts: Product[] }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>(initialProducts);
 
   useEffect(() => {
@@ -85,10 +88,43 @@ export default function ShopClient({ initialProducts }: { initialProducts: Produ
     alert("Added to cart!");
   };
 
+  const handleCardClick = (id: string) => {
+    router.push(`/shop/${id}`);
+  };
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLElement>, id: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      router.push(`/shop/${id}`);
+    }
+  };
+
+  const stopPropagation = (event: MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+  };
+
+  if (products.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        <p className={styles.emptyTitle}>No products available yet.</p>
+        <p className={styles.emptyBody}>
+          Once items are added in Supabase, they will appear here automatically.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.grid}>
       {products.map((p) => (
-        <article key={p.id} className={styles.productCard}>
+        <article
+          key={p.id}
+          className={styles.productCard}
+          onClick={() => handleCardClick(p.id)}
+          onKeyDown={(event) => handleCardKeyDown(event, p.id)}
+          tabIndex={0}
+          role="link"
+        >
           <div className={styles.productImage}>
             {p.image_url ? (
               <Image
@@ -114,10 +150,16 @@ export default function ShopClient({ initialProducts }: { initialProducts: Produ
             <p className={styles.desc}>{p.description}</p>
 
             <div className={styles.actions}>
-              <button className={styles.primaryBtn} onClick={() => addToCart(p)}>
+              <button
+                className={styles.primaryBtn}
+                onClick={(event) => {
+                  stopPropagation(event);
+                  addToCart(p);
+                }}
+              >
                 Add to cart
               </button>
-              <Link className={styles.ghostBtn} href="/cart">
+              <Link className={styles.ghostBtn} href="/cart" onClick={stopPropagation}>
                 View cart
               </Link>
             </div>
