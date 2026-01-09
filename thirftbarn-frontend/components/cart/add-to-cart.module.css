@@ -17,3 +17,9 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.btnAdded {
+  transform: translateY(-1px);
+  border-color: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.12);
+}

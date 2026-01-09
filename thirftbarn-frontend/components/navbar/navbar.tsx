@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
 import { createClient } from "@/utils/supabase/client";
+import { useCart } from "@/components/cart/CartProvider";
+
 
 export const Navbar = () => {
   const [compact, setCompact] = useState(false);
@@ -13,6 +15,8 @@ export const Navbar = () => {
 
   const pathname = usePathname();
   const router = useRouter();
+  const { totalItems } = useCart();
+
 
   // ---- NEW: auth state for the user icon ----
   const supabase = useMemo(() => createClient(), []);
@@ -163,6 +167,13 @@ export const Navbar = () => {
     router.push("/account");
   };
 
+  const onAdminOrdersClick = () => {
+    setMobileOpen(false);
+    setAccountOpen(false);
+    router.push("/admin/orders");
+  };
+
+
   const onSignOutClick = async () => {
     setMobileOpen(false);
     setAccountOpen(false);
@@ -226,6 +237,11 @@ export const Navbar = () => {
           {/* Cart */}
           <Link href="/cart" className={styles.cartButton} aria-label="Go to cart">
             <img src="/Icon-Cart.svg" alt="Cart" className={styles.cartIcon} />
+            {totalItems > 0 && (
+              <span className={styles.cartBadge} aria-label={`${totalItems} items in cart`}>
+                {totalItems > 99 ? "99+" : totalItems}
+              </span>
+            )}
           </Link>
 
           {/* NEW: User logo / name + menu */}
@@ -266,18 +282,31 @@ export const Navbar = () => {
                   My account
                 </button>
                 {isAdmin && (
-                  <button
-                    type="button"
-                    className={styles.accountMenuItem}
-                    onClick={() => {
-                      setAccountOpen(false);
-                      router.push("/admin/products");
-                    }}
-                  >
-                    Manage products
-                  </button>
-                  )
-                }
+                  <>
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        setMobileOpen(false);
+                        router.push("/admin/products");
+                      }}
+                    >
+                      Manage products
+                    </button>
+
+                    {/* NEW: Admin orders */}
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={onAdminOrdersClick}
+                    >
+                      Orders
+                    </button>
+                  </>
+                )}
                 <div className={styles.accountMenuDivider} />
                 <button
                   type="button"
@@ -333,6 +362,18 @@ export const Navbar = () => {
         >
           {isSignedIn ? "My account" : "Login"}
         </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className={styles.mobileLink}
+            onClick={() => {
+              setMobileOpen(false);
+              router.push("/admin/orders");
+            }}
+          >
+            Admin Orders
+          </button>
+        )}
       </div>
     </header>
   );

@@ -3,6 +3,8 @@ import { stripe } from "@/lib/stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import Stripe from "stripe";
 
+export const runtime = "nodejs"; // important for raw body signature verification
+
 function parsePackedCart(packed: string) {
   // packed = "uuid:2,uuid:1"
   if (!packed) return [];
@@ -39,28 +41,30 @@ export async function POST(req: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-
-      // Idempotency: if we already created an order for this session, skip
       const supabase = createSupabaseAdmin();
 
-      const { data: existing } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("stripe_session_id", session.id)
-        .maybeSingle();
-
-      if (existing?.id) {
-        return NextResponse.json({ received: true, duplicate: true });
-      }
-
+      // Prefer order_id from metadata (created at checkout)
+      const metaOrderId = String(session.metadata?.order_id || "");
       const packed = session.metadata?.cart || "";
       const wanted = parsePackedCart(packed);
 
+      // Idempotency: if we already marked this session/order as paid, skip
+      // (your schema uses stripe_session_id + status)
+      const { data: existing } = await supabase
+        .from("orders")
+        .select("order_id,status")
+        .eq("stripe_session_id", session.id)
+        .maybeSingle();
+
+      if (existing?.order_id && String(existing.status).toLowerCase() === "paid") {
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+
       if (!wanted.length) {
-        // You can still store an order with no items, but usually this indicates a bug.
         throw new Error("No cart metadata found on session.");
       }
 
+      // Load products again (server-trusted)
       const ids = wanted.map((w) => w.productId);
 
       const { data: products, error: pErr } = await supabase
@@ -83,61 +87,94 @@ export async function POST(req: Request) {
         }
       }
 
-      const amount_total = session.amount_total ?? 0;
+      const amount_total_cents = session.amount_total ?? 0;
       const currency = session.currency ?? "cad";
-      const email = session.customer_details?.email ?? session.customer_email ?? null;
+      const customer_email = session.customer_details?.email ?? session.customer_email ?? null;
+      const payment_id =
+        typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-      // Create order
-      const { data: order, error: oErr } = await supabase
-        .from("orders")
-        .insert({
-          stripe_session_id: session.id,
-          stripe_payment_intent_id: session.payment_intent ?? null,
-          email,
-          amount_total,
-          currency,
-          status: "paid",
-        })
-        .select("id")
-        .single();
-
-      if (oErr) throw new Error(oErr.message);
-
-      // Create order items (snapshot)
-      const orderItems = wanted.map((w) => {
+      // Rebuild items snapshot to store into orders.items (jsonb)
+      const items = wanted.map((w) => {
         const p = pMap.get(w.productId)!;
         return {
-          order_id: order.id,
           product_id: p.id,
-          name: p.name,
-          unit_price: Number(p.price),
           quantity: w.quantity,
-          image_url: p.image_url ?? null,
+          unit_price_cents: Math.round(Number(p.price) * 100),
+          name: p.name,
         };
       });
 
-      const { error: oiErr } = await supabase.from("order_items").insert(orderItems);
-      if (oiErr) throw new Error(oiErr.message);
+      const subtotal_cents = items.reduce(
+        (sum, it) => sum + it.unit_price_cents * it.quantity,
+        0
+      );
+      const tax_cents = Math.max(0, amount_total_cents - subtotal_cents); // best-effort if Stripe total differs
 
-      // Decrement inventory
-      // If you want stronger concurrency safety, do this with an RPC in SQL.
+      // Decide which order row to update
+      // 1) if we have metaOrderId, update that
+      // 2) else fall back to stripe_session_id match
+      const orderMatch = metaOrderId
+        ? supabase.from("orders").update({
+            stripe_session_id: session.id,
+            customer_email,
+            items,
+            subtotal: subtotal_cents / 100,
+            tax: tax_cents / 100,
+            total: amount_total_cents / 100,
+            amount_total_cents,
+            currency,
+            payment_method: "stripe",
+            payment_id,
+            status: "paid",
+            purchase_date: new Date().toISOString(),
+          }).eq("order_id", metaOrderId)
+        : supabase.from("orders").update({
+            customer_email,
+            items,
+            subtotal: subtotal_cents / 100,
+            tax: tax_cents / 100,
+            total: amount_total_cents / 100,
+            amount_total_cents,
+            currency,
+            payment_method: "stripe",
+            payment_id,
+            status: "paid",
+            purchase_date: new Date().toISOString(),
+          }).eq("stripe_session_id", session.id);
+
+      const { data: updated, error: updErr } = await orderMatch.select("order_id").single();
+      if (updErr) throw new Error(updErr.message);
+
+      const order_id = updated.order_id as string;
+
+      // Decrement inventory + write inventory_events
       for (const w of wanted) {
         const p = pMap.get(w.productId)!;
         const newQty = (Number(p.quantity) || 0) - w.quantity;
 
-        const { error: updErr } = await supabase
+        const { error: prodErr } = await supabase
           .from("products")
-          .update({ quantity: newQty })
+          .update({ quantity: newQty, updated_at: new Date().toISOString() })
           .eq("id", w.productId);
 
-        if (updErr) throw new Error(updErr.message);
+        if (prodErr) throw new Error(prodErr.message);
+
+        const { error: logErr } = await supabase.from("inventory_events").insert({
+          product_id: w.productId,
+          delta: -w.quantity,
+          reason: "sale",
+          source: "stripe_web",
+          order_id,
+          created_at: new Date().toISOString(),
+        });
+
+        if (logErr) throw new Error(logErr.message);
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (err: any) {
-    // Returning 200 prevents Stripe from retrying forever.
-    // If you want retries for failures, return 500 instead.
+    // Keeping your behavior: return 200 so Stripe doesn't retry forever during dev
     return new NextResponse(`Webhook handler error: ${err.message}`, { status: 200 });
   }
 }

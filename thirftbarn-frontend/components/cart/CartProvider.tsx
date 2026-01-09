@@ -11,6 +11,8 @@ import React, {
 import type { CartItem } from "@/lib/cart";
 import { readCart, writeCart, clearCartStorage } from "@/lib/cart";
 
+type CartToast = { id: string; message: string };
+
 type CartContextValue = {
   items: CartItem[];
   totalItems: number;
@@ -19,12 +21,16 @@ type CartContextValue = {
   removeItem: (productId: string) => void;
   setQty: (productId: string, quantity: number) => void;
   clear: () => void;
+
+  // NEW: feedback/toast
+  toast: (message: string) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [toasts, setToasts] = useState<CartToast[]>([]);
 
   useEffect(() => {
     setItems(readCart());
@@ -33,6 +39,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     writeCart(items);
   }, [items]);
+
+  const toast = useCallback((message: string) => {
+    const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    setToasts((prev) => [...prev, { id, message }]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 2200);
+  }, []);
 
   const addItem = useCallback<CartContextValue["addItem"]>((item, quantity = 1) => {
     setItems((prev) => {
@@ -74,11 +88,47 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<CartContextValue>(
-    () => ({ items, totalItems, subtotal, addItem, removeItem, setQty, clear }),
-    [items, totalItems, subtotal, addItem, removeItem, setQty, clear]
+    () => ({ items, totalItems, subtotal, addItem, removeItem, setQty, clear, toast }),
+    [items, totalItems, subtotal, addItem, removeItem, setQty, clear, toast]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+
+      {/* NEW: simple toast stack */}
+      {toasts.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            right: 16,
+            bottom: 16,
+            display: "grid",
+            gap: 10,
+            zIndex: 999999,
+          }}
+          aria-live="polite"
+        >
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 14,
+                background: "rgba(0,0,0,0.85)",
+                color: "white",
+                fontWeight: 800,
+                boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
+                maxWidth: 320,
+              }}
+            >
+              {t.message}
+            </div>
+          ))}
+        </div>
+      )}
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {

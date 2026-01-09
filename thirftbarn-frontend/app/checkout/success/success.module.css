@@ -1,0 +1,113 @@
+.wrap {
+  max-width: 900px;
+  margin: 200px auto 0;
+  padding: 2rem 1rem;
+  color: black;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.subtitle {
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+.session {
+  margin-top: 10px;
+  opacity: 0.75;
+}
+
+.card {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.muted {
+  margin-top: 10px;
+  opacity: 0.85;
+}
+
+.error {
+  opacity: 0.7;
+}
+
+.orderHeader {
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+.items {
+  margin-top: 12px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.itemName {
+  font-weight: 800;
+}
+
+.mutedSmall {
+  margin-top: 3px;
+  opacity: 0.8;
+}
+
+.price {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.summary {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.totalRow {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  font-weight: 900;
+}
+
+.actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 12px;
+}
+
+.actions button {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.12);
+  color: black;
+}
+
+.actions button:last-child {
+  background: rgba(0, 0, 0, 0.25);
+}

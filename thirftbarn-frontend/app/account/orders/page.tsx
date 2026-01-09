@@ -1,49 +1,69 @@
-/*
-Orders page placeholder: requires login, but currently shows “no orders yet” messaging until you store orders in DB.
-*/
-
 import Link from "next/link";
-
+import { createClient } from "@/utils/supabase/server";
 import styles from "../account.module.css";
-import { requireUser } from "@/lib/require-user";
 
 export default async function OrdersPage() {
-  await requireUser();
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+
+  if (!auth.user) {
+    return (
+      <div className={styles.accountWrap}>
+        <h1>Orders</h1>
+        <p>
+          Please <Link href="/login">log in</Link> to view your order history.
+        </p>
+      </div>
+    );
+  }
+
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(
+      "order_id, order_number, purchase_date, status, total, currency, channel"
+    )
+    .eq("user_id", auth.user.id)
+    .order("purchase_date", { ascending: false });
+
+  if (error) {
+    return (
+      <div className={styles.accountWrap}>
+        <h1>Orders</h1>
+        <p>Could not load orders: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.titleWrap}>
-            <h1 className={styles.h1}>Order History</h1>
-            <p className={styles.sub}>
-              Once you add checkout, you can display your customer orders here.
-            </p>
-          </div>
+    <div className={styles.accountWrap}>
+      <h1>Orders</h1>
 
-          <div className={styles.actions}>
-            <Link className={styles.ghostBtn} href="/account">
-              Back
-            </Link>
-            <Link className={styles.primaryBtn} href="/logout">
-              Sign out
-            </Link>
-          </div>
+      {!orders?.length ? (
+        <p>No orders yet.</p>
+      ) : (
+        <div className={styles.cardList}>
+          {orders.map((o) => (
+            <div key={o.order_id} className={styles.card}>
+              <div className={styles.cardRow}>
+                <strong>{o.order_number}</strong>
+                <span className={styles.badge}>{o.status}</span>
+              </div>
+              <div className={styles.muted}>
+                {o.purchase_date ? new Date(o.purchase_date).toLocaleString() : "Pending payment"}
+                {" • "}
+                {String(o.channel).toUpperCase()}
+              </div>
+              <div className={styles.total}>
+                Total: {Number(o.total).toFixed(2)} {String(o.currency || "cad").toUpperCase()}
+              </div>
+
+              <div className={styles.actions}>
+                <Link href={`/checkout/success?order_id=${o.order_id}`}>View</Link>
+              </div>
+            </div>
+          ))}
         </div>
-
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>No orders yet</h2>
-          <p className={styles.cardText}>
-            When you wire Stripe + order storage, this page will list items,
-            totals, and dates.
-          </p>
-          <div className={styles.cardLinkRow}>
-            <Link className={styles.linkPill} href="/shop">
-              Browse the shop →
-            </Link>
-          </div>
-        </section>
-      </div>
-    </main>
+      )}
+    </div>
   );
 }
