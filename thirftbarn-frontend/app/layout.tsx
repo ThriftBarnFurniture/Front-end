@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Footer } from "@/components/footer/footer";
 import { Permanent_Marker, Montserrat } from "next/font/google";
+import { CartProvider } from "@/components/cart/CartProvider";
 
 const permanentMarker = Permanent_Marker({
   weight: "400",
@@ -101,11 +102,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${permanentMarker.variable} ${montserrat.variable}`}>
       <body className="flex min-h-full flex-col bg-white">
+        <CartProvider>
         <Navbar />
         <main className="flex-grow bg-white">{children}</main>
         <Footer />
         <Analytics />
         <SpeedInsights />
+        </CartProvider>
       </body>
     </html>
   );

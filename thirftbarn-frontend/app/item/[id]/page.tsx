@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import styles from "./item.module.css";
 import ImageGallery from "./ImageGallery";
 import { formatPrice, getAllImages, getProductById } from "@/lib/products";
+import AddToCartButton from "@/components/cart/AddToCartButton";
 
 export default async function ItemPage({
   params,
@@ -86,10 +87,16 @@ export default async function ItemPage({
             )}
           </div>
 
-          {/* Replace this button with your actual cart action later */}
-          <button className={styles.cta} disabled={soldOut} type="button">
-            {soldOut ? "Sold out" : "Add to cart"}
-          </button>
+          <div style={{ marginTop: "14px" }}>
+            <AddToCartButton
+              product={{
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                image_url: product.image_url ?? null,
+              }}
+            />
+          </div>
         </section>
       </div>
     </main>
