@@ -1,5 +1,5 @@
 .page {
-  padding-top: calc(var(--header-offset, 120px) + var(--space-8));
+  margin-top: 200px;
   padding-bottom: var(--space-10);
   background: var(--color-bg);
   display: grid;

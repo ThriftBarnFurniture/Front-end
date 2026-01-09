@@ -17,7 +17,7 @@ export default function CheckoutSuccessPage() {
   const sessionId = params.get("session_id");
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem", color: "white" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem", color: "black", marginTop: "200px"}}>
       <h1 style={{ fontSize: "2rem", fontWeight: 900 }}>Payment successful ✅</h1>
       <p style={{ opacity: 0.9, marginTop: 10 }}>
         Thank you! Your order is being processed.
@@ -35,9 +35,9 @@ export default function CheckoutSuccessPage() {
           style={{
             padding: "12px 16px",
             borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.12)",
-            color: "white",
+            border: "1px solid rgba(0, 0, 0, 0.18)",
+            background: "rgba(0, 0, 0, 0.12)",
+            color: "black",
             cursor: "pointer",
             fontWeight: 800,
           }}
@@ -50,9 +50,9 @@ export default function CheckoutSuccessPage() {
           style={{
             padding: "12px 16px",
             borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(0,0,0,0.25)",
-            color: "white",
+            border: "1px solid rgba(0, 0, 0, 0.18)",
+            background: "rgba(0, 0, 0, 0.25)",
+            color: "black",
             cursor: "pointer",
             fontWeight: 800,
           }}
