@@ -3,12 +3,17 @@ import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
 
-export async function POST(_: Request, ctx: { params: { orderId: string } }) {
+export async function POST(
+  _req: Request,
+  ctx: { params: Promise<{ orderId: string }> }
+) {
   try {
     await requireAdmin();
 
     const supabase = createSupabaseAdmin();
-    const orderId = ctx.params.orderId;
+    const { orderId } = await ctx.params;
+
+    if (!orderId) return new NextResponse("Missing orderId", { status: 400 });
 
     const { data: order, error: oErr } = await supabase
       .from("orders")
@@ -19,20 +24,71 @@ export async function POST(_: Request, ctx: { params: { orderId: string } }) {
     if (oErr) throw new Error(oErr.message);
 
     if (!order.payment_id) {
-      return new NextResponse("Order missing payment_id (Stripe payment_intent).", { status: 400 });
+      return new NextResponse("Order missing payment_id (Stripe payment_intent).", {
+        status: 400,
+      });
     }
 
-    const status = String(order.status);
+    const status = String(order.status ?? "").toLowerCase();
     if (status !== "paid" && status !== "fulfilled") {
-      return new NextResponse("Only paid/fulfilled orders can be refunded.", { status: 400 });
+      return new NextResponse("Only paid/fulfilled orders can be refunded.", {
+        status: 400,
+      });
     }
 
-    // Full refund (Stripe)
-    const refund = await stripe.refunds.create({
-      payment_intent: order.payment_id,
-    });
+    // Optional pre-check (nice to have)
+    try {
+        const pi = await stripe.paymentIntents.retrieve(order.payment_id);
 
-    // Update order
+        const latestChargeId = pi.latest_charge;
+        if (!latestChargeId) {
+        return new NextResponse("No charge found for this payment.", { status: 400 });
+        }
+
+        const charge = await stripe.charges.retrieve(String(latestChargeId), {
+        expand: ["dispute"],
+        });
+
+        if (charge.disputed) {
+        // Optional: mark DB so UI can disable refund
+        await supabase
+            .from("orders")
+            .update({ status: "chargeback" })
+            .eq("order_id", orderId);
+
+        return new NextResponse(
+            "This payment has a dispute/chargeback. Stripe does not allow refunds on charged back payments.",
+            { status: 400 }
+        );
+    }
+
+    } catch {
+      // If the pre-check fails for any reason, we still attempt refund and handle Stripe errors below.
+    }
+
+    // ✅ Full refund — catch Stripe "charged back" errors cleanly
+    let refund;
+    try {
+      refund = await stripe.refunds.create({ payment_intent: order.payment_id });
+    } catch (err: any) {
+      const msg = String(err?.message ?? "");
+
+      if (msg.toLowerCase().includes("charged back")) {
+        // Optional: mark DB so UI can disable refund
+        await supabase
+          .from("orders")
+          .update({ status: "chargeback" })
+          .eq("order_id", orderId);
+
+        return new NextResponse(
+          "This payment was charged back (dispute). Stripe does not allow refunds for chargebacks.",
+          { status: 400 }
+        );
+      }
+
+      throw err;
+    }
+
     const { error: updErr } = await supabase
       .from("orders")
       .update({
@@ -43,39 +99,6 @@ export async function POST(_: Request, ctx: { params: { orderId: string } }) {
       .eq("order_id", orderId);
 
     if (updErr) throw new Error(updErr.message);
-
-    // Restock inventory + log
-    const items = Array.isArray(order.items) ? order.items : [];
-    for (const it of items) {
-      const productId = String(it.product_id);
-      const qty = Math.max(1, Math.floor(Number(it.quantity || 1)));
-
-      // increment quantity (read current then write)
-      const { data: p, error: pErr } = await supabase
-        .from("products")
-        .select("quantity")
-        .eq("id", productId)
-        .single();
-      if (pErr) throw new Error(pErr.message);
-
-      const newQty = (Number(p.quantity) || 0) + qty;
-
-      const { error: qErr } = await supabase
-        .from("products")
-        .update({ quantity: newQty, updated_at: new Date().toISOString() })
-        .eq("id", productId);
-      if (qErr) throw new Error(qErr.message);
-
-      const { error: logErr } = await supabase.from("inventory_events").insert({
-        product_id: productId,
-        delta: qty,
-        reason: "refund",
-        source: "stripe_web",
-        order_id: orderId,
-        created_at: new Date().toISOString(),
-      });
-      if (logErr) throw new Error(logErr.message);
-    }
 
     return NextResponse.json({ ok: true, refund_id: refund.id });
   } catch (e: any) {

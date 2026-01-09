@@ -87,46 +87,66 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
               <th style={th}>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.order_id}>
-                <td style={td}>
-                  <div style={{ fontWeight: 900 }}>{o.order_number ?? o.order_id}</div>
-                  <div style={{ opacity: 0.7, fontSize: 12 }}>{o.order_id}</div>
-                </td>
-                <td style={td}>
-                  {o.purchase_date ? new Date(o.purchase_date).toLocaleString() : "—"}
-                </td>
-                <td style={td}>{o.customer_email ?? "—"}</td>
-                <td style={td}>{String(o.channel ?? "—").toUpperCase()}</td>
-                <td style={td}>
-                  {Number(o.total ?? 0).toFixed(2)} {String(o.currency ?? "cad").toUpperCase()}
-                </td>
-                <td style={td}>
-                  <strong>{String(o.status ?? "—").toUpperCase()}</strong>
-                </td>
-                <td style={td}>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => markFulfilled(o.order_id)}
-                      disabled={busyId === o.order_id || o.status !== "paid"}
-                    >
-                      Mark fulfilled
-                    </button>
 
-                    <button
-                      onClick={() => refund(o.order_id)}
-                      disabled={
-                        busyId === o.order_id ||
-                        (o.status !== "paid" && o.status !== "fulfilled")
-                      }
-                    >
-                      Refund
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+          <tbody>
+            {orders.map((o) => {
+              const status = String(o.status ?? "").toLowerCase();
+
+              const canFulfill = status === "paid";
+              const canRefund = status === "paid" || status === "fulfilled";
+              const refundBlocked = status === "chargeback" || status === "disputed" || status === "refunded";
+
+              return (
+                <tr key={o.order_id}>
+                  <td style={td}>
+                    <div style={{ fontWeight: 900 }}>{o.order_number ?? o.order_id}</div>
+                    <div style={{ opacity: 0.7, fontSize: 12 }}>{o.order_id}</div>
+                  </td>
+
+                  <td style={td}>
+                    {o.purchase_date ? new Date(o.purchase_date).toLocaleString() : "—"}
+                  </td>
+
+                  <td style={td}>{o.customer_email ?? "—"}</td>
+
+                  <td style={td}>{String(o.channel ?? "—").toUpperCase()}</td>
+
+                  <td style={td}>
+                    {Number(o.total ?? 0).toFixed(2)} {String(o.currency ?? "cad").toUpperCase()}
+                  </td>
+
+                  <td style={td}>
+                    <strong>{String(o.status ?? "—").toUpperCase()}</strong>
+                  </td>
+
+                  <td style={td}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => markFulfilled(o.order_id)}
+                        disabled={busyId === o.order_id || !canFulfill}
+                        title={!canFulfill ? "Only paid orders can be fulfilled." : undefined}
+                      >
+                        Mark fulfilled
+                      </button>
+
+                      <button
+                        onClick={() => refund(o.order_id)}
+                        disabled={busyId === o.order_id || !canRefund || refundBlocked}
+                        title={
+                          refundBlocked
+                            ? "Refund unavailable (already refunded or chargeback/dispute)."
+                            : !canRefund
+                            ? "Only paid/fulfilled orders can be refunded."
+                            : undefined
+                        }
+                      >
+                        Refund
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
 
             {!orders.length && (
               <tr>

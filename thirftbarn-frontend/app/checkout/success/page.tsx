@@ -68,6 +68,29 @@ export default function CheckoutSuccessPage() {
       cancelled = true;
     };
   }, [sessionId]);
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const controller = new AbortController();
+
+    async function finalizeCheckout() {
+      try {
+        await fetch("/api/stripe/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+          signal: controller.signal,
+        });
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        console.error("Failed to finalize checkout.", e);
+      }
+    }
+
+    finalizeCheckout();
+
+    return () => controller.abort();
+  }, [sessionId]);
 
   const items = useMemo(() => {
     const raw = (order?.items as any[]) ?? [];
