@@ -1,10 +1,8 @@
-/*
-Server Supabase factory (createServerClient) wired to Next.js cookies so SSR/server components can read auth state.
-*/
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// Creates Supabase client that uses cookies instead of localStorage. It can securely
+// read logged-in user, fetch protected data and enforce RLS
 export async function createClient() {
   const cookieStore = await cookies()
 

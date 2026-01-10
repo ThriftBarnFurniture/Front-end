@@ -1,10 +1,8 @@
-/*
-Middleware session refresher: creates a Supabase server client tied to request/response cookies and calls auth.getUser() to keep auth session updated.
-*/
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Runs before every request, keeps supabase session alive, refreshes expired tokens
+// and syncs cookies.
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request: {
