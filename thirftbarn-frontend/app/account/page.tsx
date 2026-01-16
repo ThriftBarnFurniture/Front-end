@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import styles from "./account.module.css";
 import { requireUser } from "@/lib/require-user";
+import DeleteAccountButton from "./DeleteAccountButton";
 
 export default async function AccountHome() {
   const { user } = await requireUser();
@@ -64,6 +65,14 @@ export default async function AccountHome() {
               </Link>
             </div>
           </section>
+          <section className={styles.card} style={{ marginTop: 16 }}>
+            <h2 className={styles.cardTitle}>Danger zone</h2>
+            <p className={styles.cardText}>
+              Permanently delete your account and profile.
+            </p>
+            <DeleteAccountButton />
+          </section>
+
         </div>
       </div>
     </main>

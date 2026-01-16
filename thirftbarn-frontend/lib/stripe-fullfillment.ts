@@ -69,9 +69,9 @@ export async function fulfillStripeCheckoutSession(
 
   const amount_total_cents = session.amount_total ?? 0;
   const currency = session.currency ?? "cad";
-  const customer_email = session.customer_details?.email ?? session.customer_email ?? null;
-  const payment_id =
-    typeof session.payment_intent === "string" ? session.payment_intent : null;
+  const stripe_email = session.customer_details?.email ?? (session.customer_email as string | null) ?? null;
+  const customer_email = typeof session.metadata?.customer_email === "string" ? session.metadata.customer_email : null;
+  const payment_id = typeof session.payment_intent === "string" ? session.payment_intent : null;
 
   // Rebuild items snapshot to store into orders.items (jsonb)
   const items = wanted.map((w) => {
@@ -90,43 +90,33 @@ export async function fulfillStripeCheckoutSession(
   );
   const tax_cents = Math.max(0, amount_total_cents - subtotal_cents); // best-effort if Stripe total differs
 
+  // Common update payload (avoid duplicating)
+  const updatePayload: Record<string, any> = {
+    stripe_session_id: session.id,
+    stripe_email, // ✅ store Stripe email separately
+    items,
+    subtotal: subtotal_cents / 100,
+    tax: tax_cents / 100,
+    total: amount_total_cents / 100,
+    amount_total_cents,
+    currency,
+    payment_method: "stripe",
+    payment_id,
+    status: "paid",
+    purchase_date: new Date().toISOString(),
+  };
+
+  // IMPORTANT: only set customer_email if it's present (prevents overwriting with null)
+  if (customer_email) {
+    updatePayload.customer_email = customer_email;
+  }
+
   // Decide which order row to update
   // 1) if we have metaOrderId, update that
   // 2) else fall back to stripe_session_id match
   const orderMatch = metaOrderId
-    ? supabase
-        .from("orders")
-        .update({
-          stripe_session_id: session.id,
-          customer_email,
-          items,
-          subtotal: subtotal_cents / 100,
-          tax: tax_cents / 100,
-          total: amount_total_cents / 100,
-          amount_total_cents,
-          currency,
-          payment_method: "stripe",
-          payment_id,
-          status: "paid",
-          purchase_date: new Date().toISOString(),
-        })
-        .eq("order_id", metaOrderId)
-    : supabase
-        .from("orders")
-        .update({
-          customer_email,
-          items,
-          subtotal: subtotal_cents / 100,
-          tax: tax_cents / 100,
-          total: amount_total_cents / 100,
-          amount_total_cents,
-          currency,
-          payment_method: "stripe",
-          payment_id,
-          status: "paid",
-          purchase_date: new Date().toISOString(),
-        })
-        .eq("stripe_session_id", session.id);
+    ? supabase.from("orders").update(updatePayload).eq("order_id", metaOrderId)
+    : supabase.from("orders").update(updatePayload).eq("stripe_session_id", session.id);
 
   const { data: updated, error: updErr } = await orderMatch.select("order_id").single();
   if (updErr) throw new Error(updErr.message);

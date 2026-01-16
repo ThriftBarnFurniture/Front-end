@@ -1,8 +1,8 @@
-/*
-The actual email/password login form UI (inputs + submit). It’s the form component used on the login page.
-*/
+"use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +14,45 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login } from "@/lib/auth-actions";
+import { createClient } from "@/utils/supabase/client";
 import SignInWithGoogleButton from "./SignInWithGoogleButton";
 
-export function LoginForm() {
+interface LoginFormProps {
+  initialError?: string;
+}
+
+export function LoginForm({ initialError }: LoginFormProps) {
+  const [error, setError] = useState<string | null>(initialError ?? null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      setIsLoading(false);
+      return;
+    }
+
+    // Client-side sign-in triggers onAuthStateChange in the navbar
+    // This updates the navbar immediately before we navigate
+    router.push("/");
+    router.refresh(); // Refresh server components to sync with new auth state
+  };
+
   return (
     <Card
       className={[
@@ -39,7 +74,16 @@ export function LoginForm() {
       </CardHeader>
 
       <CardContent>
-        <form action="">
+        {error && (
+          <div
+            className="mb-4 rounded-xl border px-4 py-3 text-sm font-bold"
+            style={{ borderColor: "#b00020", color: "#b00020" }}
+          >
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label className="font-extrabold" htmlFor="email">
@@ -51,6 +95,7 @@ export function LoginForm() {
                 type="email"
                 placeholder="you@example.com"
                 required
+                disabled={isLoading}
                 className={[
                   "h-12",
                   "rounded-xl",
@@ -83,6 +128,7 @@ export function LoginForm() {
                 name="password"
                 type="password"
                 required
+                disabled={isLoading}
                 className={[
                   "h-12",
                   "rounded-xl",
@@ -99,16 +145,17 @@ export function LoginForm() {
 
             <Button
               type="submit"
-              formAction={login}
+              disabled={isLoading}
               className={[
                 "w-full h-12 rounded-full font-extrabold",
                 "bg-[var(--color-brand)] text-white",
                 "shadow-[var(--shadow-sm)]",
                 "hover:shadow-[var(--shadow-md)] hover:-translate-y-[1px]",
                 "transition",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
               ].join(" ")}
             >
-              Sign in
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
 
             <SignInWithGoogleButton />

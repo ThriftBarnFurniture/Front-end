@@ -16,6 +16,7 @@ export const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { totalItems } = useCart();
+  const [googleReviewCount, setGoogleReviewCount] = useState<number | null>(null);
 
 
   // ---- NEW: auth state for the user icon ----
@@ -38,6 +39,28 @@ export const Navbar = () => {
 
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  //Google rating count
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const res = await fetch("/api/google/reviews-count", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { count: number; rating: number };
+        if (!cancelled) setGoogleReviewCount(Number(data.count) || 0);
+      } catch {
+        // ignore - fallback text will show
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   useEffect(() => {
     const hero = document.getElementById("hero");
@@ -190,7 +213,7 @@ export const Navbar = () => {
         <div className={styles.marquee} aria-label="Store announcement">
           {Array.from({ length: 14 }).map((_, i) => (
             <span className={styles.marqueeItem} key={i}>
-              OVER 250 5 STAR REVIEWS ON GOOGLE • OPEN EVERY SAT & SUN FROM 12PM - 5PM
+              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY SAT & SUN FROM 12PM - 5PM`}
             </span>
           ))}
         </div>

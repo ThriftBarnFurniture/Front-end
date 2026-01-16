@@ -1,0 +1,68 @@
+/* =========================================================
+   Orders page styles (pulled out of account.module.css)
+   ========================================================= */
+
+.cardList {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.muted {
+  opacity: 0.8;
+  font-size: 0.92rem;
+  margin-top: 6px;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+.total {
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.orderActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.viewLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  color: black;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+
+.viewLink:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}

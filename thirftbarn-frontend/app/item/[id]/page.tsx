@@ -3,6 +3,7 @@ import styles from "./item.module.css";
 import ImageGallery from "./ImageGallery";
 import { formatPrice, getAllImages, getProductById } from "@/lib/products";
 import AddToCartButton from "@/components/cart/AddToCartButton";
+import ScrollToTop from "./ScrollToTop";
 
 export default async function ItemPage({
   params,
@@ -31,6 +32,7 @@ export default async function ItemPage({
 
   return (
     <main className={styles.page}>
+      <ScrollToTop />
       <div className={styles.layout}>
         <section className={styles.left}>
           <ImageGallery images={images} alt={product.name} />
@@ -89,6 +91,8 @@ export default async function ItemPage({
 
           <div style={{ marginTop: "14px" }}>
             <AddToCartButton
+              soldOut={soldOut}
+              maxQty={product.quantity}
               product={{
                 id: product.id,
                 name: product.name,

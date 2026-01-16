@@ -1,9 +1,38 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 import StoreLocationSection from '@/components/map/storeLocationSection';
+import Link from "next/link";
+import { createClient } from "@/utils/supabase/server";
+
+type NewProduct = {
+  id: string;
+  name: string | null;
+  price: number | null;
+  image_url: string | null;
+  image_urls: string[] | null;
+  created_at: string | null;
+};
+
+async function getNewestProducts(limit = 5): Promise<NewProduct[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id,name,price,image_url,image_urls,created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getNewestProducts error:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as NewProduct[];
+}
 
 
-export default function Home() {
+export default async function Home() {
+  const newestProducts = await getNewestProducts(5);
   const myStoreInfo = {
     name: 'Thrift Barn Furniture',
     address: '2786 ON-34',
@@ -52,7 +81,7 @@ export default function Home() {
             <h1 className={styles.heroTitle}>FURNITURE PROBLEMS?</h1>
             <p className={styles.heroSubtitle}>We have the solution!</p>
 
-            <a className={styles.heroButton} href="https://www.facebook.com/groups/961935455087635/" target="_blank" rel="noopener noreferrer">
+            <a className={styles.heroButton} href="/shop" rel="noopener noreferrer">
               Shop Our Massive Inventory
             </a>
           </div>
@@ -133,7 +162,7 @@ export default function Home() {
                 furniture at a reasonable price, we provide services such as:
               </p>
               <ul className={styles.aboutList}>
-                <li>Furniture Removal / Clear Out</li>
+                <li>Furniture Removal / Clear Outs</li>
                 <li>Moving Services</li>
                 <li>Junk Removal Services</li>
                 <li>Delivery & Distribution</li>
@@ -145,6 +174,87 @@ export default function Home() {
         </div>
       </section>
 
+
+      {/* ===== RED DIVIDER LINE ===== */}
+      <div className={styles.redDivider} />
+
+      {/* ===== NEW TO THE BARN ===== */}
+      <section className={styles.newToBarnSection} aria-label="New to the Barn">
+        <div className={styles.sectionInner}>
+          <h2 className={styles.sectionHeading}>NEW TO THE BARN.</h2>
+
+          <div className={styles.productRow}>
+            {newestProducts.map((p) => {
+              const img =
+                p.image_url ||
+                (Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls[0] : null) ||
+                "/furniture.jpg"; // fallback image you already have
+
+              const priceText =
+                typeof p.price === "number" ? `$${p.price.toFixed(2)}` : "";
+
+              return (
+                <Link
+                  key={p.id}
+                  href={`/item/${p.id}`}
+                  className={styles.productCardLink}
+                >
+                  <article className={styles.productCard}>
+                    <div className={styles.productImgWrap} aria-hidden="true">
+                      <Image
+                        src={img}
+                        alt=""
+                        fill
+                        sizes="(max-width: 480px) 92vw, (max-width: 768px) 45vw, (max-width: 1200px) 22vw, 210px"
+                        style={{ objectFit: "cover" }}
+                      />
+                    </div>
+
+                    <div className={styles.productMeta}>
+                      <p className={styles.productName}>{p.name ?? "Untitled"}</p>
+                      <p className={styles.productPrice}>{priceText}</p>
+                    </div>
+                  </article>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+
+      {/* ===== SHOP BY ROOM ===== */}
+      <section className={styles.shopByRoomSection} aria-label="Shop by Room">
+        <div className={styles.sectionInner}>
+          <h2 className={styles.sectionHeading}>SHOP BY ROOM.</h2>
+
+          <div className={styles.roomGrid}>
+            {[
+              { label: "Living Room", img: "/inside_barn_closed.jpg" },
+              { label: "Dining Room", img: "/furniture.jpg" },
+              { label: "Kitchen & Bath", img: "/Hero-bg.jpg" },
+              { label: "Bedroom", img: "/snowbarn.jpg" },
+              { label: "Child/Nursery", img: "/furniture.jpg" },
+              { label: "Office", img: "/inside_barn_closed.jpg" },
+              { label: "Garage/Exterior", img: "/Hero-bg.jpg" },
+              { label: "Home Decor", img: "/snowbarn.jpg" },
+            ].map((r) => (
+              <div key={r.label} className={styles.roomItem}>
+                <div className={styles.roomCircle}>
+                  <Image
+                    src={r.img}
+                    alt={r.label}
+                    fill
+                    sizes="(max-width: 480px) 240px, (max-width: 768px) 220px, 250px"
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
+                <p className={styles.roomLabel}>{r.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />

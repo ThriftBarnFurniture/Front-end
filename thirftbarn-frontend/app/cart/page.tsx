@@ -4,31 +4,80 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
 import styles from "./cart.module.css";
+import { useEffect, useMemo, useState } from "react";
 
 export default function CartPage() {
   const router = useRouter();
   const { items, subtotal, totalItems, removeItem, setQty, clear } = useCart();
+  const [warning, setWarning] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   const checkout = async () => {
-    const payload = {
-      items: items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
+    setWarning(null);
+    setCheckingOut(true);
+
+    try {
+      const res = await fetch("/api/cart/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productIds: items.map((i) => i.productId) }),
+      });
+
+      if (!res.ok) throw new Error("Validation failed.");
+
+      const data = (await res.json()) as {
+        ok: boolean;
+        outOfStock: { id: string; name: string }[];
+      };
+
+      if (!data.ok) {
+        setWarning("An item in your cart is out of stock, please remove to continue with purchase.");
+        return;
+      }
+
+      router.push("/checkout");
+    } catch {
+      setWarning("An item in your cart is out of stock, please remove to continue with purchase.");
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
+  const [stockById, setStockById] = useState<Record<string, number | null>>({});
+
+  //Update cart page so Qty input clamps to available stock
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/cart/stock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productIds: items.map((i) => i.productId) }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { stock: Record<string, number | null> };
+        setStockById(data.stock || {});
+      } catch {
+        // ignore — cart still works, just won't cap
+      }
     };
 
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    if (items.length) load();
+    else setStockById({});
+  }, [items]);
 
-    if (!res.ok) {
-      const msg = await res.text();
-      alert(`Checkout failed: ${msg}`);
-      return;
+  //auto-fix cart if stock drops while cart is open
+  useEffect(() => {
+    if (!items.length) return;
+
+    for (const it of items) {
+      const stock = stockById[it.productId];
+      if (typeof stock !== "number") continue;
+
+      const max = Math.max(stock, 0);
+      if (it.quantity > max) setQty(it.productId, Math.max(1, max));
     }
-
-    const data = (await res.json()) as { url: string };
-    router.push(data.url);
-  };
+  }, [stockById, items, setQty]);
 
   return (
     <div className={styles.page}>
@@ -72,7 +121,16 @@ export default function CartPage() {
                         type="number"
                         min={1}
                         value={it.quantity}
-                        onChange={(e) => setQty(it.productId, Number(e.target.value))}
+                        onChange={(e) => {
+                          const raw = Number(e.target.value);
+                          const next = Number.isFinite(raw) ? Math.floor(raw) : 1;
+
+                          const stock = stockById[it.productId]; // number | null | undefined
+                          const max = typeof stock === "number" ? Math.max(stock, 0) : Infinity;
+
+                          const clamped = Math.max(1, Math.min(next, max));
+                          setQty(it.productId, clamped);
+                        }}
                       />
                     </label>
 
@@ -82,15 +140,20 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <div className={styles.lineTotal}>
-                  ${(it.price * it.quantity).toFixed(2)}
-                </div>
+                <div className={styles.lineTotal}>${(it.price * it.quantity).toFixed(2)}</div>
               </div>
             ))}
           </div>
 
           <div className={styles.summary}>
             <h2>Summary</h2>
+
+            {warning && (
+              <div style={{ marginBottom: "12px" }}>
+                {warning}
+              </div>
+            )}
+
             <div className={styles.sumRow}>
               <span>Items</span>
               <span>{totalItems}</span>
@@ -100,11 +163,11 @@ export default function CartPage() {
               <span>${subtotal.toFixed(2)}</span>
             </div>
 
-            <button className={styles.primary} onClick={checkout}>
-              Checkout
+            <button className={styles.primary} onClick={checkout} disabled={checkingOut}>
+              {checkingOut ? "Checking..." : "Checkout"}
             </button>
 
-            <button className={styles.secondary} onClick={clear}>
+            <button className={styles.secondary} onClick={clear} disabled={checkingOut}>
               Clear Cart
             </button>
           </div>

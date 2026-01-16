@@ -1,19 +1,27 @@
 /*
-Profile page: requires login, then displays basic account info pulled from Supabase user metadata (name/email).
+Profile page: requires login, loads profile row from Supabase, renders editable form.
 */
 
 import Link from "next/link";
-
 import styles from "../account.module.css";
 import { requireUser } from "@/lib/require-user";
+import { createClient } from "@/utils/supabase/server";
+import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
   const { user } = await requireUser();
+  const supabase = await createClient();
 
-  const name =
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.name as string | undefined) ||
-    "";
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("full_name,phone,address")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    // Keep it simple; you can improve UX later
+    throw new Error(error.message);
+  }
 
   return (
     <main className={styles.page}>
@@ -37,16 +45,15 @@ export default async function ProfilePage() {
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>Account details</h2>
 
-          <div className={styles.kv}>
-            <div className={styles.kvRow}>
-              <div className={styles.k}>Name</div>
-              <div className={styles.v}>{name || "—"}</div>
-            </div>
-            <div className={styles.kvRow}>
-              <div className={styles.k}>Email</div>
-              <div className={styles.v}>{user.email || "—"}</div>
-            </div>
-          </div>
+          <ProfileForm
+            userId={user.id}
+            initial={{
+              full_name: profile?.full_name ?? "",
+              email: user.email ?? "",
+              phone: profile?.phone ?? "",
+              address: profile?.address ?? "",
+            }}
+          />
         </section>
       </div>
     </main>

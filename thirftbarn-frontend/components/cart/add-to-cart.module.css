@@ -1,3 +1,36 @@
+.wrap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Qty field */
+.qtyWrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qtyLabel {
+  font-weight: 800;
+}
+
+.qtyInput {
+  width: 90px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.qtyInput:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+/* Existing add button */
 .btn {
   width: 100%;
   padding: 14px 16px;
@@ -22,4 +55,29 @@
   transform: translateY(-1px);
   border-color: rgba(0, 0, 0, 0.18);
   background: rgba(0, 0, 0, 0.12);
+}
+
+/* NEW remove button */
+.removeBtn {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.06);
+  color: black;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.removeBtn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Helper text */
+.stockText {
+  font-weight: 700;
+  opacity: 0.75;
 }

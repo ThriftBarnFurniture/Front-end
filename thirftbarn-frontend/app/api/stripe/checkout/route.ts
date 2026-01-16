@@ -6,6 +6,10 @@ import { createClient } from "@/utils/supabase/server";
 
 type Body = {
   items: { productId: string; quantity: number }[];
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  shipping_address?: string;
 };
 
 function toCents(price: number) {
@@ -31,6 +35,15 @@ export async function POST(req: Request) {
     if (!body?.items?.length) {
       return new NextResponse("No items in cart.", { status: 400 });
     }
+    const customer_name = String(body?.customer_name ?? "").trim();
+    const customer_email = String(body?.customer_email ?? "").trim();
+    const customer_phone = String(body?.customer_phone ?? "").trim();
+    const shipping_address = String(body?.shipping_address ?? "").trim();
+
+    if (!customer_name || !customer_email || !customer_phone || !shipping_address) {
+      return NextResponse.json({ error: "Missing checkout info." }, { status: 400 });
+    }
+
 
     // Normalize & validate quantities
     const wanted = body.items
@@ -63,10 +76,21 @@ export async function POST(req: Request) {
       const p = map.get(w.productId);
       if (!p) return new NextResponse("One or more products not found.", { status: 404 });
       if (!p.is_active) return new NextResponse(`Item unavailable: ${p.name}`, { status: 400 });
+
+      // quantity === 0 (or less) -> your exact warning
+      if (typeof p.quantity === "number" && p.quantity <= 0) {
+        return new NextResponse(
+          "An item in your cart is out of stock, please remove to continue with purchase.",
+          { status: 400 }
+        );
+      }
+
+      // not enough stock -> keep your existing message (or also change it if you want)
       if (typeof p.quantity === "number" && p.quantity < w.quantity) {
         return new NextResponse(`Not enough stock for: ${p.name}`, { status: 400 });
       }
     }
+
 
     // Build Stripe line items from Supabase prices (secure)
     const line_items = wanted.map((w) => {
@@ -120,11 +144,26 @@ export async function POST(req: Request) {
     // Create pending order FIRST (so webhook updates it)
     const order_number = makeOrderNumber();
 
+    let userEmail: string | null = null;
+    try {
+      const supabaseServer = await createClient();
+      const { data } = await supabaseServer.auth.getUser();
+      userId = data.user?.id ?? null;
+      userEmail = data.user?.email ?? null;
+    } catch {
+      userId = null;
+      userEmail = null;
+    }
+
+
     const { data: createdOrder, error: oErr } = await supabase
       .from("orders")
       .insert({
         order_number,
-        customer_email: "null",
+        customer_email: customer_email,
+        customer_name: customer_name,
+        customer_phone: customer_phone,
+        shipping_address: shipping_address,
         items: orderItems,
         subtotal: subtotal_cents / 100,
         tax: tax_cents / 100,
@@ -151,10 +190,15 @@ export async function POST(req: Request) {
       success_url: `${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart`,
       metadata: {
-        cart: packed, // keep your existing behavior
+        cart: packed,
         order_id: orderId,
         order_number,
         user_id: userId ?? "",
+        customer_name,
+        customer_email,
+        stripe_email: null,
+        customer_phone,
+        shipping_address,
       },
     });
 
