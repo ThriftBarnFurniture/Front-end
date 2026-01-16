@@ -36,7 +36,7 @@ export const Navbar = () => {
 
     const load = async () => {
       try {
-        const res = await fetch("/api/google/reviews-count", { cache: "no-store" });
+        const res = await fetch("/api/google/reviews-count");
         if (!res.ok) return;
         const data = (await res.json()) as { count: number; rating: number };
         if (!cancelled) setGoogleReviewCount(Number(data.count) || 0);
