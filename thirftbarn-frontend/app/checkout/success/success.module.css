@@ -15,11 +15,6 @@
   opacity: 0.9;
 }
 
-.session {
-  margin-top: 10px;
-  opacity: 0.75;
-}
-
 .card {
   margin-top: 18px;
   padding: 16px;
@@ -170,3 +165,20 @@
   background: rgba(0, 0, 0, 0.08);
 }
 
+@media (max-width: 520px) {
+  .wrap {
+    margin: 120px auto 0;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .itemRow {
+    align-items: flex-start;
+  }
+}
