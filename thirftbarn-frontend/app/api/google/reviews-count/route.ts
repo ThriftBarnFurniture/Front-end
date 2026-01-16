@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const revalidate = 60 * 60; // cache 1 hour (adjust as you want)
+export const revalidate = 3600; // cache 1 hour (adjust as you want)
 
 export async function GET() {
   try {
