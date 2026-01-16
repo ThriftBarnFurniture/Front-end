@@ -133,7 +133,7 @@ export default function Home() {
                 furniture at a reasonable price, we provide services such as:
               </p>
               <ul className={styles.aboutList}>
-                <li>Furniture Removal / Clear Out</li>
+                <li>Furniture Removal / Clear Outs</li>
                 <li>Moving Services</li>
                 <li>Junk Removal Services</li>
                 <li>Delivery & Distribution</li>
