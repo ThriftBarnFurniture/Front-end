@@ -43,12 +43,15 @@ export async function signup(formData: FormData) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://front-end-cdca.vercel.app/";
+
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
+    "https://front-end-cdca.vercel.app/"; 
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl}`,
+      redirectTo: `${base}/auth/callback`,
     },
   });
 
@@ -58,3 +61,4 @@ export async function signInWithGoogle() {
 
   redirect(data.url);
 }
+
