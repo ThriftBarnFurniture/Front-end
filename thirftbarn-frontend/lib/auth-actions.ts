@@ -43,7 +43,7 @@ export async function signup(formData: FormData) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://front-end-cdca.vercel.app/";
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
