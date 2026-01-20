@@ -223,34 +223,36 @@ export default async function Home() {
       </section>
 
 
-      {/* ===== SHOP BY ROOM ===== */}
-      <section className={styles.shopByRoomSection} aria-label="Shop by Room">
+      {/* ===== SHOP BY CATEGORY ===== */}
+      <section className={styles.shopByRoomSection} aria-label="Shop by Category">
         <div className={styles.sectionInner}>
-          <h2 className={styles.sectionHeading}>SHOP BY ROOM.</h2>
+          <h2 className={styles.sectionHeading}>SHOP BY CATEGORY.</h2>
 
           <div className={styles.roomGrid}>
             {[
-              { label: "Living Room", img: "/inside_barn_closed.jpg" },
-              { label: "Dining Room", img: "/furniture.jpg" },
-              { label: "Kitchen & Bath", img: "/Hero-bg.jpg" },
-              { label: "Bedroom", img: "/snowbarn.jpg" },
-              { label: "Child/Nursery", img: "/furniture.jpg" },
-              { label: "Office", img: "/inside_barn_closed.jpg" },
-              { label: "Garage/Exterior", img: "/Hero-bg.jpg" },
-              { label: "Home Decor", img: "/snowbarn.jpg" },
-            ].map((r) => (
-              <div key={r.label} className={styles.roomItem}>
-                <div className={styles.roomCircle}>
-                  <Image
-                    src={r.img}
-                    alt={r.label}
-                    fill
-                    sizes="(max-width: 480px) 240px, (max-width: 768px) 220px, 250px"
-                    style={{ objectFit: "cover" }}
-                  />
+              { label: "$5 and Under", img: "/snowbarn.jpg", href: "/shop?collection=5-under" },
+              { label: "Living Room", img: "/inside_barn_closed.jpg", href: "/shop?room=living-room" },
+              { label: "Dining Room", img: "/furniture.jpg", href: "/shop?room=dining-room" },
+              { label: "Bedroom", img: "/snowbarn.jpg", href: "/shop?room=bedroom" },
+              { label: "Office", img: "/inside_barn_closed.jpg", href: "/shop?room=office" },
+              { label: "Garage / Exterior", img: "/Hero-bg.jpg", href: "/shop?room=garage" },
+              { label: "Home Decor", img: "/furniture.jpg", href: "/shop?room=home-decor" },
+              { label: "Child / Nursery", img: "/snowbarn.jpg", href: "/shop?room=kids-room" },
+            ].map((c) => (
+              <Link key={c.label} href={c.href} className={styles.roomItemLink}>
+                <div className={styles.roomItem}>
+                  <div className={styles.roomCircle}>
+                    <Image
+                      src={c.img}
+                      alt={c.label}
+                      fill
+                      sizes="(max-width: 480px) 240px, (max-width: 768px) 220px, 250px"
+                      style={{ objectFit: "cover" }}
+                    />
+                  </div>
+                  <p className={styles.roomLabel}>{c.label}</p>
                 </div>
-                <p className={styles.roomLabel}>{r.label}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

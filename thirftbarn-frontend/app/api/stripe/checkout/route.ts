@@ -9,7 +9,13 @@ type Body = {
   customer_name?: string;
   customer_email?: string;
   customer_phone?: string;
-  shipping_address?: string;
+
+  shipping_method?: "pickup" | "delivery";
+  shipping_address?: string; // only required for delivery
+  shipping_cost?: number; // optional, default 0
+
+  promo_code?: string;
+  promo_discount?: number;
 };
 
 function toCents(price: number) {
@@ -38,11 +44,29 @@ export async function POST(req: Request) {
     const customer_name = String(body?.customer_name ?? "").trim();
     const customer_email = String(body?.customer_email ?? "").trim();
     const customer_phone = String(body?.customer_phone ?? "").trim();
-    const shipping_address = String(body?.shipping_address ?? "").trim();
 
-    if (!customer_name || !customer_email || !customer_phone || !shipping_address) {
+    const shipping_method = (body?.shipping_method ?? "") as "pickup" | "delivery" | "";
+    const shipping_address = String(body?.shipping_address ?? "").trim();
+    const shipping_cost = Number(body?.shipping_cost ?? 0);
+
+    const promo_code = String(body?.promo_code ?? "").trim().toUpperCase();
+
+    // Server-trusted promo rules (match UI for now)
+    let promo_cents = 0;
+    if (promo_code === "BVGSFSRSE") promo_cents = 1000; // $10.00
+
+    if (!customer_name || !customer_email || !customer_phone) {
       return NextResponse.json({ error: "Missing checkout info." }, { status: 400 });
     }
+
+    if (shipping_method !== "pickup" && shipping_method !== "delivery") {
+      return NextResponse.json({ error: "Missing shipping method." }, { status: 400 });
+    }
+
+    if (shipping_method === "delivery" && !shipping_address) {
+      return NextResponse.json({ error: "Missing delivery address." }, { status: 400 });
+    }
+
 
 
     // Normalize & validate quantities
@@ -127,8 +151,26 @@ export async function POST(req: Request) {
       (sum, it) => sum + it.unit_price_cents * it.quantity,
       0
     );
-    const tax_cents = 0; // set later if you implement tax
-    const total_cents = subtotal_cents + tax_cents;
+
+    const shipping_cents = Math.max(0, Math.round((Number.isFinite(shipping_cost) ? shipping_cost : 0) * 100));
+    promo_cents = Math.min(promo_cents, subtotal_cents);
+    const tax_cents = 0; // later
+    const total_cents = subtotal_cents - promo_cents + shipping_cents + tax_cents;
+    
+    // ✅ Add shipping as its own Stripe line item so it gets charged
+    if (shipping_cents > 0) {
+      line_items.push({
+        quantity: 1,
+        price_data: {
+          currency: "cad",
+          unit_amount: shipping_cents,
+          product_data: {
+            name: "Shipping",
+            images: undefined,
+          },
+        },
+      });
+    }
 
     // OPTIONAL: attach logged-in user_id so it shows in /account/orders
     let userId: string | null = null;
@@ -155,6 +197,17 @@ export async function POST(req: Request) {
       userEmail = null;
     }
 
+    let discountCouponId: string | null = null;
+
+    if (promo_cents > 0) {
+      const coupon = await stripe.coupons.create({
+        duration: "once",
+        amount_off: promo_cents,
+        currency: "cad",
+        name: promo_code ? `Promo ${promo_code}` : "Promo",
+      });
+      discountCouponId = coupon.id;
+    }
 
     const { data: createdOrder, error: oErr } = await supabase
       .from("orders")
@@ -163,11 +216,17 @@ export async function POST(req: Request) {
         customer_email: customer_email,
         customer_name: customer_name,
         customer_phone: customer_phone,
-        shipping_address: shipping_address,
+        shipping_address: shipping_method === "pickup"
+                          ? "2786 ON-34  Hawkesbury, ON K6A 2R2"
+                          : shipping_address,
+        promo_code: promo_code || null,
+        promo_discount: promo_cents / 100,
+        shipping_cost: shipping_cents / 100,
         items: orderItems,
         subtotal: subtotal_cents / 100,
         tax: tax_cents / 100,
         total: total_cents / 100,
+
         payment_method: "stripe",
         payment_id: null,
         channel: "website",
@@ -177,6 +236,7 @@ export async function POST(req: Request) {
         currency: "cad",
         status: "pending",
       })
+
       .select("order_id")
       .single();
 
@@ -187,6 +247,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items,
+      discounts: discountCouponId ? [{ coupon: discountCouponId }] : undefined,
       success_url: `${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart`,
       metadata: {
@@ -199,6 +260,10 @@ export async function POST(req: Request) {
         stripe_email: null,
         customer_phone,
         shipping_address,
+        promo_code,
+        promo_discount_cents: String(promo_cents),
+        shipping_cost_cents: String(shipping_cents),
+        shipping_method,
       },
     });
 

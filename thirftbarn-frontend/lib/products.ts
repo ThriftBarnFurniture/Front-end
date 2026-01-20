@@ -8,6 +8,9 @@ export type Product = {
   description: string | null;
   price: number | string; // Supabase numeric often comes back as string
   category: string | null;
+  subcategory: string | null;     
+  room_tags: string[];            
+  collections: string[]; 
   condition: string | null;
   height: number | null;
   width: number | null;
@@ -27,7 +30,7 @@ export async function getShopProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,description,price,category,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url"
+      "id,sku,barcode,name,description,price,category,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url, subcategory, room_tags, collections"
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false });

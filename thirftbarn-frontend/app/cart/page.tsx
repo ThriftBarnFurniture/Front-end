@@ -9,43 +9,22 @@ import { useEffect, useMemo, useState } from "react";
 export default function CartPage() {
   const router = useRouter();
   const { items, subtotal, totalItems, removeItem, setQty, clear } = useCart();
+
   const [warning, setWarning] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
 
-  const checkout = async () => {
-    setWarning(null);
-    setCheckingOut(true);
+  // UI + calculations
+  const [shipping, setShipping] = useState<string>("");
+  const [promoInput, setPromoInput] = useState<string>("");
+  const [appliedPromo, setAppliedPromo] = useState<string>("");
 
-    try {
-      const res = await fetch("/api/cart/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productIds: items.map((i) => i.productId) }),
-      });
+  // NEW: postal code shown when shipping === "shipping" (NOT required to proceed)
+  const [postalCode, setPostalCode] = useState<string>("");
 
-      if (!res.ok) throw new Error("Validation failed.");
-
-      const data = (await res.json()) as {
-        ok: boolean;
-        outOfStock: { id: string; name: string }[];
-      };
-
-      if (!data.ok) {
-        setWarning("An item in your cart is out of stock, please remove to continue with purchase.");
-        return;
-      }
-
-      router.push("/checkout");
-    } catch {
-      setWarning("An item in your cart is out of stock, please remove to continue with purchase.");
-    } finally {
-      setCheckingOut(false);
-    }
-  };
 
   const [stockById, setStockById] = useState<Record<string, number | null>>({});
 
-  //Update cart page so Qty input clamps to available stock
+  // Update cart page so Qty input clamps to available stock
   useEffect(() => {
     const load = async () => {
       try {
@@ -66,7 +45,7 @@ export default function CartPage() {
     else setStockById({});
   }, [items]);
 
-  //auto-fix cart if stock drops while cart is open
+  // Auto-fix cart if stock drops while cart is open
   useEffect(() => {
     if (!items.length) return;
 
@@ -79,100 +58,332 @@ export default function CartPage() {
     }
   }, [stockById, items, setQty]);
 
-  return (
-    <div className={styles.page}>
-      <h1 className={styles.title}>Your Cart</h1>
+  const clampQty = (productId: string, next: number) => {
+    const stock = stockById[productId]; // number | null | undefined
+    const max = typeof stock === "number" ? Math.max(stock, 0) : Infinity;
+    return Math.max(1, Math.min(Math.floor(next || 1), max));
+  };
 
+  const checkout = async () => {
+    setWarning(null);
+
+    setCheckingOut(true);
+
+    try {
+      const res = await fetch("/api/cart/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productIds: items.map((i) => i.productId) }),
+      });
+
+      if (!res.ok) throw new Error("Validation failed.");
+
+      const data = (await res.json()) as {
+        ok: boolean;
+        outOfStock: { id: string; name: string }[];
+      };
+
+      if (!data.ok) {
+        setWarning(
+          "An item in your cart is out of stock, please remove to continue with purchase."
+        );
+        return;
+      }
+
+      // (Optional later) you’ll likely store shipping + address in your CartProvider or session.
+      router.push("/checkout");
+    } catch {
+      setWarning(
+        "An item in your cart is out of stock, please remove to continue with purchase."
+      );
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
+  // Simple promo behavior for now:
+  // - Apply only when user hits "Apply"
+  // - Example: BVGSFSRSE = $10 off
+  const promoDiscount = useMemo(() => {
+    const code = appliedPromo.trim().toUpperCase();
+    if (!code) return 0;
+    if (code === "BVGSFSRSE") return 10;
+    return 0; // unknown code = 0 for now (we can wire backend later)
+  }, [appliedPromo]);
+
+  const shippingCost = useMemo(() => {
+    if (shipping === "pickup") return 0;
+
+    if (shipping === "shipping") {
+      // Simple postal code pricing (Canada).
+      // You can adjust these rules any time.
+      const pc = postalCode.toUpperCase().replace(/\s+/g, "");
+
+      if (!pc) return 0; // no postal code yet = show $0 for now
+
+      // Ontario (K, L, M, N, P) - example: cheaper
+      if (/^[KLMNP]/.test(pc)) return 15;
+
+      // Quebec (H, J, G) - example: medium
+      if (/^[HJG]/.test(pc)) return 20;
+
+      // Everything else - example: higher
+      return 30;
+    }
+
+    return 0;
+  }, [shipping, postalCode]);
+
+  const taxableBase = Math.max(0, subtotal + shippingCost - promoDiscount);
+  const taxes = 0; // wire later
+  const totalCost = Math.max(0, taxableBase + taxes);
+
+  return (
+    <main className={styles.page}>
       {items.length === 0 ? (
         <div className={styles.empty}>
-          <p>Your cart is empty.</p>
-          <button className={styles.primary} onClick={() => router.push("/shop")}>
+          <h1 className={styles.emptyTitle}>Your Cart is Empty</h1>
+          <button className={styles.checkoutBtn} onClick={() => router.push("/shop")}>
             Go to Shop
           </button>
         </div>
       ) : (
-        <div className={styles.grid}>
-          <div className={styles.list}>
-            {items.map((it) => (
-              <div key={it.productId} className={styles.row}>
-                <div className={styles.imgWrap}>
-                  {it.imageUrl ? (
-                    <Image
-                      src={it.imageUrl}
-                      alt={it.name}
-                      fill
-                      className={styles.img}
-                      sizes="80px"
-                    />
-                  ) : (
-                    <div className={styles.imgFallback} />
-                  )}
-                </div>
+        <div className={styles.shell}>
+          {/* LEFT */}
+          <section className={styles.left}>
+            <div className={styles.leftHead}>
+              <h1 className={styles.title}>Your Cart</h1>
+              <div className={styles.itemsCount}>{totalItems} Items</div>
+            </div>
 
-                <div className={styles.info}>
-                  <div className={styles.name}>{it.name}</div>
-                  <div className={styles.price}>${it.price.toFixed(2)}</div>
+            <div className={styles.hr} />
 
-                  <div className={styles.controls}>
-                    <label className={styles.qtyLabel}>
-                      Qty
-                      <input
-                        className={styles.qty}
-                        type="number"
-                        min={1}
-                        value={it.quantity}
-                        onChange={(e) => {
-                          const raw = Number(e.target.value);
-                          const next = Number.isFinite(raw) ? Math.floor(raw) : 1;
+            <div className={styles.list}>
+              {items.map((it) => {
+                const maxStock =
+                  typeof stockById[it.productId] === "number"
+                    ? Math.max(stockById[it.productId] as number, 0)
+                    : null;
 
-                          const stock = stockById[it.productId]; // number | null | undefined
-                          const max = typeof stock === "number" ? Math.max(stock, 0) : Infinity;
+                return (
+                  <div key={it.productId} className={styles.row}>
+                    <div className={styles.photo}>
+                      {it.imageUrl ? (
+                        <Image
+                          src={it.imageUrl}
+                          alt={it.name}
+                          fill
+                          className={styles.img}
+                          sizes="110px"
+                        />
+                      ) : (
+                        <div className={styles.photoFallback}>PHOTO</div>
+                      )}
+                    </div>
 
-                          const clamped = Math.max(1, Math.min(next, max));
-                          setQty(it.productId, clamped);
-                        }}
-                      />
-                    </label>
+                    <div className={styles.rowMid}>
+                      <div className={styles.name}>{it.name}</div>
 
-                    <button className={styles.link} onClick={() => removeItem(it.productId)}>
-                      Remove
-                    </button>
+                      <div className={styles.rowControls}>
+                        {/* Qty UI */}
+                        <div className={styles.qtyWrap} aria-label="Quantity selector">
+                          <button
+                            type="button"
+                            className={styles.qtyBtn}
+                            onClick={() =>
+                              setQty(it.productId, clampQty(it.productId, it.quantity - 1))
+                            }
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+
+                          <input
+                            className={styles.qtyInput}
+                            type="number"
+                            min={1}
+                            inputMode="numeric"
+                            value={it.quantity}
+                            onChange={(e) => {
+                              const raw = Number(e.target.value);
+                              setQty(it.productId, clampQty(it.productId, raw));
+                            }}
+                            aria-label="Quantity"
+                          />
+
+                          <button
+                            type="button"
+                            className={styles.qtyBtn}
+                            onClick={() =>
+                              setQty(it.productId, clampQty(it.productId, it.quantity + 1))
+                            }
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Optional stock hint */}
+                        {typeof maxStock === "number" ? (
+                          <div className={styles.stockNote}>Max {maxStock}</div>
+                        ) : null}
+
+                        <button className={styles.remove} onClick={() => removeItem(it.productId)}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={styles.rowRight}>
+                      <div className={styles.lineTotal}>${(it.price * it.quantity).toFixed(2)}</div>
+                      <div className={styles.unitPrice}>${it.price.toFixed(2)} each</div>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+
+            <div className={styles.bottomHr} />
+
+            <button className={styles.continue} onClick={() => router.push("/shop")} type="button">
+              <span className={styles.arrow}>←</span> Continue Shopping
+            </button>
+          </section>
+
+          {/* RIGHT */}
+          <aside className={styles.right}>
+            <div className={styles.summaryCard}>
+              <h2 className={styles.summaryTitle}>Order Summary</h2>
+              <div className={styles.hr} />
+
+              {warning && <div className={styles.warning}>{warning}</div>}
+
+              {/* Promo code first */}
+              <div className={styles.block}>
+                <div className={styles.blockTitle}>PROMO CODE</div>
+                <div className={styles.selectWrap}>
+                  <input
+                    className={styles.input}
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    placeholder="Enter your code"
+                  />
+                </div>
+                <button
+                  className={styles.applyBtn}
+                  type="button"
+                  onClick={() => setAppliedPromo(promoInput.trim())}
+                >
+                  Apply
+                </button>
+              </div>
+
+              {/* Shipping after promo */}
+              <div className={styles.block}>
+                <div className={styles.blockTitle}>CALCULATE SHIPPING</div>
+                <div className={styles.selectWrap}>
+                  <select
+                    className={styles.select}
+                    value={shipping}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setShipping(next);
+                      setWarning(null);
+
+                      if (next !== "shipping") setPostalCode("");
+                    }}
+                  >
+                    <option value="">Select your Option</option>
+                    <option value="pickup">Store Pickup</option>
+                    <option value="shipping">Shipping</option>
+                  </select>
                 </div>
 
-                <div className={styles.lineTotal}>${(it.price * it.quantity).toFixed(2)}</div>
+                {/* NEW: Pickup message */}
+                {shipping === "pickup" ? (
+                  <div className={styles.shippingNote}>
+                    The client will be responsible for picking up the order from 2786 ON-34
+                    Hawkesbury, ON K6A 2R2 within two weeks of purchase. Otherwise, the order will
+                    be subject for cancel.
+                  </div>
+                ) : null}
+
+                {shipping === "shipping" ? (
+                  <div className={styles.addressBlock}>
+                    <div className={styles.addressLabel}>POSTAL CODE</div>
+                    <input
+                      className={styles.input}
+                      value={postalCode}
+                      onChange={(e) => {
+                        // light cleanup: uppercase + allow letters/numbers/spaces only
+                        const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
+                        setPostalCode(raw);
+                      }}
+                      placeholder="e.g. K1A 0B1"
+                      autoComplete="shipping postal-code"
+                      inputMode="text"
+                    />
+                    <div className={styles.shippingHint}>
+                      Entering a postal code updates the estimated shipping fee.
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ))}
-          </div>
 
-          <div className={styles.summary}>
-            <h2>Summary</h2>
+              {/* Price calculation */}
+              <div className={styles.calc}>
+                <div className={styles.calcRow}>
+                  <span>Items Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
 
-            {warning && (
-              <div style={{ marginBottom: "12px" }}>
-                {warning}
+                <div className={styles.calcRow}>
+                  <span>Promo{appliedPromo ? ` (${appliedPromo.toUpperCase()})` : ""}</span>
+                  <span className={promoDiscount ? styles.negative : ""}>
+                    -${promoDiscount.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className={styles.calcRow}>
+                  <span>Shipping</span>
+                  <span>{shipping === "pickup" ? "FREE" : `$${shippingCost.toFixed(2)}`}</span>
+                </div>
+
+                <div className={styles.calcRow}>
+                  <span>Taxes</span>
+                  <span>${taxes.toFixed(2)}</span>
+                </div>
               </div>
-            )}
 
-            <div className={styles.sumRow}>
-              <span>Items</span>
-              <span>{totalItems}</span>
+              <div className={styles.hr} />
+
+              <div className={styles.totalRow}>
+                <span className={styles.totalLabel}>TOTAL COST</span>
+                <span className={styles.totalValue}>${totalCost.toFixed(2)}</span>
+              </div>
+
+              <button
+                className={styles.checkoutBtn}
+                onClick={checkout}
+                disabled={checkingOut}
+                type="button"
+              >
+                {checkingOut ? "Checking..." : "Checkout"}
+              </button>
+
+              {/* keep functionality but hidden */}
+              <button
+                className={styles.hiddenClear}
+                onClick={clear}
+                disabled={checkingOut}
+                type="button"
+              >
+                Clear Cart
+              </button>
             </div>
-            <div className={styles.sumRow}>
-              <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
-            </div>
-
-            <button className={styles.primary} onClick={checkout} disabled={checkingOut}>
-              {checkingOut ? "Checking..." : "Checkout"}
-            </button>
-
-            <button className={styles.secondary} onClick={clear} disabled={checkingOut}>
-              Clear Cart
-            </button>
-          </div>
+          </aside>
         </div>
       )}
-    </div>
+    </main>
   );
 }

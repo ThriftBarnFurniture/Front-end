@@ -127,24 +127,29 @@ export default function AddToCartButton({
       {/* Add stays visible always */}
       <button
         type="button"
-        className={`${styles.btn} ${justAdded ? styles.btnAdded : ""}`}
+        className={`addToCartCta ${styles.btn} ${justAdded ? styles.btnAdded : ""}`}
         disabled={isDisabledBase}
         onClick={onAdd}
       >
         {addLabel}
       </button>
 
-      {/* Remove only appears if THIS item exists in cart */}
-      {inCartQty > 0 && (
-        <button type="button" className={styles.removeBtn} onClick={onRemove}>
-          Remove from cart
-        </button>
-      )}
-
-      {/* Helper text */}
+      {/* Helper text + tiny remove button */}
       {typeof maxQty === "number" && !soldOut && (
-        <div className={styles.stockText}>
-          In cart: {inCartQty} / {Math.max(0, maxQty)}
+        <div className={styles.stockRow}>
+          <div className={styles.stockText}>
+            In cart: {inCartQty} / {Math.max(0, maxQty)}
+          </div>
+
+          {inCartQty > 0 && (
+            <button
+              type="button"
+              className={styles.removeTiny}
+              onClick={onRemove}
+            >
+              Remove
+            </button>
+          )}
         </div>
       )}
     </div>

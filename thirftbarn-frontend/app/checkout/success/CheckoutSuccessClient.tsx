@@ -24,6 +24,9 @@ type OrderRow = {
   shipping_address: string | null;
 
   stripe_email?: string | null;
+  shipping_cost?: number | null;
+  promo_code?: string | null;
+  promo_discount?: number | null;
 };
 
 type ProductMini = {
@@ -81,6 +84,9 @@ export default function CheckoutSuccessClient() {
               "customer_email",
               "customer_phone",
               "shipping_address",
+              "shipping_cost",
+              "promo_code",
+              "promo_discount",
               "stripe_email",
               "stripe_session_id",
             ].join(",")
@@ -195,6 +201,9 @@ export default function CheckoutSuccessClient() {
     };
   }, [order, items]);
 
+  const shipping = Number(order?.shipping_cost ?? 0);
+  const promo = Number(order?.promo_discount ?? 0);
+  const promoCode = String(order?.promo_code ?? "").trim();
   const currency = String(order?.currency ?? "cad").toUpperCase();
 
   return (
@@ -245,7 +254,7 @@ export default function CheckoutSuccessClient() {
                   <strong>{order.customer_phone ?? "—"}</strong>
                 </div>
 
-                <div className={styles.clientRowFull}>
+                <div className={styles.clientRow}>
                   <span>Address</span>
                   <strong>{order.shipping_address ?? "—"}</strong>
                 </div>
@@ -317,12 +326,28 @@ export default function CheckoutSuccessClient() {
             <div className={styles.summary}>
               <div>
                 <span>Subtotal</span>
-                <strong>{Number(order.subtotal ?? 0).toFixed(2)}</strong>
+                <strong>{Number(order.subtotal ?? 0).toFixed(2)} {currency}</strong>
               </div>
+
+              {/* ✅ Promo */}
+              <div>
+                <span>
+                  Promo{promoCode ? ` (${promoCode})` : ""}
+                </span>
+                <strong>{promo > 0 ? `-${promo.toFixed(2)}` : "0.00"} {currency}</strong>
+              </div>
+
+              {/* ✅ Shipping */}
+              <div>
+                <span>Shipping</span>
+                <strong>{shipping > 0 ? shipping.toFixed(2) : "0.00"} {currency}</strong>
+              </div>
+
               <div>
                 <span>Tax</span>
-                <strong>{Number(order.tax ?? 0).toFixed(2)}</strong>
+                <strong>{Number(order.tax ?? 0).toFixed(2)} {currency}</strong>
               </div>
+
               <div className={styles.totalRow}>
                 <span>Total</span>
                 <strong>

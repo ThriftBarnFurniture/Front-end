@@ -191,6 +191,27 @@
   padding: 0.42rem 0.85rem;
 }
 
+.shopHover {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* hidden by default */
+.megaHolder {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.megaOpen {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+
 /* =========================================================
    Cart
    ========================================================= */

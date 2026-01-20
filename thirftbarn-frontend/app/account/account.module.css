@@ -1,15 +1,12 @@
 /* =========================================================
-   Account pages (matches global Thrift Barn tokens)
+   Account page – reworked to match screenshot (clean + red accents)
    ========================================================= */
 
 .page {
   min-height: calc(100vh - 1px);
-  background: var(--color-bg);
+  background: #fff;
+  padding: 200px var(--gutter) 80px;
 
-  display: grid;
-  place-items: center;
-
-  padding: 110px var(--gutter) 60px;
 }
 
 .container {
@@ -17,249 +14,255 @@
   margin: 0 auto;
 }
 
+/* Header */
 .header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .titleWrap {
   display: grid;
-  gap: var(--space-2);
+  gap: 10px;
 }
 
 .h1 {
   font-family: var(--font-header);
-  font-size: clamp(2rem, 1.6rem + 1.2vw, 3rem);
+  font-size: clamp(2.1rem, 1.7rem + 1.2vw, 3rem);
   letter-spacing: 0.02em;
   line-height: 1.05;
   margin: 0;
+  color: #111;
 }
 
 .sub {
   font-family: var(--font-text);
-  color: black;
+  color: rgba(0, 0, 0, 0.75);
   font-size: 0.95rem;
   margin: 0;
 }
 
 .actions {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  gap: 14px;
   flex-wrap: wrap;
 }
 
-.primaryBtn,
-.ghostBtn {
+/* Header buttons (red outline pills) */
+.actionBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
 
   height: 42px;
-  padding: 0 14px;
+  padding: 0 18px;
   border-radius: 999px;
 
   font-family: var(--font-text);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 0.95rem;
+  text-decoration: none;
+
+  background: #fff;
+  color: #b10012;
+  border: 2px solid #b10012;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.actionBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.06);
+}
+
+/* Section title */
+.sectionTitle {
+  margin: 34px 0 18px;
+  font-family: var(--font-text);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  color: #111;
+}
+
+/* Grid layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px;
+}
+
+/* Cards */
+.card {
+  border-radius: 18px;
+  padding: 22px 22px 20px;
+  background: #fff;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+}
+
+.cardTitle {
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--color-brand);
+}
+
+.cardText {
+  margin: 10px 0 0;
+  font-family: var(--font-text);
+  color: rgba(0, 0, 0, 0.68);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.cardLinkRow {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Card CTA pills (red outline, like screenshot) */
+.linkPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  background: #fff;
+  border: 2px solid #b10012;
+  color: #b10012;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.92rem;
   text-decoration: none;
 
   transition: transform var(--dur-2) var(--ease),
     box-shadow var(--dur-2) var(--ease),
-    background var(--dur-2) var(--ease),
-    border-color var(--dur-2) var(--ease);
+    background var(--dur-2) var(--ease);
 }
 
-.primaryBtn {
-  background: var(--color-brand);
-  color: black;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+.linkPill:hover {
+  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.06);
 }
 
-.primaryBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+/* Danger Zone should be a single grid cell (not full-width) */
+.dangerCard {
+  margin-top: 6px;
 }
 
-.ghostBtn {
-  background: transparent;
-  color: black;
-  border: 1px solid var(--color-border);
+/* Force it into the right column on desktop (cell 0,1 style) */
+.rightCell {
+  grid-column: 2;
 }
 
-.ghostBtn:hover {
-  background: var(--color-surface-2);
-  transform: translateY(-1px);
-}
-
-.sectionTitle {
+.dangerTitle {
   font-family: var(--font-text);
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  margin: 0 0 var(--space-3);
-  color: black;
+  font-weight: 900;
+  font-size: 1.05rem;
+  margin: 0;
+  color: #b10012;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
+/* Red filled/soft button like Delete */
+.dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  border: 2px solid #b10012;
+  background: rgba(177, 0, 18, 0.06);
+  color: #b10012;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
 }
 
-.input {
+.dangerBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.1);
+}
+
+
+/* Delete button (used by DeleteAccountButton.tsx) */
+.deleteBtn {
+  margin-top: 18px;
   width: 100%;
   height: 44px;
-  border-radius: 12px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  outline: none;
-}
+  border-radius: 999px;
 
-.input:focus {
-  border-color: var(--color-brand);
-}
+  font-family: var(--font-text);
+  font-weight: 900;
 
-.rowActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
-}
+  border: 2px solid #b10012;
+  background: rgba(177, 0, 18, 0.06);
+  color: #b10012;
 
-.mutedNote {
-  color: var(--color-muted);
-  font-weight: 700;
-}
-
-.dropdown {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: 12px;
-  overflow: hidden;
-  z-index: 50;
-  box-shadow: var(--shadow-md);
-}
-
-.dropdownItem {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  font-weight: 700;
-  color: var(--color-text);
-  background: transparent;
-  border: 0;
   cursor: pointer;
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
 }
 
-.dropdownItem:hover {
-  background: var(--color-surface-2);
+.deleteBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.1);
 }
 
+.deleteBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive */
 @media (max-width: 720px) {
   .header {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .actions {
+    width: 100%;
+  }
+
+  .actionBtn {
+    width: fit-content;
+  }
+
   .grid {
     grid-template-columns: 1fr;
   }
-}
 
-.cardTitle {
-  font-family: var(--font-text);
-  font-weight: 900;
-  font-size: 1.05rem;
-  margin: 0;
-}
-
-.cardText {
-  font-family: var(--font-text);
-  color: var(--color-muted);
-  font-size: 0.95rem;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.cardLinkRow {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.linkPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  padding: 10px 14px;
-  border-radius: 999px;
-
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
-
-  font-family: var(--font-text);
-  font-weight: 800;
-  font-size: 0.92rem;
-  text-decoration: none;
-  color: var(--color-text);
-
-  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
-}
-
-.linkPill:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.kv {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.kvRow {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: var(--space-3);
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--color-border);
-}
-
-.kvRow:last-child {
-  border-bottom: none;
-}
-
-.k {
-  font-family: var(--font-text);
-  font-weight: 800;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
-
-.v {
-  font-family: var(--font-text);
-  font-weight: 700;
-  color: var(--color-text);
-  font-size: 0.95rem;
-  word-break: break-word;
-}
-
-@media (max-width: 520px) {
-  .kvRow {
-    grid-template-columns: 1fr;
+  .dangerCard {
+    grid-column: auto;
   }
 }

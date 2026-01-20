@@ -22,12 +22,6 @@ export default async function ItemPage({
 
   const images = getAllImages(product);
   const price = formatPrice(product.price);
-
-  const dims =
-    product.height || product.width || product.depth
-      ? `${product.height ?? "—"}H × ${product.width ?? "—"}W × ${product.depth ?? "—"}D`
-      : null;
-
   const soldOut = product.quantity !== null && product.quantity <= 0;
 
   return (
@@ -50,46 +44,7 @@ export default async function ItemPage({
             <p className={styles.desc}>{product.description}</p>
           )}
 
-          <div className={styles.specs}>
-            {product.category && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Category</span>
-                <span className={styles.specValue}>{product.category}</span>
-              </div>
-            )}
-            {product.condition && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Condition</span>
-                <span className={styles.specValue}>{product.condition}</span>
-              </div>
-            )}
-            {dims && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Dimensions</span>
-                <span className={styles.specValue}>{dims}</span>
-              </div>
-            )}
-            {product.sku && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>SKU</span>
-                <span className={styles.specValue}>{product.sku}</span>
-              </div>
-            )}
-            {product.barcode && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>Barcode</span>
-                <span className={styles.specValue}>{product.barcode}</span>
-              </div>
-            )}
-            {product.quantity !== null && (
-              <div className={styles.specRow}>
-                <span className={styles.specLabel}>In stock</span>
-                <span className={styles.specValue}>{Math.max(product.quantity, 0)}</span>
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginTop: "14px" }}>
+          <div className={styles.ctaWrap}>
             <AddToCartButton
               soldOut={soldOut}
               maxQty={product.quantity}
@@ -101,6 +56,18 @@ export default async function ItemPage({
               }}
             />
           </div>
+
+          {/* “Details” like the screenshot (simple dash list) */}
+          <ul className={styles.details}>
+            {product.category && <li>Category: {product.category}</li>}
+            {product.condition && <li>Condition: {product.condition}</li>}
+
+            {product.height != null && <li>Height: {product.height}</li>}
+            {product.width != null && <li>Width: {product.width}</li>}
+            {product.depth != null && <li>Depth: {product.depth}</li>}
+
+            {product.sku && <li>SKU: {product.sku}</li>}
+          </ul>
         </section>
       </div>
     </main>

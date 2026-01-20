@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { uploadProductImageToR2 } from "@/lib/r2-upload";
 import { createClient } from "@/utils/supabase/server";
 
-const MAX_IMAGE_COUNT = 5;
-
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
   if (!endpoint) return;
@@ -31,30 +29,49 @@ const parseImages = (formData: FormData) =>
     .map((entry) => entry as File)
     .filter((entry) => entry.size > 0);
 
+const getTextArray = (formData: FormData, key: string) =>
+  formData
+    .getAll(key)
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+
+const getOptionalNumber = (formData: FormData, key: string): number | null => {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+};
+
 const validateProductInputs = ({
   name,
   description,
   category,
-  priceValue,
   quantityValue,
+  condition,
+  colors,
+  images,
 }: {
   name: string;
   description: string;
   category: string;
-  priceValue: string;
   quantityValue: string;
+  condition: string;
+  colors: string[];
+  images: File[];
 }) => {
-  if (!name || !description || !priceValue || !category || !quantityValue) {
-    return "Name, description, category, price, and quantity are required.";
+  if (!name || !description || !category || !quantityValue || !condition) {
+    return "Name, description, category, quantity, condition are required.";
   }
 
-  const price = Number(priceValue);
+  if (!colors || colors.length === 0) {
+    return "At least one color is required.";
+  }
+
+  if (!images || images.length === 0) {
+    return "At least one product image is required.";
+  }
+
   const quantity = Number(quantityValue);
-
-  if (Number.isNaN(price) || price <= 0) {
-    return "Price must be a positive number.";
-  }
-
   if (!Number.isInteger(quantity) || quantity < 0) {
     return "Quantity must be a whole number.";
   }
@@ -63,10 +80,7 @@ const validateProductInputs = ({
 };
 
 const uploadImagesToR2 = async (images: File[]) => {
-  if (images.length > MAX_IMAGE_COUNT) {
-    throw new Error(`You can upload up to ${MAX_IMAGE_COUNT} images.`);
-  }
-
+  // ✅ No max
   const uploads = await Promise.all(images.map((img) => uploadProductImageToR2(img)));
   return uploads.map((u) => u.publicUrl);
 };
@@ -74,7 +88,6 @@ const uploadImagesToR2 = async (images: File[]) => {
 async function requireAdminAndToken() {
   const supabase = await createClient();
 
-  // Must have a session cookie
   const {
     data: { session },
     error: sessionError,
@@ -83,7 +96,6 @@ async function requireAdminAndToken() {
   if (sessionError) throw new Error(sessionError.message);
   if (!session?.access_token) throw new Error("Not signed in.");
 
-  // Confirm user
   const {
     data: { user },
     error: userError,
@@ -92,7 +104,6 @@ async function requireAdminAndToken() {
   if (userError) throw new Error(userError.message);
   if (!user) throw new Error("Not signed in.");
 
-  // Check profiles.is_admin
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("is_admin")
@@ -112,7 +123,6 @@ function getSupabaseUrlOrThrow() {
 }
 
 function makeSku() {
-  // Simple unique-ish SKU: TB-<timestamp>-<random>
   return `TB-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
@@ -134,7 +144,7 @@ async function supabaseRestInsert(
     headers: {
       "Content-Type": "application/json",
       apikey: anonKey,
-      Authorization: `Bearer ${accessToken}`, // ✅ user JWT so RLS can evaluate auth.uid()
+      Authorization: `Bearer ${accessToken}`,
       Prefer: "return=representation",
     },
     body: JSON.stringify(payload),
@@ -166,7 +176,7 @@ async function supabaseRestUpdate(
       headers: {
         "Content-Type": "application/json",
         apikey: anonKey,
-        Authorization: `Bearer ${accessToken}`, // ✅ user JWT
+        Authorization: `Bearer ${accessToken}`,
         Prefer: "return=representation",
       },
       body: JSON.stringify(payload),
@@ -185,52 +195,68 @@ async function supabaseRestUpdate(
 export const POST = async (request: Request) => {
   try {
     const { accessToken, userId } = await requireAdminAndToken();
-
     const formData = await request.formData();
 
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
-    const priceValue = String(formData.get("price") ?? "").trim();
     const quantityValue = String(formData.get("quantity") ?? "").trim();
+    const condition = String(formData.get("condition") ?? "").trim();
+
+    const subcategoryRaw = String(formData.get("subcategory") ?? "").trim();
+    const subcategory = subcategoryRaw ? subcategoryRaw : null;
+
+    const room_tags = getTextArray(formData, "room_tags"); // [] if empty
+    const collections = getTextArray(formData, "collections"); // [] if empty
+    const colors = getTextArray(formData, "colors"); // required
+
+    const height = getOptionalNumber(formData, "height");
+    const width = getOptionalNumber(formData, "width");
+    const depth = getOptionalNumber(formData, "depth");
+
+    // Optional price (kept compatible with your existing schema)
+    const price = getOptionalNumber(formData, "price");
+    const priceValue = String(formData.get("price") ?? "").trim();
+
     const images = parseImages(formData);
 
     const validationError = validateProductInputs({
       name,
       description,
       category,
-      priceValue,
       quantityValue,
+      condition,
+      colors,
+      images,
     });
 
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    if (images.length === 0) {
-      return NextResponse.json(
-        { error: "At least one product image is required." },
-        { status: 400 }
-      );
-    }
-
-    const price = Number(priceValue);
     const quantity = Number(quantityValue);
 
     const imageUrls = await uploadImagesToR2(images);
-
     const tableName = getProductsTableName();
 
-    const productPayload = {
+    const productPayload: Record<string, unknown> = {
       sku: makeSku(),
       name,
       description,
       category,
-      price,
+      subcategory, // null if empty
+      room_tags, // [] if empty
+      collections, // [] if empty
+      colors, // required
+      condition, // required
+      height, // null if empty
+      width,
+      depth,
       quantity,
+      price, // null if not provided
       image_url: imageUrls[0],
       image_urls: imageUrls,
-      created_by: userId, // ✅ matches your schema
+      created_by: userId,
       created_at: new Date().toISOString(),
     };
 
@@ -244,71 +270,145 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ product: data, imageUrls }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    // Admin/auth errors should be 401/403, but keeping it simple:
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("Not signed in") ? 401 : message.includes("Admins only") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 };
 
 export const PATCH = async (request: Request) => {
   try {
     const { accessToken } = await requireAdminAndToken();
-
     const formData = await request.formData();
 
     const productId = String(formData.get("productId") ?? "").trim();
-    const name = String(formData.get("name") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
-    const priceValue = String(formData.get("price") ?? "").trim();
-    const quantityValue = String(formData.get("quantity") ?? "").trim();
-    const images = parseImages(formData);
-
     if (!productId) {
       return NextResponse.json({ error: "Product ID is required for updates." }, { status: 400 });
     }
 
-    const validationError = validateProductInputs({
-      name,
-      description,
-      category,
-      priceValue,
-      quantityValue,
-    });
+    const name = String(formData.get("name") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+    const category = String(formData.get("category") ?? "").trim();
+    const quantityValue = String(formData.get("quantity") ?? "").trim();
+    const condition = String(formData.get("condition") ?? "").trim();
+
+    const subcategoryRaw = String(formData.get("subcategory") ?? "").trim();
+    const subcategory = subcategoryRaw ? subcategoryRaw : null;
+
+    const room_tags = getTextArray(formData, "room_tags");
+    const collections = getTextArray(formData, "collections");
+    const colors = getTextArray(formData, "colors");
+
+    const height = getOptionalNumber(formData, "height");
+    const width = getOptionalNumber(formData, "width");
+    const depth = getOptionalNumber(formData, "depth");
+
+    const price = getOptionalNumber(formData, "price");
+
+    const images = parseImages(formData);
+
+    // For PATCH, images are optional — but other required fields remain required (per your form)
+    const validationError = (() => {
+      if (!name || !description || !category || !quantityValue || !condition) {
+        return "Name, description, category, quantity, condition are required.";
+      }
+      const quantity = Number(quantityValue);
+      if (!Number.isInteger(quantity) || quantity < 0) return "Quantity must be a whole number.";
+      if (!colors || colors.length === 0) return "At least one color is required.";
+      return null;
+    })();
 
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const price = Number(priceValue);
     const quantity = Number(quantityValue);
-
     const tableName = getProductsTableName();
-    const imageUrls = images.length > 0 ? await uploadImagesToR2(images) : [];
 
     const productPayload: Record<string, unknown> = {
       name,
       description,
       category,
-      price,
+      subcategory,
+      room_tags,
+      collections,
+      colors,
+      condition,
+      height,
+      width,
+      depth,
       quantity,
+      price,
       updated_at: new Date().toISOString(),
     };
 
-    if (imageUrls.length > 0) {
+    // Only upload/replace images if new ones were provided
+    if (images.length > 0) {
+      const imageUrls = await uploadImagesToR2(images);
       productPayload.image_url = imageUrls[0];
       productPayload.image_urls = imageUrls;
+
+      const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+
+      await sendToCloudflareDatabase({
+        ...productPayload,
+        supabase_id: productId,
+      });
+
+      return NextResponse.json({ product: data, imageUrls }, { status: 200 });
+    } else {
+      const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+
+      await sendToCloudflareDatabase({
+        ...productPayload,
+        supabase_id: productId,
+      });
+
+      return NextResponse.json({ product: data, imageUrls: [] }, { status: 200 });
     }
-
-    const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
-
-    await sendToCloudflareDatabase({
-      ...productPayload,
-      supabase_id: productId,
-    });
-
-    return NextResponse.json({ product: data, imageUrls }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("Not signed in") ? 401 : message.includes("Admins only") ? 403 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+};
+
+export const GET = async (request: Request) => {
+  try {
+    await requireAdminAndToken();
+
+    const supabase = await createClient();
+    const tableName = getProductsTableName();
+
+    const url = new URL(request.url);
+    const qRaw = (url.searchParams.get("q") ?? "").trim();
+    const priceParam = (url.searchParams.get("price") ?? "").trim();
+
+    let query = supabase
+      .from(tableName)
+      .select("id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active")
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (qRaw) {
+      query = query.or(`name.ilike.%${qRaw}%,category.ilike.%${qRaw}%`);
+    }
+
+    if (priceParam) {
+      const n = Number(priceParam);
+      if (!Number.isNaN(n)) query = query.eq("price", n);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return NextResponse.json(data ?? [], { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const status =
+      message.includes("Not signed in") ? 401 :
+      message.includes("Admins only") ? 403 :
+      500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 };

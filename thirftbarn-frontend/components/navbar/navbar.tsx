@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
 import { createClient } from "@/utils/supabase/client";
 import { useCart } from "@/components/cart/CartProvider";
+import ShopMenu from "@/components/navbar/shopmenu";
 
 
 export const Navbar = () => {
@@ -17,6 +18,7 @@ export const Navbar = () => {
   const router = useRouter();
   const { totalItems } = useCart();
   const [googleReviewCount, setGoogleReviewCount] = useState<number | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
 
 
   // ---- NEW: auth state for the user icon ----
@@ -39,6 +41,11 @@ export const Navbar = () => {
 
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  useEffect(() => {
+    setShopOpen(false);
+  }, [pathname]);
+
 
   //Google rating count
   useEffect(() => {
@@ -242,9 +249,23 @@ export const Navbar = () => {
 
         {/* Desktop links (hidden under 400px via CSS) */}
         <div className={styles.navLinks}>
-          <Link href="/shop" className={styles.navButton}>
-            Shop
-          </Link>
+          <div
+            className={styles.shopHover}
+            onMouseEnter={() => setShopOpen(true)}
+            onMouseLeave={() => setShopOpen(false)}
+          >
+            <Link
+              href="/shop"
+              className={styles.navButton}
+              onClick={() => setShopOpen(false)}
+            >
+              Shop
+            </Link>
+
+            <div className={`${styles.megaHolder} ${shopOpen ? styles.megaOpen : ""}`}>
+              <ShopMenu onClose={() => setShopOpen(false)} />
+            </div>
+          </div>
 
           <button type="button" className={styles.navButton} onClick={() => goToSection("about")}>
             About

@@ -88,7 +88,16 @@ export async function fulfillStripeCheckoutSession(
     (sum, it) => sum + it.unit_price_cents * it.quantity,
     0
   );
-  const tax_cents = Math.max(0, amount_total_cents - subtotal_cents); // best-effort if Stripe total differs
+  const metaShippingCents = Number(session.metadata?.shipping_cost_cents ?? 0);
+  const shipping_cents = Number.isFinite(metaShippingCents) ? Math.max(0, metaShippingCents) : 0;
+
+  const metaPromoCents = Number(session.metadata?.promo_discount_cents ?? 0);
+  const promo_cents = Number.isFinite(metaPromoCents) ? Math.max(0, metaPromoCents) : 0;
+
+  const promo_code = typeof session.metadata?.promo_code === "string" ? session.metadata.promo_code : null;
+
+  const tax_cents = Math.max(0, amount_total_cents - (subtotal_cents - promo_cents) - shipping_cents);
+  const shipping_cost = Math.max(0, (amount_total_cents - subtotal_cents - tax_cents) / 100);
 
   // Common update payload (avoid duplicating)
   const updatePayload: Record<string, any> = {
@@ -104,6 +113,9 @@ export async function fulfillStripeCheckoutSession(
     payment_id,
     status: "paid",
     purchase_date: new Date().toISOString(),
+    shipping_cost: shipping_cents / 100,
+    promo_code,
+    promo_discount: promo_cents / 100,
   };
 
   // IMPORTANT: only set customer_email if it's present (prevents overwriting with null)

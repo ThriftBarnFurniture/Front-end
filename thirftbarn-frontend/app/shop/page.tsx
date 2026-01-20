@@ -1,57 +1,39 @@
-import Image from "next/image";
-import Link from "next/link";
 import styles from "./shop.module.css";
+import ShopClient from "./shop-client";
 import { getShopProducts, getPrimaryImage, formatPrice } from "@/lib/products";
 
 export default async function ShopPage() {
   const products = await getShopProducts();
 
+  // Prepare client-safe data (no server imports needed in client)
+  const prepared = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    quantity: p.quantity,
+    category: p.category ?? null,
+    created_at: p.created_at,
+
+    // new fields
+    room_tags: p.room_tags ?? [],
+    collections: p.collections ?? [],
+    subcategory: p.subcategory ?? null,
+
+    // computed server-side
+    img: getPrimaryImage(p) ?? null,
+    priceLabel: formatPrice(p.price),
+    priceNumber: typeof p.price === "string" ? Number(p.price) : p.price,
+  }));
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Shop</h1>
-        <p className={styles.subtitle}>All available items.</p>
+        <div>
+          <h1 className={styles.title}>Shop</h1>
+          <p className={styles.subtitle}>All available items.</p>
+        </div>
       </header>
 
-      {products.length === 0 ? (
-        <p className={styles.empty}>No products available right now.</p>
-      ) : (
-        <section className={styles.grid}>
-          {products.map((p) => {
-            const img = getPrimaryImage(p);
-            const price = formatPrice(p.price);
-
-            return (
-              <Link key={p.id} href={`/item/${p.id}`} className={styles.card}>
-                <div className={styles.imageWrap}>
-                  {img ? (
-                    <Image
-                      src={img}
-                      alt={p.name}
-                      fill
-                      className={styles.image}
-                      sizes="(max-width: 700px) 100vw, (max-width: 1200px) 33vw, 25vw"
-                    />
-                  ) : (
-                    <div className={styles.noImage}>No image</div>
-                  )}
-
-                  {p.quantity !== null && p.quantity <= 0 && (
-                    <div className={styles.badge}>Sold</div>
-                  )}
-                </div>
-
-                <div className={styles.meta}>
-                  <div className={styles.name}>{p.name}</div>
-                  <div className={styles.price}>{price}</div>
-                </div>
-
-                {p.category && <div className={styles.sub}>{p.category}</div>}
-              </Link>
-            );
-          })}
-        </section>
-      )}
+      <ShopClient products={prepared} />
     </main>
   );
 }

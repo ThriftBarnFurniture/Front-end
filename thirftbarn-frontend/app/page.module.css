@@ -355,6 +355,22 @@
   font-size: var(--fs-base);
 }
 
+.roomItemLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.roomItemLink:hover .roomCircle {
+  transform: translateY(-2px);
+  transition: transform 0.15s ease;
+}
+
+.roomItemLink:focus-visible .roomCircle {
+  outline: 3px solid rgba(177, 15, 15, 0.35);
+  outline-offset: 4px;
+}
+
+
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .productRow { grid-template-columns: repeat(4, 1fr); }

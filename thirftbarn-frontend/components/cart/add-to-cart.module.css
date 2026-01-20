@@ -81,3 +81,37 @@
   font-weight: 700;
   opacity: 0.75;
 }
+
+/* Helper row that holds "In cart" + tiny remove */
+.stockRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Keep existing stockText but make it not too bold */
+.stockText {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* Tiny gray inline remove button */
+.removeTiny {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.removeTiny:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.85);
+}

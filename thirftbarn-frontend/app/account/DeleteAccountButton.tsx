@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import styles from "./account.module.css";
 
 export default function DeleteAccountButton() {
   const router = useRouter();
@@ -26,7 +27,6 @@ export default function DeleteAccountButton() {
     setLoading(false);
 
     if (!res.ok) {
-      // If delete fails, user is already signed out, which is fine.
       alert(await res.text());
       router.push("/login");
       router.refresh();
@@ -38,21 +38,8 @@ export default function DeleteAccountButton() {
   };
 
   return (
-    <button
-      onClick={onDelete}
-      disabled={loading}
-      style={{
-        marginTop: 18,
-        width: "100%",
-        height: 44,
-        borderRadius: 999,
-        fontWeight: 800,
-        border: "1px solid var(--color-border)",
-        background: "transparent",
-        color: "var(--color-text)",
-      }}
-    >
-      {loading ? "Deleting..." : "Delete my account"}
+    <button onClick={onDelete} disabled={loading} className={styles.deleteBtn}>
+      {loading ? "Deleting..." : "Delete my Account"}
     </button>
   );
 }
