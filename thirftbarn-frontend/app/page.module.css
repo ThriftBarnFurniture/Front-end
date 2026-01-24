@@ -77,7 +77,6 @@
   font-weight: 800;
   font-size: var(--fs-lg);
   letter-spacing: 0.5px;
-  transition: filter var(--dur-1) var(--ease);
 }
 .heroButton:hover { filter: brightness(1.05); }
 
@@ -85,7 +84,7 @@
 .aboutSection {
   padding: var(--space-10) var(--gutter) var(--space-9);
   background: var(--color-bg);
-  scroll-margin-top: 150px;
+  scroll-margin-top: 95px;
 }
 
 .aboutPanel {
@@ -246,7 +245,7 @@
 .newToBarnSection {
   padding: var(--space-9) var(--gutter) var(--space-9);
   background: var(--color-bg);
-  background-color: #f0f0f0;
+  background-color: var(--color-brand-dark);
 }
 
 .sectionInner {
@@ -256,7 +255,7 @@
 
 .sectionHeading {
   margin: 0 0 26px;
-  color: var(--color-brand-dark);
+  color: #ffffff;
   font-family: var(--font-header);
   font-weight: var(--fw-black);
   letter-spacing: 1px;
@@ -282,7 +281,7 @@
   aspect-ratio: 4 / 3;
   border-radius: 10px;
   overflow: hidden;
-  background: #e6e6e6;
+  background: #ffffff;
 }
 
 .productMeta {
@@ -296,7 +295,7 @@
   margin: 0;
   font-family: var(--font-text);
   font-weight: var(--fw-black);
-  color: #222;
+  color: #ffffff;
   font-size: var(--fs-sm);
 }
 
@@ -304,7 +303,7 @@
   margin: 0;
   font-family: var(--font-text);
   font-weight: var(--fw-black);
-  color: #222;
+  color: #ffffff;
   font-size: var(--fs-sm);
 }
 
@@ -314,11 +313,47 @@
   color: inherit;
 }
 
+.newToBarnCtaWrap {
+  display: grid;
+  place-items: center;
+  margin-top: 22px;
+}
+
+.viewAllBtn {
+  display: inline-block;
+  background: var(--color-brand);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-text);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.5px;
+}
+
+.viewAllBtn:hover {
+  filter: brightness(1.05);
+}
+
+
 
 /* ===== SHOP BY ROOM ===== */
 .shopByRoomSection {
   padding: var(--space-9) var(--gutter) var(--space-9);
   background: var(--color-bg);
+}
+
+.altSectionHeading {
+  margin: 0 0 26px;
+  display: flex;
+  justify-content: right;
+  color: var(--color-brand-dark);
+  font-family: var(--font-header);
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: var(--fs-2xl);
 }
 
 .roomGrid {
@@ -370,6 +405,60 @@
   outline-offset: 4px;
 }
 
+/* ===== BARN BURNER ===== */
+.barnBurnerSection {
+  padding: var(--space-9) var(--gutter) var(--space-9);
+  background: var(--color-brand-dark);
+}
+
+.barnBurnerTitle {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 26px;
+  color: #ffffff;
+  font-family: var(--font-header);
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: var(--fs-2xl);
+}
+
+.barnBurnerHeader {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 18px;
+  justify-content: center;
+}
+
+.barnBurnerExplain {
+  margin: 2px auto 0;
+  max-width: 720px;
+  text-align: center;
+  font-family: var(--font-text);
+  font-size: x-large;
+  color: #ffffff;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.barnBurnerToday {
+  margin: 6px auto 0;
+  text-align: center;
+  font-family: var(--font-text);
+  font-weight: 800;
+  color: #ffffff;
+  font-size: var(--fs-lg);
+}
+
+.barnBurnerCard .productPrice {
+  color: #ffffff;
+}
+
+.barnBurnerCtaWrap {
+  display: grid;
+  place-items: center;
+  margin-top: 22px;
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {

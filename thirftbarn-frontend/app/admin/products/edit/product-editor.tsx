@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./product-editor.module.css";
 
 type Product = {
@@ -15,12 +16,12 @@ type Product = {
 
 export function ProductEditor({ initialProducts }: { initialProducts: Product[] }) {
   const [q, setQ] = useState("");
+  const router = useRouter();
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return initialProducts;
 
-    // Try to treat query as a number for price searching
     const queryNum = Number(query);
     const hasNum = !Number.isNaN(queryNum);
 
@@ -30,16 +31,8 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
       const colors = (p.colors ?? []).join(" ").toLowerCase();
       const priceStr = String(p.price ?? "");
 
-      // Match rules:
-      // - name contains query
-      // - category contains query
-      // - colors contains query
-      // - price equals query number OR contains digits typed (ex: "19.99")
-      const matchText =
-        name.includes(query) || category.includes(query) || colors.includes(query);
-
-      const matchPrice =
-        (hasNum && Number(p.price) === queryNum) || priceStr.includes(query);
+      const matchText = name.includes(query) || category.includes(query) || colors.includes(query);
+      const matchPrice = (hasNum && Number(p.price) === queryNum) || priceStr.includes(query);
 
       return matchText || matchPrice;
     });
@@ -56,7 +49,6 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
         />
       </div>
 
-
       <div className={styles.meta}>
         <span>{filtered.length} result(s)</span>
       </div>
@@ -64,8 +56,20 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
       <div className={styles.list}>
         {filtered.map((p) => {
           const thumb = p.image_url || p.image_urls?.[0] || "";
+
           return (
-            <div key={p.id} className={styles.row}>
+            <div
+              key={p.id}
+              className={styles.row}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/admin/products/edit/${p.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") router.push(`/admin/products/edit/${p.id}`);
+              }}
+              style={{ cursor: "pointer" }}
+              aria-label={`Edit ${p.name}`}
+            >
               <div className={styles.thumb}>
                 {thumb ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -99,7 +103,10 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
               <button
                 className={styles.copyBtn}
                 type="button"
-                onClick={() => navigator.clipboard.writeText(p.id)}
+                onClick={(e) => {
+                  e.stopPropagation(); // IMPORTANT: don't open editor when copying
+                  navigator.clipboard.writeText(p.id);
+                }}
               >
                 Copy ID
               </button>

@@ -36,7 +36,7 @@ export default async function ProfilePage() {
             <Link className={styles.ghostBtn} href="/account">
               Back
             </Link>
-            <Link className={styles.primaryBtn} href="/logout">
+            <Link className={styles.dangerBtn} href="/logout">
               Sign out
             </Link>
           </div>

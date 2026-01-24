@@ -243,6 +243,133 @@
   box-shadow: none;
 }
 
+/* =========================================================
+   Profile page helpers (ProfileForm + ProfilePage buttons)
+   ========================================================= */
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  background: transparent;
+  color: #111;
+  border: 1.5px solid rgba(0, 0, 0, 0.16);
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.ghostBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ProfileForm layout */
+.kv {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.kvRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  gap: 14px;
+}
+
+.k {
+  font-family: var(--font-text);
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.v {
+  min-width: 0;
+  font-family: var(--font-text);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  padding: 0 14px;
+
+  font-family: var(--font-text);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.rowActions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mutedNote {
+  font-family: var(--font-text);
+  opacity: 0.75;
+  font-weight: 700;
+}
+
+/* Dropdown for address autocomplete */
+.dropdown {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+
+.dropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  font-family: var(--font-text);
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.dropdownItem:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .kvRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+
 /* Responsive */
 @media (max-width: 720px) {
   .header {

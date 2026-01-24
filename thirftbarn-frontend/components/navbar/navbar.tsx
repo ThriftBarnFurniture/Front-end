@@ -30,6 +30,34 @@ export const Navbar = () => {
   const accountWrapRef = useRef<HTMLDivElement | null>(null);
 
 
+  const goToHeroTop = (e?: React.MouseEvent) => {
+    // stop <Link> from navigating on its own
+    e?.preventDefault();
+
+    // close menus if you want
+    setMobileOpen(false);
+    setShopOpen(false);
+    setAccountOpen(false);
+
+    // If not on home, navigate home first
+    if (pathname !== "/") {
+      router.push("/");
+
+      // Wait for navigation to finish, then scroll to absolute top
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        });
+      });
+
+      return;
+    }
+
+    // Already on home -> scroll to absolute top
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+
   const goToSection = (id: string) => {
     if (pathname !== "/") {
       router.push(`/#${id}`);
@@ -242,7 +270,7 @@ export const Navbar = () => {
 
         {/* Logo */}
         <div className={styles.logoContainer}>
-          <Link href="/" className={styles.logo} aria-label="Go to home">
+          <Link href="/" className={styles.logo} aria-label="Go to top" onClick={(e) => goToHeroTop(e)}>
             <img src="/TBF_WideLogo.svg" alt="Thrift Barn Furniture" className={styles.logoImage} />
           </Link>
         </div>

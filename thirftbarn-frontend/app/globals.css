@@ -229,3 +229,52 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ---------- Motion primitives ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(2px);
+  transition: opacity 900ms var(--ease, ease), transform 900ms var(--ease, ease), filter 900ms var(--ease, ease);
+  will-change: opacity, transform, filter;
+}
+
+.revealIn {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* ---------- Bubbly hover / tap ---------- */
+/* ---------- Soft premium hover ---------- */
+.popHover {
+  transform: translateY(0) scale(1);
+  transition:
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.popHover:hover {
+  transform: translateY(-1.5px) scale(1.01);
+  filter: brightness(1.015);
+}
+
+.popHover:active {
+  transform: translateY(0) scale(0.985);
+}
+
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .revealIn,
+  .popHover,
+  .popHover:hover,
+  .popHover:active {
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+}

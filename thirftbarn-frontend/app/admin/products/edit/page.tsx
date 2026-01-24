@@ -11,7 +11,7 @@ export default async function AdminProductsEditPage() {
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const res = await fetch("https://front-end-cdca.vercel.app/api/admin/products", {
+  const res = await fetch("http://localhost:3000/api/admin/products", {
     cache: "no-store",
     headers: {
       cookie: cookieHeader, // ✅ correct

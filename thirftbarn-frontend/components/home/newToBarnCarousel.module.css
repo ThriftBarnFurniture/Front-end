@@ -1,0 +1,73 @@
+.wrap {
+  position: relative;
+}
+
+.track {
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding-bottom: 10px;
+
+  /* nicer on touch devices */
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+
+  /* hide scrollbar (best-effort) */
+  scrollbar-width: none;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  scroll-snap-align: start;
+}
+
+.card {
+  width: 240px;
+  display: grid;
+  gap: 10px;
+}
+
+.imgWrap {
+  position: relative;
+  margin-top: 10px;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.meta {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  text-align: center;
+}
+
+.name,
+.price {
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: var(--fw-black);
+  color: #ffffff;
+  font-size: var(--fs-sm);
+}
+
+.empty {
+  font-family: var(--font-text);
+  color: var(--color-muted);
+}
+
+.track {
+  cursor: grab;
+  user-select: none;
+}
+
+.dragActive {
+  cursor: grabbing;
+}

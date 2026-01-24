@@ -105,7 +105,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${permanentMarker.variable} ${montserrat.variable}`}>
-      <body className="flex min-h-full flex-col bg-white">
+      <body className="flex min-h-full flex-col bg-white" suppressHydrationWarning>
         <CartProvider>
         <Navbar />
         <main className="flex-grow bg-white">{children}</main>

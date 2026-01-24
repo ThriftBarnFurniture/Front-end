@@ -119,7 +119,7 @@ export default function ProfileForm({ userId, initial }: Props) {
         </div>
       </div>
 
-      <div className={styles.kvRow} style={{ position: "relative" }}>
+      <div className={styles.kvRow}>
         <div className={styles.k}>Address</div>
 
         <div className={styles.v}>
@@ -167,7 +167,7 @@ export default function ProfileForm({ userId, initial }: Props) {
 
 
       <div className={styles.rowActions}>
-        <button className={styles.primaryBtn} onClick={onSave} disabled={saving}>
+        <button className={styles.dangerBtn} onClick={onSave} disabled={saving}>
           {saving ? "Saving..." : "Save changes"}
         </button>
         {msg ? <span className={styles.mutedNote}>{msg}</span> : null}

@@ -3,6 +3,10 @@ import styles from "./page.module.css";
 import StoreLocationSection from '@/components/map/storeLocationSection';
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
+import NewToBarnCarousel from "@/components/home/NewToBarnCarousel";
+import BarnBurnerSection from "@/components/home/BarnBurnerSection";
+import Reveal from "@/components/ui/Reveal";
+
 
 type NewProduct = {
   id: string;
@@ -30,9 +34,56 @@ async function getNewestProducts(limit = 5): Promise<NewProduct[]> {
   return (data ?? []) as NewProduct[];
 }
 
+type BarnBurnerProduct = {
+  id: string;
+  name: string | null;
+  price: number | null;
+  image_url: string | null;
+  image_urls: string[] | null;
+  created_at: string | null;
+};
+
+async function getBarnBurnerProducts(limit = 8): Promise<BarnBurnerProduct[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id,name,price,image_url,image_urls,created_at")
+    .eq("category", "barn-burner") // ✅ change if you tag differently
+    .eq("is_active", true)
+    .gt("quantity", 0)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("getBarnBurnerProducts error:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as BarnBurnerProduct[];
+}
+
+// --- pricing schedule: Sat 40, Sun 35 ... next Sat 5, next Sun+ 2 permanent
+function barnBurnerPriceForDayOffset(dayOffset: number) {
+  const schedule = [35, 30, 25, 20, 15, 10, 40];
+  if (dayOffset <= 6) return schedule[dayOffset];
+  return 2; // permanent price after 6 days
+}
+
+function getTodayLabel(d: Date) {
+  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
+}
+
+
 
 export default async function Home() {
-  const newestProducts = await getNewestProducts(5);
+  const newestProducts = await getNewestProducts(15);
+
+  // ✅ add this
+  const barnBurnerProducts = await getBarnBurnerProducts(10);
+
+  const now = new Date();
+  const todayLabel = getTodayLabel(now);
   const myStoreInfo = {
     name: 'Thrift Barn Furniture',
     address: '2786 ON-34',
@@ -78,12 +129,19 @@ export default async function Home() {
           </div>
 
           <div className={styles.heroCtaBox}>
-            <h1 className={styles.heroTitle}>FURNITURE PROBLEMS?</h1>
-            <p className={styles.heroSubtitle}>We have the solution!</p>
+            <Reveal delayMs={80}>
+              <h1 className={styles.heroTitle}>FURNITURE PROBLEMS?</h1>
+            </Reveal>
 
-            <a className={styles.heroButton} href="/shop" rel="noopener noreferrer">
-              Shop Our Massive Inventory
-            </a>
+            <Reveal delayMs={140}>
+              <p className={styles.heroSubtitle}>We have the solution!</p>
+            </Reveal>
+
+            <Reveal delayMs={200}>
+              <a className={`${styles.heroButton} popHover`} href="/shop" rel="noopener noreferrer">
+                Shop Our Massive Inventory
+              </a>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -101,17 +159,20 @@ export default async function Home() {
                 <Image src="/Icon-Leaf.svg" alt="Maple" width={40} height={40} />
               </div>
 
-              <h2 className={styles.aboutTitle}>
-                DISCOVER TREASURES IN <br /> EVERY CORNER.
-              </h2>
-
-              <p className={styles.aboutText}>
-                At Thrift Barn Furniture, we envision a Canada where sustainable living and
-                community building go hand-in-hand. By championing the recirculation of quality
-                used furniture, we see a future where Canadian owned businesses pave the path
-                toward a healthier planet. When Canadians think thrift, they think <br/>
-                Thrift Barn Furniture!
-              </p>
+              <Reveal>
+                <h2 className={styles.aboutTitle}>
+                  DISCOVER TREASURES IN <br /> EVERY CORNER.
+                </h2>
+              </Reveal>
+              <Reveal delayMs={80}>
+                <p className={styles.aboutText}>
+                  At Thrift Barn Furniture, we envision a Canada where sustainable living and
+                  community building go hand-in-hand. By championing the recirculation of quality
+                  used furniture, we see a future where Canadian owned businesses pave the path
+                  toward a healthier planet. When Canadians think thrift, they think <br/>
+                  Thrift Barn Furniture!
+                </p>
+              </Reveal>
             </div>
 
             {/* TOP RIGHT (big circle) */}
@@ -156,18 +217,33 @@ export default async function Home() {
 
             {/* BOTTOM RIGHT */}
             <div className={styles.aboutBottomRight}>
-              <h3 className={styles.aboutTitle}>What We Do.</h3>
-              <p className={styles.aboutText}>
-                Aside from providing our community with quality, ethically sourced, pre-loved 
-                furniture at a reasonable price, we provide services such as:
-              </p>
-              <ul className={styles.aboutList}>
-                <li>Furniture Removal / Clear Outs</li>
-                <li>Moving Services</li>
-                <li>Junk Removal Services</li>
-                <li>Delivery & Distribution</li>
-                <li>Assembly & Repairs</li>
-              </ul>
+              <Reveal>
+                <h3 className={styles.aboutTitle}>What We Do.</h3>
+              </Reveal>
+
+              <Reveal delayMs={80}>
+                <p className={styles.aboutText}>
+                  Aside from providing our community with quality, ethically sourced, pre-loved 
+                  furniture at a reasonable price, we provide services such as:
+                </p>
+              </Reveal>
+                <ul className={styles.aboutList}>
+                  <Reveal delayMs={80}>
+                  <li>Furniture Removal / Clear Outs</li>
+                  </Reveal>
+                  <Reveal delayMs={160}>
+                  <li>Moving Services</li>
+                  </Reveal>
+                  <Reveal delayMs={240}>
+                  <li>Junk Removal Services</li>
+                  </Reveal>
+                  <Reveal delayMs={320}>
+                  <li>Delivery & Distribution</li>
+                  </Reveal>
+                  <Reveal delayMs={400}>
+                  <li>Assembly & Repairs</li>
+                  </Reveal>
+                </ul>
             </div>
 
           </div>
@@ -181,44 +257,23 @@ export default async function Home() {
       {/* ===== NEW TO THE BARN ===== */}
       <section className={styles.newToBarnSection} aria-label="New to the Barn">
         <div className={styles.sectionInner}>
+          <Reveal>
           <h2 className={styles.sectionHeading}>NEW TO THE BARN.</h2>
+          </Reveal>
 
-          <div className={styles.productRow}>
-            {newestProducts.map((p) => {
-              const img =
-                p.image_url ||
-                (Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls[0] : null) ||
-                "/furniture.jpg"; // fallback image you already have
+          {/* ✅ Carousel */}
+          <Reveal delayMs={80}>
+          <NewToBarnCarousel products={newestProducts} />
+          </Reveal>
 
-              const priceText =
-                typeof p.price === "number" ? `$${p.price.toFixed(2)}` : "";
-
-              return (
-                <Link
-                  key={p.id}
-                  href={`/item/${p.id}`}
-                  className={styles.productCardLink}
-                >
-                  <article className={styles.productCard}>
-                    <div className={styles.productImgWrap} aria-hidden="true">
-                      <Image
-                        src={img}
-                        alt=""
-                        fill
-                        sizes="(max-width: 480px) 92vw, (max-width: 768px) 45vw, (max-width: 1200px) 22vw, 210px"
-                        style={{ objectFit: "cover" }}
-                      />
-                    </div>
-
-                    <div className={styles.productMeta}>
-                      <p className={styles.productName}>{p.name ?? "Untitled"}</p>
-                      <p className={styles.productPrice}>{priceText}</p>
-                    </div>
-                  </article>
-                </Link>
-              );
-            })}
+          {/* ✅ Button under carousel */}
+          <Reveal delayMs={160}>
+          <div className={styles.newToBarnCtaWrap}>
+            <Link href="/shop" className={`${styles.viewAllBtn} popHover`}>
+              View all products
+            </Link>
           </div>
+          </Reveal>
         </div>
       </section>
 
@@ -226,8 +281,10 @@ export default async function Home() {
       {/* ===== SHOP BY CATEGORY ===== */}
       <section className={styles.shopByRoomSection} aria-label="Shop by Category">
         <div className={styles.sectionInner}>
-          <h2 className={styles.sectionHeading}>SHOP BY CATEGORY.</h2>
-
+          <Reveal>
+            <h2 className={styles.altSectionHeading}>SHOP BY CATEGORY.</h2>
+          </Reveal>
+          <Reveal delayMs={80}>
           <div className={styles.roomGrid}>
             {[
               { label: "$5 and Under", img: "/snowbarn.jpg", href: "/shop?collection=5-under" },
@@ -240,7 +297,7 @@ export default async function Home() {
               { label: "Child / Nursery", img: "/snowbarn.jpg", href: "/shop?room=kids-room" },
             ].map((c) => (
               <Link key={c.label} href={c.href} className={styles.roomItemLink}>
-                <div className={styles.roomItem}>
+                <div className={`${styles.roomItem} popHover`}>
                   <div className={styles.roomCircle}>
                     <Image
                       src={c.img}
@@ -255,8 +312,15 @@ export default async function Home() {
               </Link>
             ))}
           </div>
+          </Reveal>
         </div>
       </section>
+
+      {/* ===== RED DIVIDER LINE ===== */}
+      <div className={styles.redDivider} />
+
+      {/* ===== BARN BURNER (LIQUIDATION) ===== */}
+      <BarnBurnerSection />
 
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />
@@ -266,31 +330,40 @@ export default async function Home() {
         <div className={styles.contactPanel}>
           {/* Top “Get in touch” block */}
           <div className={styles.contactTop}>
+            <Reveal>
             <h2 className={styles.contactTitle}>GET IN TOUCH.</h2>
+            </Reveal>
+            <Reveal delayMs={80}>
             <p className={styles.contactBlurb}>
               Have questions? <br/>Reach out anytime — we’re happy to help.
             </p>
-
+            </Reveal>
+            
             <div className={styles.contactGrid}>
               {/* Phone */}
+              <Reveal delayMs={160}>
               <div className={styles.contactItem}>
                 <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
                 <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
-                <a className={styles.contactLink} href="tel:{myStoreInfo.phone}">613-915-3889 (DUTY)</a>
+                <a className={`${styles.contactLink} popHover`} href='tel:${myStoreInfo.phone}'>613-915-3889 (DUTY)</a>
               </div>
+              </Reveal>
 
               {/* Address */}
+              <Reveal delayMs={240}>
               <div className={styles.contactItem}>
                 <Image src="/Icon-Barn.svg" alt="Address" width={80} height={80} />
                 <p className={styles.contactLabel}>Address:</p>
-                <p className={styles.contactValueSmall}>
+                <a className={`${styles.contactLink} popHover`} target="_blank" href='https://www.google.com/maps/place/Thrift+Barn+Furniture/@45.5758123,-74.6263256,17z/data=!3m1!4b1!4m6!3m5!1s0x4ccee9b61260671d:0x75af7e8cb624092!8m2!3d45.5758123!4d-74.6237453!16s%2Fg%2F11ydl3kphn?entry=ttu&g_ep=EgoyMDI2MDEyMS4wIKXMDSoASAFQAw%3D%3D'>
                   {myStoreInfo.address}
                   <br />
                   {myStoreInfo.city}
-                </p>
+                </a>
               </div>
+              </Reveal>
 
               {/* Hours */}
+              <Reveal delayMs={320}>
               <div className={styles.contactItem}>
                 <Image src="/Icon-Clock.svg" alt="Hours" width={75} height={75} />
                 <p className={styles.contactLabel}>In-Store Hours:</p>
@@ -302,15 +375,18 @@ export default async function Home() {
                   ))}
                 </div>
               </div>
+              </Reveal>
 
               {/* Email */}
+              <Reveal delayMs={400}>
               <div className={styles.contactItem}>
                 <Image src="/Icon-Email.svg" alt="Email" width={70} height={70} />
                 <p className={styles.contactLabel}>Email:</p>
-                <a className={styles.contactLink} href={`mailto:${myStoreInfo.email}`}>
+                <a className={`${styles.contactLink} popHover`} href={`mailto:${myStoreInfo.email}`}>
                   {myStoreInfo.email}
                 </a>
               </div>
+              </Reveal>
             </div>
           </div>
 
