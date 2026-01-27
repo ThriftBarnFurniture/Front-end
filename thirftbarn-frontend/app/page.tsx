@@ -11,9 +11,8 @@ export default function Home() {
     phone: '(613) 915-3889',
     email: 'thriftbarnfurniture@gmail.com',
     hours: [
-      { days: 'Monday - Friday', time: 'By Appointment' },
-      { days: 'Saturday', time: '12:00 PM - 5:00 PM' },
-      { days: 'Sunday', time: '12:00 PM - 5:00 PM' },
+      { days: 'Mon - Thu', time: 'By Appointment' },
+      { days: 'Fri - Sun', time: '10:00 AM - 5:00 PM' },
     ],
     coordinates: {
       lat: 45.57579587217674, 

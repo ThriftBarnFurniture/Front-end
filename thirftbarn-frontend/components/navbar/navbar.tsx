@@ -87,7 +87,7 @@ export const Navbar = () => {
         <div className={styles.marquee} aria-label="Store announcement">
           {Array.from({ length: 14 }).map((_, i) => (
             <span className={styles.marqueeItem} key={i}>
-              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY SAT & SUN FROM 12PM - 5PM`}
+              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY FRI, SAT & SUN FROM 10AM - 5PM`}
             </span>
           ))}
         </div>

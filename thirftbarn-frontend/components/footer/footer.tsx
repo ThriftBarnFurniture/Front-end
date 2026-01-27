@@ -57,10 +57,10 @@ export const Footer = () => {
               <div className={styles.contactLabel}>IN-STORE HOURS:</div>
               <div className={styles.contactValue}>
                 <div className={styles.hoursRow}>
-                  <span>Weekdays: By Appointment</span>
+                  <span>Mon - Thu: By Appointment</span>
                 </div>
                 <div className={styles.hoursRow}>
-                  <span>Weekends: 12:00-5:00 PM</span>
+                  <span>Fri - Sun: 10:00 AM - 5:00 PM</span>
                 </div>
               </div>
 
