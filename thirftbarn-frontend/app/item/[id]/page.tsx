@@ -58,15 +58,53 @@ export default async function ItemPage({
           </div>
 
           {/* “Details” like the screenshot (simple dash list) */}
+          {/* “Details” */}
           <ul className={styles.details}>
-            {product.category && <li>Category: {product.category}</li>}
+            {/* Category + Subcategory */}
+            {product.category && <li>Category: {product.category.join(", ")}</li>}
+            {product.subcategory && <li>Subcategory: {product.subcategory.join(", ")}</li>}
+
+            {/* room_tags / collections / colors (arrays or strings) */}
+            {Array.isArray((product as any).room_tags) && (product as any).room_tags.length > 0 && (
+              <li>Room Tags: {(product as any).room_tags.join(", ")}</li>
+            )}
+            {typeof (product as any).room_tags === "string" && (product as any).room_tags && (
+              <li>Room Tags: {(product as any).room_tags}</li>
+            )}
+
+            {Array.isArray((product as any).collections) && (product as any).collections.length > 0 && (
+              <li>Collections: {(product as any).collections.join(", ")}</li>
+            )}
+            {typeof (product as any).collections === "string" && (product as any).collections && (
+              <li>Collections: {(product as any).collections}</li>
+            )}
+
+            {Array.isArray((product as any).colors) && (product as any).colors.length > 0 && (
+              <li>Colors: {(product as any).colors.join(", ")}</li>
+            )}
+            {typeof (product as any).colors === "string" && (product as any).colors && (
+              <li>Colors: {(product as any).colors}</li>
+            )}
+
+            {/* Condition */}
             {product.condition && <li>Condition: {product.condition}</li>}
 
-            {product.height != null && <li>Height: {product.height}</li>}
-            {product.width != null && <li>Width: {product.width}</li>}
-            {product.depth != null && <li>Depth: {product.depth}</li>}
+            {/* Dimensions in ONE row: H x W x D (inches) */}
+            {(() => {
+              const h = product.height ?? null;
+              const w = product.width ?? null;
+              const d = product.depth ?? null;
 
-            {product.sku && <li>SKU: {product.sku}</li>}
+              const parts = [
+                h != null ? `H ${h}"` : null,
+                w != null ? `W ${w}"` : null,
+                d != null ? `D ${d}"` : null,
+              ].filter(Boolean) as string[];
+
+              if (parts.length === 0) return null;
+
+              return <li>Dimensions: {parts.join(" × ")}</li>;
+            })()}
           </ul>
         </section>
       </div>

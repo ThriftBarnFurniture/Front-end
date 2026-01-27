@@ -117,3 +117,77 @@ export async function signInWithGoogle() {
 
   redirect(data.url);
 }
+
+export async function requestPasswordReset(
+  _prevState: { ok: boolean; message?: string; fieldErrors?: { email?: string } },
+  formData: FormData
+) {
+  const supabase = await createClient();
+
+  const email = String(formData.get("email") ?? "").trim();
+
+  const fieldErrors: { email?: string } = {};
+  if (!email) fieldErrors.email = "Email is required.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
+
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+
+  // Supabase will email a reset link. We tell it where to send the user after they click it.
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${base}/reset-password`,
+  });
+
+  // Important: don’t leak whether an email exists
+  if (error) {
+    return { ok: false, message: "Unable to send reset email. Please try again." };
+  }
+
+  return {
+    ok: true,
+    message:
+      "If an account exists for that email, you’ll receive a password reset link shortly.",
+  };
+}
+
+export async function updatePassword(
+  _prevState: { ok: boolean; message?: string; fieldErrors?: { password?: string } },
+  formData: FormData
+) {
+  const supabase = await createClient();
+
+  const password = String(formData.get("password") ?? "");
+
+  const fieldErrors: { password?: string } = {};
+  if (!password) fieldErrors.password = "Password is required.";
+  else {
+    const meets =
+      /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password);
+    if (!meets) {
+      fieldErrors.password =
+        "Password must include a capital letter, a number, and a special character.";
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
+
+  // In the reset flow, Supabase sets a temporary session when the user opens the link.
+  // This call updates the password for the currently authenticated user/session.
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message || "Unable to update password. Please try again.",
+    };
+  }
+
+  return {
+    ok: true,
+    message: "Password updated! You can now sign in with your new password.",
+  };
+}

@@ -116,7 +116,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
                   Password
                 </Label>
                 <Link
-                  href="#"
+                  href="/forgot-password"
                   className="ml-auto inline-block text-sm font-bold underline text-[var(--color-brand)]"
                 >
                   Forgot your password?

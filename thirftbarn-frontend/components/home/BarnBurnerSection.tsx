@@ -1,147 +1,94 @@
-import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/page.module.css";
 import { createClient } from "@/utils/supabase/server";
 import Reveal from "../ui/Reveal";
 
-
-type BarnBurnerProduct = {
-  id: string;
-  name: string | null;
-  image_url: string | null;
-  image_urls: string[] | null;
-  created_at: string | null; // used to determine which “cycle” it’s in
+type DayBucket = {
+  day: number;      // 1..7
+  price: number;    // 40..10
+  count: number;    // how many items in that day
 };
 
-type ViewModel = BarnBurnerProduct & {
-  todayPrice: number;
-};
-
-function getTodayLabel(d: Date) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
-}
-
-// Saturday: $40, drop $5/day, next Saturday: $5, next Sunday+: $2 forever
-function barnBurnerPriceForDayOffset(dayOffset: number) {
-  const schedule = [40, 35, 30, 25, 20, 15, 10, 5]; // 0..7 (Sat..next Sat)
-  if (dayOffset <= 7) return schedule[Math.max(0, dayOffset)];
-  return 2;
-}
-
-// Returns how many days have passed since the “entry Saturday” for that item
-function getDaysSinceEntrySaturday(entryISO: string, now: Date) {
-  const entry = new Date(entryISO);
-
-  // Find the Saturday at the start of the entry week
-  const entryDay = entry.getDay(); // 0 Sun .. 6 Sat
-  const daysBackToSat = (entryDay + 1) % 7; // Sat->0, Sun->1, Mon->2, ...
-  const entrySaturday = new Date(entry);
-  entrySaturday.setHours(0, 0, 0, 0);
-  entrySaturday.setDate(entrySaturday.getDate() - daysBackToSat);
-
-  const nowStart = new Date(now);
-  nowStart.setHours(0, 0, 0, 0);
-
-  const diffMs = nowStart.getTime() - entrySaturday.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-}
-
-async function getBarnBurnerProducts(limit = 10): Promise<BarnBurnerProduct[]> {
+async function getBarnBurnerDayCounts(): Promise<Record<number, number>> {
   const supabase = await createClient();
 
+  // Pull day values for active barn-burner items and count in JS
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,image_url,image_urls,created_at")
-    .eq("category", "barn-burner") // change if your tag differs
+    .select("barn_burner_day")
+    .contains("category", ["barn-burner"])
     .eq("is_active", true)
-    .gt("quantity", 0)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .gt("quantity", 0);
 
   if (error) {
-    console.error("getBarnBurnerProducts error:", error.message);
-    return [];
+    console.error("getBarnBurnerDayCounts error:", error.message);
+    return {};
   }
 
-  return (data ?? []) as BarnBurnerProduct[];
+  const counts: Record<number, number> = {};
+  for (const row of data ?? []) {
+    const d = typeof row.barn_burner_day === "number" ? row.barn_burner_day : 1;
+    if (d >= 1 && d <= 7) counts[d] = (counts[d] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function priceForDay(day: number) {
+  // Day1=40, Day2=35 ... Day7=10
+  return Math.max(10, 40 - 5 * (day - 1));
 }
 
 export default async function BarnBurnerSection() {
-  // ✅ ensures it updates daily (no static build-time caching)
-  // You can also use: export const revalidate = 86400; in the page instead.
-  const now = new Date();
-  const todayLabel = getTodayLabel(now);
+  const counts = await getBarnBurnerDayCounts();
 
-  const products = await getBarnBurnerProducts(10);
-
-  const vm: ViewModel[] = products.map((p) => {
-    const dayOffset = p.created_at ? getDaysSinceEntrySaturday(p.created_at, now) : 0;
-    return {
-      ...p,
-      todayPrice: barnBurnerPriceForDayOffset(dayOffset),
-    };
+  const days: DayBucket[] = Array.from({ length: 7 }, (_, i) => {
+    const day = i + 1;
+    return { day, price: priceForDay(day), count: counts[day] ?? 0 };
   });
-
-  // For the header “today price”, use the *current week’s* day offset (Sat-based)
-  const todayOffset = [1, 2, 3, 4, 5, 6, 0][now.getDay()]; // Sun..Sat => 1..6,0
-  const todayGlobalPrice = barnBurnerPriceForDayOffset(todayOffset);
 
   return (
     <section className={styles.barnBurnerSection} aria-label="Barn Burner liquidation">
       <div className={styles.sectionInner}>
         <div className={styles.barnBurnerHeader}>
-            <Reveal>
+          <Reveal>
             <h2 className={styles.barnBurnerTitle}>🔥 BARN BURNER 🔥</h2>
-            </Reveal>
-        
-            <Reveal delayMs={80}>
+          </Reveal>
+
+          <Reveal delayMs={80}>
             <p className={styles.barnBurnerExplain}>
-            Items enter every Saturday at <strong>$40</strong> and drop <strong>$5 each day</strong>!
+              Items start at <strong>$40</strong> and drop <strong>$5 every day</strong>! <br/>
+              Grab it while it's still hot!
             </p>
-            <p className={styles.barnBurnerToday}>
-            Today is <strong>{todayLabel}</strong> — The Barn Burner price is{" "}
-            <strong>${todayGlobalPrice.toFixed(2)}</strong>.
+            <p className={styles.barnBurnerSubtext}>
+              All unsold products can be found in our <a href="/shop?collection=5-under">5$ and Under</a> section after Day 7.
             </p>
-            </Reveal>
+          </Reveal>
         </div>
+
         <Reveal delayMs={160}>
-        <div className={styles.productRow}>
-          {vm.map((p) => {
-            const img =
-              p.image_url ||
-              (Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls[0] : null) ||
-              "/furniture.jpg";
+          <div className={styles.barnBurnerDayGrid}>
+            {days.map((d) => (
+              <Link
+                key={d.day}
+                href={`/shop?category=barn-burner&day=${d.day}`}
+                className={`${styles.barnBurnerDayCard} popHover`}
+                aria-label={`Shop Barn Burner Day ${d.day}`}
+              >
+                <div className={styles.barnBurnerDayTop}>
+                  <div className={styles.barnBurnerDayBadge}>DAY {d.day}</div>
+                  <div className={styles.barnBurnerDayPrice}>${d.price.toFixed(2)}</div>
+                </div>
 
-            return (
-              <Link key={p.id} href={`/item/${p.id}`} className={styles.productCardLink}>
-                <article className={`${styles.productCard} ${styles.barnBurnerCard} popHover`}>
-                  <div className={styles.productImgWrap} aria-hidden="true">
-                    <Image
-                      src={img}
-                      alt=""
-                      fill
-                      sizes="(max-width: 480px) 92vw, (max-width: 768px) 45vw, (max-width: 1200px) 22vw, 210px"
-                      style={{ objectFit: "cover" }}
-                    />
+                <div className={styles.barnBurnerDayBottom}>
+                  <div className={styles.barnBurnerDayMeta}>
+                    <span className={styles.barnBurnerDayCount}>{d.count}</span>
+                    <span className={styles.barnBurnerDayCountLabel}>items</span>
                   </div>
-
-                  <div className={styles.productMeta}>
-                    <p className={styles.productName}>{p.name ?? "Untitled"}</p>
-                    <p className={styles.productPrice}>${p.todayPrice.toFixed(2)}</p>
-                  </div>
-                </article>
+                  <div className={styles.barnBurnerDayCta}>Shop Day {d.day}→</div>
+                </div>
               </Link>
-            );
-          })}
-        </div>
-        </Reveal>
-
-        <Reveal delayMs={240}>
-        <div className={styles.barnBurnerCtaWrap}>
-            <Link href="/shop?category=barn-burner" className={`${styles.viewAllBtn} popHover`}>
-            Shop Barn Burner
-            </Link>
-        </div>
+            ))}
+          </div>
         </Reveal>
       </div>
     </section>

@@ -423,6 +423,17 @@
   font-size: var(--fs-2xl);
 }
 
+.barnBurnerSubtext{
+  margin: 12px auto 0;
+  max-width: 720px;
+  text-align: center;
+  font-family: var(--font-text);
+  font-size: small;
+  color: #e4e4e4;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .barnBurnerHeader {
   display: grid;
   gap: 2px;
@@ -458,6 +469,92 @@
   display: grid;
   place-items: center;
   margin-top: 22px;
+}
+
+/* ===== BARN BURNER DAY GRID ===== */
+.barnBurnerDayGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1200px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.barnBurnerDayCard {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  text-decoration: none;
+  min-height: 120px;
+}
+
+.barnBurnerDayTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.barnBurnerDayBadge {
+  font-family: var(--font-header);
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.barnBurnerDayPrice {
+  font-weight: 900;
+  font-size: 1.25rem;
+}
+
+.barnBurnerDayBottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.barnBurnerDayMeta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  opacity: 0.95;
+}
+
+.barnBurnerDayCount {
+  font-weight: 900;
+  font-size: 1.15rem;
+}
+
+.barnBurnerDayCountLabel {
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.barnBurnerDayCta {
+  font-weight: 900;
+  opacity: 0.95;
 }
 
 /* ===== Responsive ===== */

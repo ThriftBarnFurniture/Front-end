@@ -258,95 +258,16 @@ export default function CartPage() {
 
               {warning && <div className={styles.warning}>{warning}</div>}
 
-              {/* Promo code first */}
-              <div className={styles.block}>
-                <div className={styles.blockTitle}>PROMO CODE</div>
-                <div className={styles.selectWrap}>
-                  <input
-                    className={styles.input}
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value)}
-                    placeholder="Enter your code"
-                  />
-                </div>
-                <button
-                  className={styles.applyBtn}
-                  type="button"
-                  onClick={() => setAppliedPromo(promoInput.trim())}
-                >
-                  Apply
-                </button>
-              </div>
-
-              {/* Shipping after promo */}
-              <div className={styles.block}>
-                <div className={styles.blockTitle}>CALCULATE SHIPPING</div>
-                <div className={styles.selectWrap}>
-                  <select
-                    className={styles.select}
-                    value={shipping}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setShipping(next);
-                      setWarning(null);
-
-                      if (next !== "shipping") setPostalCode("");
-                    }}
-                  >
-                    <option value="">Select your Option</option>
-                    <option value="pickup">Store Pickup</option>
-                    <option value="shipping">Shipping</option>
-                  </select>
-                </div>
-
-                {/* NEW: Pickup message */}
-                {shipping === "pickup" ? (
-                  <div className={styles.shippingNote}>
-                    The client will be responsible for picking up the order from 2786 ON-34
-                    Hawkesbury, ON K6A 2R2 within two weeks of purchase. Otherwise, the order will
-                    be subject for cancel.
-                  </div>
-                ) : null}
-
-                {shipping === "shipping" ? (
-                  <div className={styles.addressBlock}>
-                    <div className={styles.addressLabel}>POSTAL CODE</div>
-                    <input
-                      className={styles.input}
-                      value={postalCode}
-                      onChange={(e) => {
-                        // light cleanup: uppercase + allow letters/numbers/spaces only
-                        const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
-                        setPostalCode(raw);
-                      }}
-                      placeholder="e.g. K1A 0B1"
-                      autoComplete="shipping postal-code"
-                      inputMode="text"
-                    />
-                    <div className={styles.shippingHint}>
-                      Entering a postal code updates the estimated shipping fee.
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
+              
               {/* Price calculation */}
               <div className={styles.calc}>
                 <div className={styles.calcRow}>
+                  <span>Promo & Shipping Calculated at checkout</span>
+                </div>
+
+                <div className={styles.calcRow}>
                   <span>Items Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
-                </div>
-
-                <div className={styles.calcRow}>
-                  <span>Promo{appliedPromo ? ` (${appliedPromo.toUpperCase()})` : ""}</span>
-                  <span className={promoDiscount ? styles.negative : ""}>
-                    -${promoDiscount.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className={styles.calcRow}>
-                  <span>Shipping</span>
-                  <span>{shipping === "pickup" ? "FREE" : `$${shippingCost.toFixed(2)}`}</span>
                 </div>
 
                 <div className={styles.calcRow}>

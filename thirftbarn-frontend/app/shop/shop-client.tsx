@@ -11,8 +11,9 @@ type ProductUI = {
   name: string;
   quantity: number | null;
 
-  category: string | null;
-  subcategory: string | null;
+  category: string[];
+  subcategory: string[];
+
   room_tags: string[];
   collections: string[];
 
@@ -32,57 +33,97 @@ function uniqueSorted(values: string[]) {
 
 export default function ShopClient({ products }: { products: ProductUI[] }) {
   const [sort, setSort] = useState<SortKey>("newest");
+
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(
+    []
+  );
+
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
 
   const options = useMemo(() => {
     const cats: string[] = [];
+    const subs: string[] = [];
     const rooms: string[] = [];
     const cols: string[] = [];
 
     for (const p of products) {
-      if (p.category) cats.push(p.category);
+      p.category.forEach((c) => cats.push(c));
       p.room_tags.forEach((r) => rooms.push(r));
       p.collections.forEach((c) => cols.push(c));
+
+      // ✅ Only show subcategories relevant to the currently selected categories
+      const matchesSelectedCats =
+        selectedCategories.length === 0 ||
+        p.category.some((c) => selectedCategories.includes(c));
+
+      if (matchesSelectedCats) {
+        p.subcategory.forEach((s) => subs.push(s));
+      }
     }
 
     return {
       categories: uniqueSorted(cats),
+      subcategories: uniqueSorted(subs),
       rooms: uniqueSorted(rooms),
       collections: uniqueSorted(cols),
     };
-  }, [products]);
+  }, [products, selectedCategories]);
 
   const searchParams = useSearchParams();
 
-    useEffect(() => {
-    const category = searchParams.get("category");
+  useEffect(() => {
     const collection = searchParams.get("collection");
     const room = searchParams.get("room");
+    const categories = searchParams.getAll("category");
+    const subcategories = searchParams.getAll("subcategory");
 
-    if (category) setSelectedCategories([category]);
+    if (categories.length) setSelectedCategories(categories);
+    if (subcategories.length) setSelectedSubcategories(subcategories);
     if (collection) setSelectedCollections([collection]);
     if (room) setSelectedRooms([room]);
-    }, [searchParams]);
+  }, [searchParams]);
 
+  // ✅ Auto-clear subcategories if no categories are selected
+  // ✅ Also prune subcategories that are no longer valid for the selected categories
+  useEffect(() => {
+    if (selectedCategories.length === 0) {
+      if (selectedSubcategories.length) setSelectedSubcategories([]);
+      return;
+    }
+    setSelectedSubcategories((prev) =>
+      prev.filter((s) => options.subcategories.includes(s))
+    );
+  }, [selectedCategories, options.subcategories, selectedSubcategories.length]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const catOk =
         selectedCategories.length === 0 ||
-        (p.category && selectedCategories.includes(p.category));
+        p.category.some((c) => selectedCategories.includes(c));
+
+      const subOk =
+        selectedSubcategories.length === 0 ||
+        p.subcategory.some((s) => selectedSubcategories.includes(s));
 
       const roomOk =
-        selectedRooms.length === 0 || p.room_tags.some((r) => selectedRooms.includes(r));
+        selectedRooms.length === 0 ||
+        p.room_tags.some((r) => selectedRooms.includes(r));
 
       const colOk =
         selectedCollections.length === 0 ||
         p.collections.some((c) => selectedCollections.includes(c));
 
-      return catOk && roomOk && colOk;
+      return catOk && subOk && roomOk && colOk;
     });
-  }, [products, selectedCategories, selectedRooms, selectedCollections]);
+  }, [
+    products,
+    selectedCategories,
+    selectedSubcategories,
+    selectedRooms,
+    selectedCollections,
+  ]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -99,9 +140,9 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
           return b.name.localeCompare(a.name);
         case "newest":
         default:
-            return (
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
       }
     });
 
@@ -113,6 +154,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
 
   const clearAll = () => {
     setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setSelectedRooms([]);
     setSelectedCollections([]);
   };
@@ -128,6 +170,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
             onClick={clearAll}
             disabled={
               selectedCategories.length === 0 &&
+              selectedSubcategories.length === 0 &&
               selectedRooms.length === 0 &&
               selectedCollections.length === 0
             }
@@ -157,6 +200,33 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
             )}
           </div>
         </div>
+
+        {/* ✅ Subcategory filter appears only when a category is selected */}
+        {selectedCategories.length > 0 && (
+          <div className={styles.filterBlock}>
+            <div className={styles.filterTitle}>Subcategory</div>
+            <div className={styles.filterList}>
+              {options.subcategories.length === 0 ? (
+                <div className={styles.muted}>
+                  No subcategories for selected categories.
+                </div>
+              ) : (
+                options.subcategories.map((s) => (
+                  <label key={s} className={styles.checkRow}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSubcategories.includes(s)}
+                      onChange={() =>
+                        setSelectedSubcategories((prev) => toggle(prev, s))
+                      }
+                    />
+                    <span>{s}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         <div className={styles.filterBlock}>
           <div className={styles.filterTitle}>Room</div>
@@ -228,34 +298,36 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
           <p className={styles.empty}>No products match these filters.</p>
         ) : (
           <div className={styles.grid}>
-            {sorted.map((p) => (
-              <Link key={p.id} href={`/item/${p.id}`} className={styles.card}>
-                <div className={styles.imageWrap}>
-                  {p.img ? (
-                    <Image
-                      src={p.img}
-                      alt={p.name}
-                      fill
-                      className={styles.image}
-                      sizes="(max-width: 900px) 50vw, (max-width: 1200px) 33vw, 25vw"
-                    />
-                  ) : (
-                    <div className={styles.noImage}>No image</div>
-                  )}
+            {sorted.map((p) => {
+              if ((p.quantity ?? 0) <= 0) return null;
 
-                  {p.quantity !== null && p.quantity <= 0 && (
-                    <div className={styles.badge}>Sold</div>
-                  )}
-                </div>
+              return (
+                <Link key={p.id} href={`/item/${p.id}`} className={styles.card}>
+                  <div className={styles.imageWrap}>
+                    {p.img ? (
+                      <Image
+                        src={p.img}
+                        alt={p.name}
+                        fill
+                        className={styles.image}
+                        sizes="(max-width: 900px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                      />
+                    ) : (
+                      <div className={styles.noImage}>No image</div>
+                    )}
 
-                <div className={styles.meta}>
-                  <div className={styles.name}>{p.name}</div>
-                  <div className={styles.price}>{p.priceLabel}</div>
-                </div>
+                    {p.quantity !== null && p.quantity <= 0 && (
+                      <div className={styles.badge}>Sold</div>
+                    )}
+                  </div>
 
-                {p.category && <div className={styles.sub}>{p.category}</div>}
-              </Link>
-            ))}
+                  <div className={styles.meta}>
+                    <div className={styles.name}>{p.name}</div>
+                    <div className={styles.price}>{p.priceLabel}</div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>

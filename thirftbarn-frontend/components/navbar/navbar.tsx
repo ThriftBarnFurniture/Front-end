@@ -6,8 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
 import { createClient } from "@/utils/supabase/client";
 import { useCart } from "@/components/cart/CartProvider";
-import ShopMenu from "@/components/navbar/shopmenu";
-
 
 export const Navbar = () => {
   const [compact, setCompact] = useState(false);
@@ -248,7 +246,7 @@ export const Navbar = () => {
         <div className={styles.marquee} aria-label="Store announcement">
           {Array.from({ length: 14 }).map((_, i) => (
             <span className={styles.marqueeItem} key={i}>
-              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY SAT & SUN FROM 12PM - 5PM`}
+              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY FRI, SAT & SUN FROM 10AM - 5PM`}
             </span>
           ))}
         </div>
@@ -289,10 +287,6 @@ export const Navbar = () => {
             >
               Shop
             </Link>
-
-            <div className={`${styles.megaHolder} ${shopOpen ? styles.megaOpen : ""}`}>
-              <ShopMenu onClose={() => setShopOpen(false)} />
-            </div>
           </div>
 
           <button type="button" className={styles.navButton} onClick={() => goToSection("about")}>

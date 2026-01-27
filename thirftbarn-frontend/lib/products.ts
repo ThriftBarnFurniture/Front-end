@@ -7,8 +7,9 @@ export type Product = {
   name: string;
   description: string | null;
   price: number | string; // Supabase numeric often comes back as string
-  category: string | null;
-  subcategory: string | null;     
+  colors: string[];
+  category: string[];
+  subcategory: string[];     
   room_tags: string[];            
   collections: string[]; 
   condition: string | null;
@@ -59,7 +60,7 @@ export async function getProductById(id: string) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,description,price,category,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url"
+      "id,sku,barcode,name,description,price,category,subcategory,colors,collections,room_tags,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url"
     )
     .eq("id", id)
     .maybeSingle();

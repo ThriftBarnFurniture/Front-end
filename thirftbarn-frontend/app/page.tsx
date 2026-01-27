@@ -49,7 +49,7 @@ async function getBarnBurnerProducts(limit = 8): Promise<BarnBurnerProduct[]> {
   const { data, error } = await supabase
     .from("products")
     .select("id,name,price,image_url,image_urls,created_at")
-    .eq("category", "barn-burner") // ✅ change if you tag differently
+    .contains("category", ["barn-burner"])
     .eq("is_active", true)
     .gt("quantity", 0)
     .order("created_at", { ascending: false })
@@ -91,9 +91,8 @@ export default async function Home() {
     phone: '(613) 915-3889',
     email: 'thriftbarnfurniture@gmail.com',
     hours: [
-      { days: 'Monday - Friday', time: 'By Appointment' },
-      { days: 'Saturday', time: '12:00 PM - 5:00 PM' },
-      { days: 'Sunday', time: '12:00 PM - 5:00 PM' },
+      { days: 'Mon - Thu', time: 'By Appointment' },
+      { days: 'Fri - Sun', time: '10:00 AM - 5:00 PM' },
     ],
     coordinates: {
       lat: 45.57579587217674, 
@@ -287,14 +286,14 @@ export default async function Home() {
           <Reveal delayMs={80}>
           <div className={styles.roomGrid}>
             {[
-              { label: "$5 and Under", img: "/snowbarn.jpg", href: "/shop?collection=5-under" },
-              { label: "Living Room", img: "/inside_barn_closed.jpg", href: "/shop?room=living-room" },
-              { label: "Dining Room", img: "/furniture.jpg", href: "/shop?room=dining-room" },
-              { label: "Bedroom", img: "/snowbarn.jpg", href: "/shop?room=bedroom" },
-              { label: "Office", img: "/inside_barn_closed.jpg", href: "/shop?room=office" },
-              { label: "Garage / Exterior", img: "/Hero-bg.jpg", href: "/shop?room=garage" },
-              { label: "Home Decor", img: "/furniture.jpg", href: "/shop?room=home-decor" },
-              { label: "Child / Nursery", img: "/snowbarn.jpg", href: "/shop?room=kids-room" },
+              { label: "$5 and Under", img: "/category/Image-5under.png", href: "/shop?collection=5-under" },
+              { label: "Kitchen", img: "/category/Image-Kitchen.png", href: "/shop?room=kitchen" },
+              { label: "Living Room", img: "/category/Image-LivingRoom.png", href: "/shop?room=living-room" },
+              { label: "Home Decor", img: "/category/Image-HomeDecor.png", href: "/shop?room=home-decor" },
+              { label: "Dining Room", img: "/category/Image-DiningRoom.png", href: "/shop?room=dining-room" },
+              { label: "Bedroom", img: "/category/Image-Bedroom.png", href: "/shop?room=bedroom" },
+              { label: "Storage Furniture", img: "/category/Image-StorageFurniture.png", href: "/shop?category=storage-furniture" },
+              { label: "Seasonal", img: "/category/Image-Seasonal.png", href: "/shop?collection=seasonal" },
             ].map((c) => (
               <Link key={c.label} href={c.href} className={styles.roomItemLink}>
                 <div className={`${styles.roomItem} popHover`}>

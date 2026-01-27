@@ -35,6 +35,21 @@ const getTextArray = (formData: FormData, key: string) =>
     .map((x) => String(x).trim())
     .filter(Boolean);
 
+// ✅ Accept either repeated keys ("category") OR an alternate key ("categories")
+// ✅ Also supports legacy single value (formData.get)
+const getMultiTextArray = (formData: FormData, primaryKey: string, fallbackKey?: string) => {
+  const fromPrimary = getTextArray(formData, primaryKey);
+  if (fromPrimary.length > 0) return fromPrimary;
+
+  if (fallbackKey) {
+    const fromFallback = getTextArray(formData, fallbackKey);
+    if (fromFallback.length > 0) return fromFallback;
+  }
+
+  const single = String(formData.get(primaryKey) ?? "").trim();
+  return single ? [single] : [];
+};
+
 const getOptionalNumber = (formData: FormData, key: string): number | null => {
   const raw = String(formData.get(key) ?? "").trim();
   if (!raw) return null;
@@ -42,25 +57,66 @@ const getOptionalNumber = (formData: FormData, key: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const getRequiredNumber = (formData: FormData, key: string): number | null => {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+};
+
+const getBoolean = (formData: FormData, key: string) => {
+  const raw = String(formData.get(key) ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "on" || raw === "yes";
+};
+
+type BarnDay = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+const parseBarnDay = (formData: FormData): BarnDay | null => {
+  const raw = String(formData.get("barn_burner_day") ?? "").trim();
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return null;
+  if (n < 1 || n > 7) return null;
+  return n as BarnDay;
+};
+
+const barnBurnerPriceForDay = (day: BarnDay) => 45 - 5 * day; // 1->40 ... 7->10
+const barnBurnerSubcategoryForDay = (day: BarnDay) => `day-${day}`;
+
 const validateProductInputs = ({
   name,
   description,
-  category,
+  categories,
   quantityValue,
   condition,
   colors,
   images,
+  price,
+  isBarnBurner,
+  subcategories,
 }: {
   name: string;
   description: string;
-  category: string;
+  categories: string[];
+  subcategories: string[];
   quantityValue: string;
   condition: string;
   colors: string[];
   images: File[];
+  price: number | null;
+  isBarnBurner: boolean;
 }) => {
-  if (!name || !description || !category || !quantityValue || !condition) {
-    return "Name, description, category, quantity, condition are required.";
+  if (!name || !description || !quantityValue || !condition) {
+    return "Name, description, quantity, and condition are required.";
+  }
+
+  // ✅ categories required (now array)
+  if (!categories || categories.length === 0) {
+    return "At least one category is required.";
+  }
+
+  // ✅ if barn burner, subcategory must be present (day-x)
+  if (isBarnBurner && (!subcategories || subcategories.length === 0)) {
+    return "Barn burner requires a start day (subcategory).";
   }
 
   if (!colors || colors.length === 0) {
@@ -76,11 +132,14 @@ const validateProductInputs = ({
     return "Quantity must be a whole number.";
   }
 
+  if (!isBarnBurner && (price === null || price < 0)) {
+    return "Price is required.";
+  }
+
   return null;
 };
 
 const uploadImagesToR2 = async (images: File[]) => {
-  // ✅ No max
   const uploads = await Promise.all(images.map((img) => uploadProductImageToR2(img)));
   return uploads.map((u) => u.publicUrl);
 };
@@ -130,11 +189,7 @@ function getProductsTableName() {
   return process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
 }
 
-async function supabaseRestInsert(
-  tableName: string,
-  accessToken: string,
-  payload: Record<string, unknown>
-) {
+async function supabaseRestInsert(tableName: string, accessToken: string, payload: Record<string, unknown>) {
   const supabaseUrl = getSupabaseUrlOrThrow();
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
@@ -199,35 +254,51 @@ export const POST = async (request: Request) => {
 
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
     const quantityValue = String(formData.get("quantity") ?? "").trim();
     const condition = String(formData.get("condition") ?? "").trim();
 
-    const subcategoryRaw = String(formData.get("subcategory") ?? "").trim();
-    const subcategory = subcategoryRaw ? subcategoryRaw : null;
+    // ✅ NEW: arrays
+    const categories = getMultiTextArray(formData, "category", "categories");
+    const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
-    const room_tags = getTextArray(formData, "room_tags"); // [] if empty
-    const collections = getTextArray(formData, "collections"); // [] if empty
-    const colors = getTextArray(formData, "colors"); // required
+    const room_tags = getTextArray(formData, "room_tags");
+    const collections = getTextArray(formData, "collections");
+    const colors = getTextArray(formData, "colors");
 
     const height = getOptionalNumber(formData, "height");
     const width = getOptionalNumber(formData, "width");
     const depth = getOptionalNumber(formData, "depth");
 
-    // Optional price (kept compatible with your existing schema)
-    const price = getOptionalNumber(formData, "price");
-    const priceValue = String(formData.get("price") ?? "").trim();
+    const isBarnBurner = getBoolean(formData, "is_barn_burner");
+
+    const barnDay = isBarnBurner ? parseBarnDay(formData) : null;
+    if (isBarnBurner && !barnDay) {
+      return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
+    }
+
+    const price = isBarnBurner
+      ? barnBurnerPriceForDay(barnDay as BarnDay)
+      : getRequiredNumber(formData, "price");
 
     const images = parseImages(formData);
+
+    // ✅ Enforce categories/subcategories for barn burner (server-side)
+    const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
+    const enforcedSubcategories = isBarnBurner
+      ? [barnBurnerSubcategoryForDay(barnDay as BarnDay)]
+      : subcategories;
 
     const validationError = validateProductInputs({
       name,
       description,
-      category,
+      categories: enforcedCategories,
+      subcategories: enforcedSubcategories,
       quantityValue,
       condition,
       colors,
       images,
+      price,
+      isBarnBurner,
     });
 
     if (validationError) {
@@ -235,29 +306,48 @@ export const POST = async (request: Request) => {
     }
 
     const quantity = Number(quantityValue);
-
     const imageUrls = await uploadImagesToR2(images);
     const tableName = getProductsTableName();
+
+    let barn_burner_started_at: string | null = null;
+    let barn_burner_day: number | null = null;
+    let barn_burner_last_tick: string | null = null;
+
+    if (isBarnBurner) {
+      const now = new Date();
+      barn_burner_started_at = now.toISOString();
+      barn_burner_day = barnDay as BarnDay;
+      barn_burner_last_tick = now.toISOString().slice(0, 10);
+    }
 
     const productPayload: Record<string, unknown> = {
       sku: makeSku(),
       name,
       description,
-      category,
-      subcategory, // null if empty
-      room_tags, // [] if empty
-      collections, // [] if empty
-      colors, // required
-      condition, // required
-      height, // null if empty
+
+      // ✅ IMPORTANT: schema expects arrays
+      category: enforcedCategories,
+      subcategory: enforcedSubcategories,
+
+      room_tags,
+      collections,
+      colors,
+      condition,
+      height,
       width,
       depth,
       quantity,
-      price, // null if not provided
+      price,
+
       image_url: imageUrls[0],
       image_urls: imageUrls,
+
       created_by: userId,
       created_at: new Date().toISOString(),
+
+      barn_burner_started_at,
+      barn_burner_day,
+      barn_burner_last_tick,
     };
 
     const data = await supabaseRestInsert(tableName, accessToken, productPayload);
@@ -287,12 +377,12 @@ export const PATCH = async (request: Request) => {
 
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
-    const category = String(formData.get("category") ?? "").trim();
     const quantityValue = String(formData.get("quantity") ?? "").trim();
     const condition = String(formData.get("condition") ?? "").trim();
 
-    const subcategoryRaw = String(formData.get("subcategory") ?? "").trim();
-    const subcategory = subcategoryRaw ? subcategoryRaw : null;
+    // ✅ arrays
+    const categories = getMultiTextArray(formData, "category", "categories");
+    const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
     const room_tags = getTextArray(formData, "room_tags");
     const collections = getTextArray(formData, "collections");
@@ -302,33 +392,65 @@ export const PATCH = async (request: Request) => {
     const width = getOptionalNumber(formData, "width");
     const depth = getOptionalNumber(formData, "depth");
 
-    const price = getOptionalNumber(formData, "price");
+    const isBarnBurner = getBoolean(formData, "is_barn_burner");
+
+    const barnDay = isBarnBurner ? parseBarnDay(formData) : null;
+    if (isBarnBurner && !barnDay) {
+      return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
+    }
+
+    const price = isBarnBurner
+      ? barnBurnerPriceForDay(barnDay as BarnDay)
+      : getRequiredNumber(formData, "price");
 
     const images = parseImages(formData);
 
-    // For PATCH, images are optional — but other required fields remain required (per your form)
-    const validationError = (() => {
-      if (!name || !description || !category || !quantityValue || !condition) {
-        return "Name, description, category, quantity, condition are required.";
-      }
-      const quantity = Number(quantityValue);
-      if (!Number.isInteger(quantity) || quantity < 0) return "Quantity must be a whole number.";
-      if (!colors || colors.length === 0) return "At least one color is required.";
-      return null;
-    })();
+    // ✅ enforce barn burner values
+    const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
+    const enforcedSubcategories = isBarnBurner
+      ? [barnBurnerSubcategoryForDay(barnDay as BarnDay)]
+      : subcategories;
 
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+    // PATCH validation (images optional, but rest required)
+    if (!name || !description || !quantityValue || !condition) {
+      return NextResponse.json(
+        { error: "Name, description, quantity, and condition are required." },
+        { status: 400 }
+      );
+    }
+    if (!enforcedCategories || enforcedCategories.length === 0) {
+      return NextResponse.json({ error: "At least one category is required." }, { status: 400 });
+    }
+    if (!colors || colors.length === 0) {
+      return NextResponse.json({ error: "At least one color is required." }, { status: 400 });
+    }
+    const quantity = Number(quantityValue);
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return NextResponse.json({ error: "Quantity must be a whole number." }, { status: 400 });
+    }
+    if (!isBarnBurner && (price === null || price < 0)) {
+      return NextResponse.json({ error: "Price is required." }, { status: 400 });
     }
 
-    const quantity = Number(quantityValue);
+    let barn_burner_started_at: string | null = null;
+    let barn_burner_day: number | null = null;
+    let barn_burner_last_tick: string | null = null;
+
+    if (isBarnBurner) {
+      const now = new Date();
+      barn_burner_started_at = now.toISOString();
+      barn_burner_day = barnDay as BarnDay;
+      barn_burner_last_tick = now.toISOString().slice(0, 10);
+    }
+
     const tableName = getProductsTableName();
 
     const productPayload: Record<string, unknown> = {
       name,
       description,
-      category,
-      subcategory,
+      category: enforcedCategories,
+      subcategory: enforcedSubcategories,
+
       room_tags,
       collections,
       colors,
@@ -339,9 +461,12 @@ export const PATCH = async (request: Request) => {
       quantity,
       price,
       updated_at: new Date().toISOString(),
+
+      barn_burner_started_at,
+      barn_burner_day,
+      barn_burner_last_tick,
     };
 
-    // Only upload/replace images if new ones were provided
     if (images.length > 0) {
       const imageUrls = await uploadImagesToR2(images);
       productPayload.image_url = imageUrls[0];
@@ -349,20 +474,12 @@ export const PATCH = async (request: Request) => {
 
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
 
-      await sendToCloudflareDatabase({
-        ...productPayload,
-        supabase_id: productId,
-      });
-
+      await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
       return NextResponse.json({ product: data, imageUrls }, { status: 200 });
     } else {
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
 
-      await sendToCloudflareDatabase({
-        ...productPayload,
-        supabase_id: productId,
-      });
-
+      await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
       return NextResponse.json({ product: data, imageUrls: [] }, { status: 200 });
     }
   } catch (error) {
@@ -385,12 +502,16 @@ export const GET = async (request: Request) => {
 
     let query = supabase
       .from(tableName)
-      .select("id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active")
+      .select(
+        "id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active,barn_burner_started_at,barn_burner_day,barn_burner_last_tick"
+      )
       .order("created_at", { ascending: false })
       .limit(500);
 
+    // ✅ category/subcategory are arrays — avoid ilike on arrays.
+    // We'll keep search on name only (safe).
     if (qRaw) {
-      query = query.or(`name.ilike.%${qRaw}%,category.ilike.%${qRaw}%`);
+      query = query.ilike("name", `%${qRaw}%`);
     }
 
     if (priceParam) {
@@ -404,11 +525,7 @@ export const GET = async (request: Request) => {
     return NextResponse.json(data ?? [], { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    const status =
-      message.includes("Not signed in") ? 401 :
-      message.includes("Admins only") ? 403 :
-      500;
-
+    const status = message.includes("Not signed in") ? 401 : message.includes("Admins only") ? 403 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 };
