@@ -49,14 +49,22 @@ export default function CheckoutSuccessClient() {
 
   const [prodMap, setProdMap] = useState<Record<string, ProductMini>>({});
 
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setIsSignedIn(!!data.user));
+  }, []);
+
+
   // Clear cart after successful checkout
   useEffect(() => {
     clear();
   }, [clear]);
 
-  // Load order by stripe_session_id OR by order_id
+  // Load order by stripe_session_id (guest-safe via server endpoint)
   useEffect(() => {
-    if (!sessionId && !orderIdParam) return;
+    if (!sessionId) return;
 
     let cancelled = false;
 
@@ -65,46 +73,16 @@ export default function CheckoutSuccessClient() {
       setError(null);
 
       try {
-        const supabase = await createClient();
+        const res = await fetch("/api/orders/by-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
 
-        const baseQuery = supabase
-          .from("orders")
-          .select(
-            [
-              "order_id",
-              "order_number",
-              "status",
-              "currency",
-              "subtotal",
-              "tax",
-              "total",
-              "purchase_date",
-              "items",
-              "customer_name",
-              "customer_email",
-              "customer_phone",
-              "shipping_address",
-              "shipping_cost",
-              "promo_code",
-              "promo_discount",
-              "stripe_email",
-              "stripe_session_id",
-            ].join(",")
-          );
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || "Failed to load order.");
 
-        const { data, error } = sessionId
-          ? await baseQuery.eq("stripe_session_id", sessionId).maybeSingle()
-          : await baseQuery.eq("order_id", orderIdParam!).maybeSingle();
-
-        if (error) throw new Error(error.message);
-        if (cancelled) return;
-
-        if (!data) {
-          setOrder(null);
-          return;
-        }
-
-        setOrder(data as unknown as OrderRow);
+        if (!cancelled) setOrder((json?.order ?? null) as OrderRow | null);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? "Failed to load order.");
       } finally {
@@ -116,7 +94,7 @@ export default function CheckoutSuccessClient() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, orderIdParam]);
+  }, [sessionId]);
 
   // Finalize checkout
   useEffect(() => {
@@ -361,7 +339,9 @@ export default function CheckoutSuccessClient() {
 
       <div className={styles.actions}>
         <button onClick={() => router.push("/shop")}>Continue shopping</button>
-        <button onClick={() => router.push("/account/orders")}>View orders</button>
+        {isSignedIn && (
+          <button onClick={() => router.push("/account/orders")}>View orders</button>
+        )}
       </div>
     </div>
   );

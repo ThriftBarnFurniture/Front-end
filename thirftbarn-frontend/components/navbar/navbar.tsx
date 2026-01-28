@@ -16,7 +16,6 @@ export const Navbar = () => {
   const router = useRouter();
   const { totalItems } = useCart();
   const [googleReviewCount, setGoogleReviewCount] = useState<number | null>(null);
-  const [shopOpen, setShopOpen] = useState(false);
 
 
   // ---- NEW: auth state for the user icon ----
@@ -34,7 +33,6 @@ export const Navbar = () => {
 
     // close menus if you want
     setMobileOpen(false);
-    setShopOpen(false);
     setAccountOpen(false);
 
     // If not on home, navigate home first
@@ -67,11 +65,6 @@ export const Navbar = () => {
 
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-
-  useEffect(() => {
-    setShopOpen(false);
-  }, [pathname]);
-
 
   //Google rating count
   useEffect(() => {
@@ -275,19 +268,9 @@ export const Navbar = () => {
 
         {/* Desktop links (hidden under 400px via CSS) */}
         <div className={styles.navLinks}>
-          <div
-            className={styles.shopHover}
-            onMouseEnter={() => setShopOpen(true)}
-            onMouseLeave={() => setShopOpen(false)}
-          >
-            <Link
-              href="/shop"
-              className={styles.navButton}
-              onClick={() => setShopOpen(false)}
-            >
-              Shop
-            </Link>
-          </div>
+          <Link href="/shop" className={styles.navButton}>
+            Shop
+          </Link>
 
           <button type="button" className={styles.navButton} onClick={() => goToSection("about")}>
             About
@@ -296,6 +279,10 @@ export const Navbar = () => {
           <button type="button" className={styles.navButton} onClick={() => goToSection("contact")}>
             Contact
           </button>
+
+          <Link href="/services" className={styles.navButton}>
+            Services
+          </Link>
         </div>
 
         {/* Right side: Cart + User */}
@@ -371,6 +358,19 @@ export const Navbar = () => {
                     >
                       Orders
                     </button>
+                    {/* NEW: Admin promo codes */}
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        setMobileOpen(false);
+                        router.push("/admin/promos");
+                      }}
+                    >
+                      Promo codes
+                    </button>
                   </>
                 )}
                 <div className={styles.accountMenuDivider} />
@@ -417,29 +417,9 @@ export const Navbar = () => {
           Contact
         </button>
 
-        {/* NEW: mobile account entry */}
-        <button
-          type="button"
-          className={styles.mobileLink}
-          onClick={() => {
-            if (!isSignedIn) router.push("/login");
-            else onAccountClick();
-          }}
-        >
-          {isSignedIn ? "My account" : "Login"}
-        </button>
-        {isAdmin && (
-          <button
-            type="button"
-            className={styles.mobileLink}
-            onClick={() => {
-              setMobileOpen(false);
-              router.push("/admin/orders");
-            }}
-          >
-            Admin Orders
-          </button>
-        )}
+        <Link href="/services" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
+          Services
+        </Link>
       </div>
     </header>
   );

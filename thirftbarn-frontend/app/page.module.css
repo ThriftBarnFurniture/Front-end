@@ -615,7 +615,7 @@
 
 .contactGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 28px;
   align-items: start;
 }
@@ -648,11 +648,24 @@
   display: grid;
   gap: 6px;
 }
+.serviceContactLabel {
+  margin: 0;
+  color: var(--color-brand);
+  font-weight: 800;
+  font-family: var(--font-text);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.2px;
+  margin-top: -10px;
+}
 
 .hoursDays { 
   color: #333; 
   font-weight: var(--fw-black); 
   font-family: var(--font-text);
+}
+
+.phoneContact {
+  margin-top: 6px;
 }
 
 .contactLink {

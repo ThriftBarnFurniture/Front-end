@@ -1,0 +1,148 @@
+/* app/services/services.module.css */
+
+/* =========================================================
+   Page shell
+   ========================================================= */
+
+.page {
+  min-height: calc(100vh - 1px);
+  background: var(--color-bg);
+  padding: 120px var(--gutter) 80px;
+}
+
+.container {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: var(--space-6);
+}
+
+.h1 {
+  font-family: var(--font-header);
+  font-size: clamp(2.2rem, 2rem + 1.2vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.subhead {
+  margin-top: var(--space-2);
+  max-width: 680px;
+  opacity: 0.85;
+}
+
+/* =========================================================
+   Horizontal service bar (NOT scrollable — wraps)
+   ========================================================= */
+
+.serviceBar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+
+  margin-bottom: var(--space-7);
+}
+
+/* Responsive: 3 columns, then 2, then 1 */
+@media (max-width: 1100px) {
+  .serviceBar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .serviceBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .serviceBar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   Service cards (grid-friendly sizing)
+   ========================================================= */
+
+.serviceCard {
+  all: unset;
+  cursor: pointer;
+
+  display: grid;
+  gap: 10px;
+
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--color-bg);
+
+  transition: transform 0.15s ease, border-color 0.15s ease,
+    background 0.15s ease;
+
+  /* Let the grid control the width */
+  width: auto;
+}
+
+
+@media (max-width: 520px) {
+  .serviceCard {
+    width: 190px;
+  }
+}
+
+.serviceCard:hover {
+  transform: translateY(-1px);
+  background: var(--color-surface-hover);
+}
+
+.serviceCardActive {
+  border-color: var(--color-brand);
+  background: var(--color-surface-hover);
+}
+
+.serviceImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.serviceImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.serviceTitle {
+  font-family: var(--font-header);
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* =========================================================
+   Form panel
+   ========================================================= */
+
+.panel {
+  min-width: 0;
+}
+
+.panelCard {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: var(--space-6);
+}

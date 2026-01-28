@@ -3,13 +3,51 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./checkout.module.css";
 import { useCart } from "@/components/cart/CartProvider";
+import { createClient } from "@/utils/supabase/client";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
-const STORE_ADDRESS =
-  "2786 ON-34  Hawkesbury, ON K6A 2R2";
+type PromoRow = {
+  code: string;
+  percent_off: number | null;
+  amount_off: number | null;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+};
 
 type ShippingMethod = "" | "pickup" | "delivery";
 
+type FieldErrors = Partial<{
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  shippingMethod: string;
+  street: string;
+  city: string;
+  region: string;
+  postal: string;
+  country: string;
+  promo: string;
+}>;
+
+const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
+
+function isValidEmail(v: string) {
+  const s = v.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+function normalizeAndValidatePhone(raw: string) {
+  const trimmed = raw.trim();
+  const p = parsePhoneNumberFromString(trimmed, "CA");
+  if (!p || !p.isValid()) return { ok: false as const, e164: "" };
+  return { ok: true as const, e164: p.number };
+}
+
 export default function CheckoutPage() {
+  const supabase = useMemo(() => createClient(), []);
+
   const { items, subtotal } = useCart();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -20,8 +58,13 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
+  // promo
+  const [promo, setPromo] = useState<PromoRow | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState("");
+  const [promoStatus, setPromoStatus] = useState<string | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("");
 
   // delivery address fields (only if delivery)
@@ -33,6 +76,7 @@ export default function CheckoutPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     const run = async () => {
@@ -50,7 +94,6 @@ export default function CheckoutPage() {
         if (res.ok) {
           const data = await res.json();
 
-          // Backward compatible: old prefill used full_name/address
           const full = String(data?.full_name ?? "").trim();
           if (full && (!firstName || !lastName)) {
             const parts = full.split(" ").filter(Boolean);
@@ -63,8 +106,6 @@ export default function CheckoutPage() {
 
           if (data?.email) setEmail(String(data.email));
           if (data?.phone) setPhone(String(data.phone));
-
-          // If you later update prefill to include structured address, wire it here.
         }
       } catch {
         // ignore
@@ -87,7 +128,6 @@ export default function CheckoutPage() {
     if (shippingMethod === "pickup") return 0;
 
     if (shippingMethod === "delivery") {
-      // OPTIONAL fee rules. Adjust anytime.
       const pc = postal.toUpperCase().replace(/\s+/g, "");
       if (!pc) return 0;
 
@@ -100,12 +140,69 @@ export default function CheckoutPage() {
   }, [shippingMethod, postal]);
 
   const promoDiscount = useMemo(() => {
-    const code = appliedPromo.trim().toUpperCase();
-    if (!code) return 0;
-    if (code === "BVGSFSRSE") return 10;
-    return 0;
-  }, [appliedPromo]);
+    if (!promo) return 0;
 
+    if (promo.percent_off != null) {
+      const base = Math.max(0, subtotal + shippingCost);
+      const pct = Math.max(0, Math.min(100, Number(promo.percent_off)));
+      return Math.min(base, (base * pct) / 100);
+    }
+
+    if (promo.amount_off != null) {
+      const base = Math.max(0, subtotal + shippingCost);
+      const amt = Math.max(0, Number(promo.amount_off));
+      return Math.min(base, amt);
+    }
+
+    return 0;
+  }, [promo, subtotal, shippingCost]);
+
+  const applyPromo = async () => {
+    const code = promoInput.trim().toUpperCase();
+    setPromoStatus(null);
+    setFieldErrors((p) => ({ ...p, promo: undefined }));
+
+    if (!code) {
+      setPromo(null);
+      setAppliedPromo("");
+      setPromoStatus("Enter a promo code.");
+      return;
+    }
+
+    setPromoLoading(true);
+
+    try {
+      const nowIso = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("promos")
+        .select("code,percent_off,amount_off,starts_at,ends_at,is_active")
+        .ilike("code", code)
+        .eq("is_active", true)
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        setPromo(null);
+        setAppliedPromo("");
+        setPromoStatus("Invalid or expired promo code.");
+        return;
+      }
+
+      setPromo(data as PromoRow);
+      setAppliedPromo(code);
+      setPromoStatus("Promo applied.");
+    } catch (e: any) {
+      setPromo(null);
+      setAppliedPromo("");
+      setPromoStatus(e?.message ?? "Promo lookup failed.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const taxableBase = Math.max(0, subtotal + shippingCost - promoDiscount);
   const taxes = 0;
@@ -119,25 +216,46 @@ export default function CheckoutPage() {
 
   const mergedShippingAddress = useMemo(() => {
     if (shippingMethod !== "delivery") return "";
-    const parts = [
-      street.trim(),
-      city.trim(),
-      region.trim(),
-      postal.trim(),
-      country.trim(),
-    ].filter(Boolean);
+    const parts = [street.trim(), city.trim(), region.trim(), postal.trim(), country.trim()].filter(Boolean);
     return parts.join(", ");
   }, [shippingMethod, street, city, region, postal, country]);
 
+  const validateFields = () => {
+    const errors: FieldErrors = {};
+
+    if (!firstName.trim()) errors.firstName = "First name is required.";
+    if (!lastName.trim()) errors.lastName = "Last name is required.";
+
+    if (!email.trim()) errors.email = "Email is required.";
+    else if (!isValidEmail(email)) errors.email = "Enter a valid email (e.g. name@example.com).";
+
+    if (!phone.trim()) errors.phone = "Phone number is required.";
+    else if (!normalizeAndValidatePhone(phone).ok) errors.phone = "Enter a valid phone number (e.g. 613-555-0123).";
+
+    if (!shippingMethod) errors.shippingMethod = "Please select a shipping method.";
+
+    if (shippingMethod === "delivery") {
+      if (!street.trim()) errors.street = "Street address is required.";
+      if (!city.trim()) errors.city = "City is required.";
+      if (!region.trim()) errors.region = "Province is required.";
+      if (!postal.trim()) errors.postal = "Postal code is required.";
+      if (!country.trim()) errors.country = "Country is required.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const canProceed = useMemo(() => {
-    // Always required:
+    const okEmail = email.trim() && isValidEmail(email);
+    const okPhone = phone.trim() && normalizeAndValidatePhone(phone).ok;
+
     if (!firstName.trim()) return false;
     if (!lastName.trim()) return false;
-    if (!email.trim()) return false;
-    if (!phone.trim()) return false;
+    if (!okEmail) return false;
+    if (!okPhone) return false;
     if (!shippingMethod) return false;
 
-    // Only required if delivery:
     if (shippingMethod === "delivery") {
       if (!street.trim()) return false;
       if (!city.trim()) return false;
@@ -151,8 +269,9 @@ export default function CheckoutPage() {
 
   const openConfirm = () => {
     setError(null);
-    if (!canProceed) {
-      setError("Please fill out all required fields before proceeding.");
+    const ok = validateFields();
+    if (!ok) {
+      setError("Please fix the highlighted fields before proceeding.");
       return;
     }
     setConfirmOpen(true);
@@ -160,6 +279,14 @@ export default function CheckoutPage() {
 
   const proceedToPayment = async () => {
     setError(null);
+
+    // final guard (in case user bypasses button)
+    const ok = validateFields();
+    if (!ok) {
+      setError("Please fix the highlighted fields before proceeding.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -168,6 +295,9 @@ export default function CheckoutPage() {
         quantity: it.quantity,
       }));
 
+      const phoneCheck = normalizeAndValidatePhone(phone);
+      const phoneE164 = phoneCheck.ok ? phoneCheck.e164 : phone.trim();
+
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -175,19 +305,16 @@ export default function CheckoutPage() {
           items: payloadItems,
           customer_name: customerName,
           customer_email: email.trim(),
-          customer_phone: phone.trim(),
+          customer_phone: phoneE164,
           shipping_method: shippingMethod,
-          shipping_address:
-            shippingMethod === "delivery" ? mergedShippingAddress : "",
+          shipping_address: shippingMethod === "delivery" ? mergedShippingAddress : "",
           shipping_cost: shippingCost,
           promo_code: appliedPromo.trim(),
         }),
       });
 
       const contentType = res.headers.get("content-type") || "";
-      const data = contentType.includes("application/json")
-        ? await res.json().catch(() => ({}))
-        : null;
+      const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : null;
 
       if (!res.ok) {
         const text = data ? (data as any).error : await res.text();
@@ -229,10 +356,14 @@ export default function CheckoutPage() {
                     <input
                       className={styles.input}
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        setFieldErrors((p) => ({ ...p, firstName: undefined }));
+                      }}
                       placeholder="John"
                       autoComplete="given-name"
                     />
+                    {fieldErrors.firstName ? <div className={styles.fieldError}>{fieldErrors.firstName}</div> : null}
                   </div>
 
                   <div className={styles.field}>
@@ -240,10 +371,14 @@ export default function CheckoutPage() {
                     <input
                       className={styles.input}
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        setFieldErrors((p) => ({ ...p, lastName: undefined }));
+                      }}
                       placeholder="Doe"
                       autoComplete="family-name"
                     />
+                    {fieldErrors.lastName ? <div className={styles.fieldError}>{fieldErrors.lastName}</div> : null}
                   </div>
                 </div>
 
@@ -252,11 +387,20 @@ export default function CheckoutPage() {
                   <input
                     className={styles.input}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldErrors((p) => ({ ...p, email: undefined }));
+                    }}
+                    onBlur={() => {
+                      if (!email.trim()) setFieldErrors((p) => ({ ...p, email: "Email is required." }));
+                      else if (!isValidEmail(email))
+                        setFieldErrors((p) => ({ ...p, email: "Enter a valid email (e.g. name@example.com)." }));
+                    }}
                     placeholder="you@example.com"
                     type="email"
                     autoComplete="email"
                   />
+                  {fieldErrors.email ? <div className={styles.fieldError}>{fieldErrors.email}</div> : null}
                 </div>
 
                 <div className={styles.field}>
@@ -264,14 +408,23 @@ export default function CheckoutPage() {
                   <input
                     className={styles.input}
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((p) => ({ ...p, phone: undefined }));
+                    }}
+                    onBlur={() => {
+                      if (!phone.trim()) setFieldErrors((p) => ({ ...p, phone: "Phone number is required." }));
+                      else if (!normalizeAndValidatePhone(phone).ok)
+                        setFieldErrors((p) => ({ ...p, phone: "Enter a valid phone number (e.g. 613-555-0123)." }));
+                    }}
                     placeholder="(613) 555-0123"
                     autoComplete="tel"
                   />
+                  {fieldErrors.phone ? <div className={styles.fieldError}>{fieldErrors.phone}</div> : null}
                 </div>
 
                 <div className={styles.field}>
-                  <label className={styles.label}>Promo code (optional)</label>
+                  <label className={styles.label}>Promo code</label>
                   <div className={styles.promoRow}>
                     <input
                       className={styles.input}
@@ -282,19 +435,22 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       className={styles.promoBtn}
-                      onClick={() => setAppliedPromo(promoInput.trim())}
+                      onClick={applyPromo}
+                      disabled={promoLoading}
                     >
-                      Apply
+                      {promoLoading ? "Checking…" : "Apply"}
                     </button>
                   </div>
 
                   {appliedPromo ? (
                     <div className={styles.promoHint}>
-                      Applied: <strong>{appliedPromo.toUpperCase()}</strong> (−${promoDiscount.toFixed(2)})
+                      Applied: <strong>{appliedPromo.toUpperCase()}</strong>{" "}
+                      {promoDiscount ? `(−$${promoDiscount.toFixed(2)})` : ""}
                     </div>
                   ) : null}
-                </div>
 
+                  {promoStatus ? <div className={styles.promoHint}>{promoStatus}</div> : null}
+                </div>
 
                 <div className={styles.field}>
                   <label className={styles.label}>Shipping method</label>
@@ -305,12 +461,21 @@ export default function CheckoutPage() {
                       const next = e.target.value as ShippingMethod;
                       setShippingMethod(next);
                       setError(null);
+                      setFieldErrors((p) => ({ ...p, shippingMethod: undefined }));
 
                       if (next !== "delivery") {
                         setStreet("");
                         setCity("");
                         setRegion("");
                         setPostal("");
+                        setFieldErrors((p) => ({
+                          ...p,
+                          street: undefined,
+                          city: undefined,
+                          region: undefined,
+                          postal: undefined,
+                          country: undefined,
+                        }));
                         // keep country as-is
                       }
                     }}
@@ -319,13 +484,18 @@ export default function CheckoutPage() {
                     <option value="pickup">Store pickup</option>
                     <option value="delivery">House delivery</option>
                   </select>
+                  {fieldErrors.shippingMethod ? (
+                    <div className={styles.fieldError}>{fieldErrors.shippingMethod}</div>
+                  ) : null}
                 </div>
 
                 {shippingMethod === "pickup" ? (
                   <div className={styles.pickupBox}>
                     <div className={styles.pickupTitle}>Store pickup location</div>
                     <div className={styles.pickupAddr}>{STORE_ADDRESS}</div>
-                    <div className={styles.pickupNote}>Shipping cost: <strong>$0.00</strong></div>
+                    <div className={styles.pickupNote}>
+                      Shipping cost: <strong>$0.00</strong>
+                    </div>
                   </div>
                 ) : null}
 
@@ -338,10 +508,14 @@ export default function CheckoutPage() {
                       <input
                         className={styles.input}
                         value={street}
-                        onChange={(e) => setStreet(e.target.value)}
+                        onChange={(e) => {
+                          setStreet(e.target.value);
+                          setFieldErrors((p) => ({ ...p, street: undefined }));
+                        }}
                         placeholder="123 Main St"
                         autoComplete="shipping street-address"
                       />
+                      {fieldErrors.street ? <div className={styles.fieldError}>{fieldErrors.street}</div> : null}
                     </div>
 
                     <div className={styles.grid2}>
@@ -350,10 +524,14 @@ export default function CheckoutPage() {
                         <input
                           className={styles.input}
                           value={city}
-                          onChange={(e) => setCity(e.target.value)}
+                          onChange={(e) => {
+                            setCity(e.target.value);
+                            setFieldErrors((p) => ({ ...p, city: undefined }));
+                          }}
                           placeholder="Ottawa"
                           autoComplete="shipping address-level2"
                         />
+                        {fieldErrors.city ? <div className={styles.fieldError}>{fieldErrors.city}</div> : null}
                       </div>
 
                       <div className={styles.field}>
@@ -361,10 +539,14 @@ export default function CheckoutPage() {
                         <input
                           className={styles.input}
                           value={region}
-                          onChange={(e) => setRegion(e.target.value)}
+                          onChange={(e) => {
+                            setRegion(e.target.value);
+                            setFieldErrors((p) => ({ ...p, region: undefined }));
+                          }}
                           placeholder="Ontario"
                           autoComplete="shipping address-level1"
                         />
+                        {fieldErrors.region ? <div className={styles.fieldError}>{fieldErrors.region}</div> : null}
                       </div>
                     </div>
 
@@ -377,10 +559,12 @@ export default function CheckoutPage() {
                           onChange={(e) => {
                             const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
                             setPostal(raw);
+                            setFieldErrors((p) => ({ ...p, postal: undefined }));
                           }}
                           placeholder="K1A 0B1"
                           autoComplete="shipping postal-code"
                         />
+                        {fieldErrors.postal ? <div className={styles.fieldError}>{fieldErrors.postal}</div> : null}
                       </div>
 
                       <div className={styles.field}>
@@ -388,10 +572,14 @@ export default function CheckoutPage() {
                         <input
                           className={styles.input}
                           value={country}
-                          onChange={(e) => setCountry(e.target.value)}
+                          onChange={(e) => {
+                            setCountry(e.target.value);
+                            setFieldErrors((p) => ({ ...p, country: undefined }));
+                          }}
                           placeholder="Canada"
                           autoComplete="shipping country-name"
                         />
+                        {fieldErrors.country ? <div className={styles.fieldError}>{fieldErrors.country}</div> : null}
                       </div>
                     </div>
 
@@ -446,9 +634,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className={styles.cartPrice}>
-                  ${(it.price * it.quantity).toFixed(2)}
-                </div>
+                <div className={styles.cartPrice}>${(it.price * it.quantity).toFixed(2)}</div>
               </div>
             ))}
           </div>
@@ -502,7 +688,8 @@ export default function CheckoutPage() {
           <div className={styles.modal}>
             <h2 className={styles.modalTitle}>Proceed to payment?</h2>
             <p className={styles.modalText}>
-              You will be redirected to a payment provider. Once you choose a payment method, you will be charged and the order will begin processing.
+              You will be redirected to a payment provider. Once you choose a payment method, you will be charged and
+              the order will begin processing.
             </p>
 
             <div className={styles.modalActions}>

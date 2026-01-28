@@ -63,18 +63,9 @@ async function getBarnBurnerProducts(limit = 8): Promise<BarnBurnerProduct[]> {
   return (data ?? []) as BarnBurnerProduct[];
 }
 
-// --- pricing schedule: Sat 40, Sun 35 ... next Sat 5, next Sun+ 2 permanent
-function barnBurnerPriceForDayOffset(dayOffset: number) {
-  const schedule = [35, 30, 25, 20, 15, 10, 40];
-  if (dayOffset <= 6) return schedule[dayOffset];
-  return 2; // permanent price after 6 days
-}
-
 function getTodayLabel(d: Date) {
   return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
 }
-
-
 
 export default async function Home() {
   const newestProducts = await getNewestProducts(15);
@@ -93,6 +84,9 @@ export default async function Home() {
     hours: [
       { days: 'Mon - Thu', time: 'By Appointment' },
       { days: 'Fri - Sun', time: '10:00 AM - 5:00 PM' },
+    ],
+    serviceHours: [
+      { days: '24/7', time: 'By Appointment' },
     ],
     coordinates: {
       lat: 45.57579587217674, 
@@ -342,8 +336,8 @@ export default async function Home() {
               {/* Phone */}
               <Reveal delayMs={160}>
               <div className={styles.contactItem}>
-                <Image src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
-                <p className={styles.contactLabel}>Text or Call us - 24/7 - 365:</p>
+                <Image className={styles.phoneContact} src="/Icon-Cell.svg" alt="Phone" width={44} height={44} />
+                <p className={styles.contactLabel}>Text or Call - 24/7 - 365:</p>
                 <a className={`${styles.contactLink} popHover`} href='tel:${myStoreInfo.phone}'>613-915-3889 (DUTY)</a>
               </div>
               </Reveal>
@@ -376,8 +370,23 @@ export default async function Home() {
               </div>
               </Reveal>
 
-              {/* Email */}
+              {/* Hours */}
               <Reveal delayMs={400}>
+              <div className={styles.contactItem}>
+                <Image src="/Icon-Services.png" alt="Hours" width={85} height={85} />
+                <p className={styles.serviceContactLabel}>Service Hours:</p>
+                <div className={styles.serviceHoursList}>
+                  {myStoreInfo.serviceHours.map((h) => (
+                    <p key={h.days} className={styles.contactValueSmall}>
+                      <span className={styles.hoursDays}>{h.days}:</span> {h.time}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              </Reveal>
+
+              {/* Email */}
+              <Reveal delayMs={480}>
               <div className={styles.contactItem}>
                 <Image src="/Icon-Email.svg" alt="Email" width={70} height={70} />
                 <p className={styles.contactLabel}>Email:</p>

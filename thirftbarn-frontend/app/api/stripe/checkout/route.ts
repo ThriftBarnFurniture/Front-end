@@ -18,6 +18,19 @@ type Body = {
   promo_discount?: number;
 };
 
+type PromoRow = {
+  code: string;
+  percent_off: number | null;
+  amount_off: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_active: boolean;
+};
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
 function toCents(price: number) {
   // If your Supabase price is already stored in cents, replace with: return Math.round(price);
   return Math.round(price * 100);
@@ -50,10 +63,31 @@ export async function POST(req: Request) {
     const shipping_cost = Number(body?.shipping_cost ?? 0);
 
     const promo_code = String(body?.promo_code ?? "").trim().toUpperCase();
+    const supabase = createSupabaseAdmin();
 
-    // Server-trusted promo rules (match UI for now)
+    // ✅ Server-trusted promo lookup
     let promo_cents = 0;
-    if (promo_code === "BVGSFSRSE") promo_cents = 1000; // $10.00
+    let promo_applied_code: string | null = null;
+
+    if (promo_code) {
+      const nowIso = new Date().toISOString();
+
+      const { data: promo, error: pErr } = await supabase
+        .from("promos")
+        .select("code,percent_off,amount_off,starts_at,ends_at,is_active")
+        .ilike("code", promo_code)
+        .eq("is_active", true)
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+        .maybeSingle<PromoRow>();
+
+      if (pErr) throw new Error(pErr.message);
+
+      if (promo) {
+        promo_applied_code = promo.code; // already uppercase via constraint
+        // We'll compute promo_cents later once subtotal/shipping are known
+      }
+    }
 
     if (!customer_name || !customer_email || !customer_phone) {
       return NextResponse.json({ error: "Missing checkout info." }, { status: 400 });
@@ -78,8 +112,6 @@ export async function POST(req: Request) {
       .slice(0, 50);
 
     const ids = wanted.map((w) => w.productId);
-
-    const supabase = createSupabaseAdmin();
 
     // Fetch products by IDs (server-trusted)
     const { data: products, error } = await supabase
@@ -152,10 +184,47 @@ export async function POST(req: Request) {
       0
     );
 
-    const shipping_cents = Math.max(0, Math.round((Number.isFinite(shipping_cost) ? shipping_cost : 0) * 100));
-    promo_cents = Math.min(promo_cents, subtotal_cents);
+    const shipping_cents = Math.max(
+      0,
+      Math.round((Number.isFinite(shipping_cost) ? shipping_cost : 0) * 100)
+    );
+
+    const taxable_base_cents = subtotal_cents + shipping_cents;
+
+    // ✅ compute promo_cents using promo row rules (percent_off OR amount_off)
+    if (promo_applied_code) {
+      const nowIso = new Date().toISOString();
+
+      // Re-fetch promo row to avoid any earlier logic drift (optional but safe)
+      const { data: promo, error: pErr } = await supabase
+        .from("promos")
+        .select("code,percent_off,amount_off,starts_at,ends_at,is_active")
+        .ilike("code", promo_applied_code)
+        .eq("is_active", true)
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+        .maybeSingle<PromoRow>();
+
+      if (pErr) throw new Error(pErr.message);
+
+      if (promo) {
+        if (promo.percent_off != null) {
+          const pct = clamp(Number(promo.percent_off), 0, 100);
+          promo_cents = Math.round((taxable_base_cents * pct) / 100);
+        } else if (promo.amount_off != null) {
+          promo_cents = Math.round(Number(promo.amount_off) * 100);
+        }
+      } else {
+        // promo expired between request + compute; treat as not applied
+        promo_applied_code = null;
+        promo_cents = 0;
+      }
+    }
+
+    // ✅ never discount more than the (subtotal + shipping)
+    promo_cents = clamp(promo_cents, 0, taxable_base_cents);
     const tax_cents = 0; // later
-    const total_cents = subtotal_cents - promo_cents + shipping_cents + tax_cents;
+    const total_cents = taxable_base_cents - promo_cents + tax_cents;
     
     // ✅ Add shipping as its own Stripe line item so it gets charged
     if (shipping_cents > 0) {
@@ -199,12 +268,12 @@ export async function POST(req: Request) {
 
     let discountCouponId: string | null = null;
 
-    if (promo_cents > 0) {
+    if (promo_cents > 0 && promo_applied_code) {
       const coupon = await stripe.coupons.create({
         duration: "once",
         amount_off: promo_cents,
         currency: "cad",
-        name: promo_code ? `Promo ${promo_code}` : "Promo",
+        name: `Promo ${promo_applied_code}`,
       });
       discountCouponId = coupon.id;
     }
@@ -219,7 +288,7 @@ export async function POST(req: Request) {
         shipping_address: shipping_method === "pickup"
                           ? "2786 ON-34  Hawkesbury, ON K6A 2R2"
                           : shipping_address,
-        promo_code: promo_code || null,
+        promo_code: promo_applied_code,
         promo_discount: promo_cents / 100,
         shipping_cost: shipping_cents / 100,
         items: orderItems,
@@ -260,7 +329,7 @@ export async function POST(req: Request) {
         stripe_email: null,
         customer_phone,
         shipping_address,
-        promo_code,
+        promo_code: promo_applied_code ?? "",
         promo_discount_cents: String(promo_cents),
         shipping_cost_cents: String(shipping_cents),
         shipping_method,

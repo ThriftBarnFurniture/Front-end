@@ -11,7 +11,7 @@ Returns { key, publicUrl } using NEXT_PUBLIC_R2_PUBLIC_URL
 import { createHash, createHmac } from "crypto";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10MB
 
 function extFromMime(mime: string) {
   if (mime === "image/jpeg") return "jpg";
@@ -40,7 +40,7 @@ export async function uploadProductImageToR2(file: File) {
     throw new Error("Only JPG, PNG, WEBP images are allowed.");
   }
   if (file.size <= 0) throw new Error("Empty file.");
-  if (file.size > MAX_BYTES) throw new Error("Image too large (max 5MB).");
+  if (file.size > MAX_BYTES) throw new Error("Image too large (max 10MB).");
 
   const key = `products/${crypto.randomUUID()}.${extFromMime(file.type)}`;
   const body = Buffer.from(await file.arrayBuffer());

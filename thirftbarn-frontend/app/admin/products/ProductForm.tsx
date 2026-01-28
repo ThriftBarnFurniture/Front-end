@@ -410,10 +410,10 @@ export const ProductForm = () => {
         <textarea className={styles.textarea} id="description" name="description" rows={6} required />
       </div>
 
-      {/* Photos REQUIRED - no max */}
+      {/* Photos REQUIRED*/}
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="images">
-          Photos * (no max)
+          Photos * (max 10MB)
         </label>
         <input className={styles.input} id="images" name="images" type="file" accept="image/*" multiple required />
       </div>
