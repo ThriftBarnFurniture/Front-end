@@ -82,6 +82,22 @@ const parseBarnDay = (formData: FormData): BarnDay | null => {
 const barnBurnerPriceForDay = (day: BarnDay) => 45 - 5 * day; // 1->40 ... 7->10
 const barnBurnerSubcategoryForDay = (day: BarnDay) => `day-${day}`;
 
+function utcDateString(d = new Date()) {
+  // YYYY-MM-DD in UTC
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const getOptionalMoney = (formData: FormData, key: string): number | null => {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.max(0, n) : null;
+};
+
+
 const validateProductInputs = ({
   name,
   description,
@@ -270,6 +286,19 @@ export const POST = async (request: Request) => {
     const depth = getOptionalNumber(formData, "depth");
 
     const isBarnBurner = getBoolean(formData, "is_barn_burner");
+    const isOversized = getBoolean(formData, "is_oversized");
+    const isMonthlyPriceDrop = getBoolean(formData, "is_monthly_price_drop");
+
+    // optional: allow admin to override monthly drop amount, else default to 10 in DB
+    const monthlyDropAmount = getOptionalMoney(formData, "monthly_drop_amount");
+
+    // prevent mixing price-drop systems
+    if (isBarnBurner && isMonthlyPriceDrop) {
+      return NextResponse.json(
+        { error: "Item cannot be both Barn Burner and Monthly Price Drop." },
+        { status: 400 }
+      );
+    }
 
     const barnDay = isBarnBurner ? parseBarnDay(formData) : null;
     if (isBarnBurner && !barnDay) {
@@ -320,12 +349,25 @@ export const POST = async (request: Request) => {
       barn_burner_last_tick = now.toISOString().slice(0, 10);
     }
 
+    let monthly_drop_started_at: string | null = null;
+    let monthly_drop_last_tick: string | null = null; // will write as date string; Postgres will cast to date
+    let monthly_drop_amount: number | null = null;
+
+    if (isMonthlyPriceDrop) {
+      const now = new Date();
+      monthly_drop_started_at = now.toISOString();
+
+      // mark “this month already handled” so your cron doesn't drop immediately on the start month
+      monthly_drop_last_tick = utcDateString(now);
+
+      monthly_drop_amount = monthlyDropAmount ?? 10;
+    }
+
     const productPayload: Record<string, unknown> = {
       sku: makeSku(),
       name,
       description,
 
-      // ✅ IMPORTANT: schema expects arrays
       category: enforcedCategories,
       subcategory: enforcedSubcategories,
 
@@ -345,10 +387,20 @@ export const POST = async (request: Request) => {
       created_by: userId,
       created_at: new Date().toISOString(),
 
+      is_barn_burner: isBarnBurner,
       barn_burner_started_at,
       barn_burner_day,
       barn_burner_last_tick,
+
+      is_oversized: isOversized,
+
+      is_monthly_price_drop: isMonthlyPriceDrop,
+      monthly_drop_started_at,
+      monthly_drop_last_tick,
     };
+    if (isMonthlyPriceDrop) {
+      productPayload.monthly_drop_amount = monthlyDropAmount ?? 10;
+    }
 
     const data = await supabaseRestInsert(tableName, accessToken, productPayload);
 
@@ -399,6 +451,17 @@ export const PATCH = async (request: Request) => {
       return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
     }
 
+    const isOversized = getBoolean(formData, "is_oversized");
+    const isMonthlyPriceDrop = getBoolean(formData, "is_monthly_price_drop");
+    const monthlyDropAmount = getOptionalMoney(formData, "monthly_drop_amount");
+
+    if (isBarnBurner && isMonthlyPriceDrop) {
+      return NextResponse.json(
+        { error: "Item cannot be both Barn Burner and Monthly Price Drop." },
+        { status: 400 }
+      );
+    }
+
     const price = isBarnBurner
       ? barnBurnerPriceForDay(barnDay as BarnDay)
       : getRequiredNumber(formData, "price");
@@ -443,6 +506,20 @@ export const PATCH = async (request: Request) => {
       barn_burner_last_tick = now.toISOString().slice(0, 10);
     }
 
+    let monthly_drop_started_at: string | null = null;
+    let monthly_drop_last_tick: string | null = null;
+    let monthly_drop_amount: number | null = null;
+
+    if (isMonthlyPriceDrop) {
+      const now = new Date();
+      monthly_drop_started_at = now.toISOString();
+      monthly_drop_last_tick = utcDateString(now);
+      monthly_drop_amount = monthlyDropAmount ?? 10;
+    } else {
+      monthly_drop_started_at = null;
+      monthly_drop_last_tick = null;
+    }
+
     const tableName = getProductsTableName();
 
     const productPayload: Record<string, unknown> = {
@@ -462,10 +539,22 @@ export const PATCH = async (request: Request) => {
       price,
       updated_at: new Date().toISOString(),
 
+      is_barn_burner: isBarnBurner,
       barn_burner_started_at,
       barn_burner_day,
       barn_burner_last_tick,
+
+      is_oversized: isOversized,
+
+      is_monthly_price_drop: isMonthlyPriceDrop,
+      monthly_drop_started_at,
+      monthly_drop_last_tick,
     };
+
+    if (isMonthlyPriceDrop) {
+      productPayload.monthly_drop_amount = monthlyDropAmount ?? 10;
+    }
+    
 
     if (images.length > 0) {
       const imageUrls = await uploadImagesToR2(images);
@@ -503,7 +592,9 @@ export const GET = async (request: Request) => {
     let query = supabase
       .from(tableName)
       .select(
-        "id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active,barn_burner_started_at,barn_burner_day,barn_burner_last_tick"
+        "id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active," +
+        "is_barn_burner,barn_burner_started_at,barn_burner_day,barn_burner_last_tick," +
+        "is_oversized,is_monthly_price_drop,monthly_drop_started_at,monthly_drop_last_tick,monthly_drop_amount"
       )
       .order("created_at", { ascending: false })
       .limit(500);

@@ -3,7 +3,7 @@ import styles from "./item.module.css";
 import ImageGallery from "./ImageGallery";
 import { formatPrice, getAllImages, getProductById } from "@/lib/products";
 import AddToCartButton from "@/components/cart/AddToCartButton";
-import ScrollToTop from "./ScrollToTop";
+import ScrollToTop from "../../../components/ui/ScrollToTop";
 
 export default async function ItemPage({
   params,
@@ -22,6 +22,12 @@ export default async function ItemPage({
 
   const images = getAllImages(product);
   const price = formatPrice(product.price);
+  const showDropped =
+    (product.monthly_drop_count ?? 0) > 0 &&
+    product.original_price != null &&
+    Number(product.price) < Number(product.original_price);
+
+  const oldPrice = showDropped ? formatPrice(product.original_price as number) : null;
   const soldOut = product.quantity !== null && product.quantity <= 0;
 
   return (
@@ -36,7 +42,19 @@ export default async function ItemPage({
           <h1 className={styles.title}>{product.name}</h1>
 
           <div className={styles.priceRow}>
-            <div className={styles.price}>{price}</div>
+            {showDropped ? (
+              <div className={styles.priceRow}>
+                <div className={styles.oldPrice}>{oldPrice}</div>
+                <div className={styles.price}>{price}</div>
+                <div className={styles.dropBadge}>Price dropped</div>
+                {soldOut && <div className={styles.badge}>Sold</div>}
+              </div>
+            ) : (
+              <div className={styles.priceRow}>
+                <div className={styles.price}>{price}</div>
+                {soldOut && <div className={styles.badge}>Sold</div>}
+              </div>
+            )}
             {soldOut && <div className={styles.badge}>Sold</div>}
           </div>
 

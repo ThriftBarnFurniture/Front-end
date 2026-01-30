@@ -7,11 +7,15 @@
 
 .header {
   margin-bottom: 1.25rem;
+  
 }
 
 .title {
-  font-size: 2rem;
+  font-size: 3rem;
   margin: 0;
+  font-family: var(--font-header);
+  font-weight: 600;
+  color: var(--color-brand-dark);
 }
 
 .subtitle {
@@ -239,4 +243,29 @@
   padding: 0 0.9rem;
   opacity: 0.7;
   font-size: 0.95rem;
+}
+
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.oldPrice {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.newPrice {
+  font-weight: 900;
+}
+
+.dropBadge {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.04);
 }

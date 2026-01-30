@@ -370,6 +370,13 @@
   color: #b00020;
 }
 
+.navButtonActive {
+  background: var(--color-brand-2);
+  color: #fff;
+  border-color: var(--color-brand-2);
+}
+
+
 
 /* =========================================================
    Responsive tweaks
@@ -416,3 +423,4 @@
 
   .mobileMenu { display: block; }
 }
+

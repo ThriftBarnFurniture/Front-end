@@ -182,7 +182,8 @@
 }
 
 .checkboxLabel {
-  font-weight: 800;
+  font-weight: 700;
+  font-size: large;
 }
 
 
@@ -220,7 +221,7 @@
 
 .chipActive {
   background: var(--color-brand);
-  color: var(--color-brand-contrast);
+  color: #ffffff;
   border-color: transparent;
 }
 
@@ -229,4 +230,18 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+/* Stack on mobile */
+@media (max-width: 768px) {
+  .checkboxGrid {
+    grid-template-columns: 1fr;
+  }
 }

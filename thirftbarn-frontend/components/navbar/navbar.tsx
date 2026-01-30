@@ -26,6 +26,60 @@ export const Navbar = () => {
   const [accountOpen, setAccountOpen] = useState(false);
   const accountWrapRef = useRef<HTMLDivElement | null>(null);
 
+  const [activeHomeSection, setActiveHomeSection] = useState<"" | "about" | "contact">("");
+
+  useEffect(() => {
+    if (pathname !== "/") {
+      setActiveHomeSection("");
+      return;
+    }
+
+    const ids: Array<"about" | "contact"> = ["about", "contact"];
+    const els = ids
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+
+    if (els.length === 0) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        // Candidates = sections that are currently intersecting
+        const candidates = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0));
+
+        if (candidates.length === 0) {
+          // ✅ You're not on About or Contact anymore -> clear highlight
+          setActiveHomeSection("");
+          return;
+        }
+
+        const top = candidates[0].target as HTMLElement;
+        const id = top.id as "about" | "contact";
+        setActiveHomeSection(id);
+      },
+      {
+        // This creates an "active zone" around the middle of the screen.
+        // When a section enters it, it becomes active; when it leaves, highlight clears.
+        root: null,
+        threshold: [0.15, 0.25, 0.35],
+        rootMargin: "-45% 0px -45% 0px",
+      }
+    );
+
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [pathname]);
+
+  const isActive = (target: "shop" | "services" | "about" | "contact") => {
+    if (target === "shop") return pathname.startsWith("/shop");
+    if (target === "services") return pathname.startsWith("/services");
+
+    // Only highlight the currently visible section on home
+    if (pathname === "/") return activeHomeSection === target;
+
+    return false;
+  };
 
   const goToHeroTop = (e?: React.MouseEvent) => {
     // stop <Link> from navigating on its own
@@ -89,8 +143,18 @@ export const Navbar = () => {
 
 
   useEffect(() => {
+    // ✅ Force announcement bar on all non-home pages
+    if (pathname !== "/") {
+      setCompact(false);
+      return;
+    }
+
+    // Home page: allow it to collapse when hero leaves view
     const hero = document.getElementById("hero");
-    if (!hero) return;
+    if (!hero) {
+      setCompact(false);
+      return;
+    }
 
     const obs = new IntersectionObserver(
       ([entry]) => setCompact(!entry.isIntersecting),
@@ -268,19 +332,33 @@ export const Navbar = () => {
 
         {/* Desktop links (hidden under 400px via CSS) */}
         <div className={styles.navLinks}>
-          <Link href="/shop" className={styles.navButton}>
+          <Link
+            href="/shop"
+            className={`${styles.navButton} ${isActive("shop") ? styles.navButtonActive : ""}`}
+          >
             Shop
           </Link>
 
-          <button type="button" className={styles.navButton} onClick={() => goToSection("about")}>
+          <button
+            type="button"
+            className={`${styles.navButton} ${isActive("about") ? styles.navButtonActive : ""}`}
+            onClick={() => goToSection("about")}
+          >
             About
           </button>
 
-          <button type="button" className={styles.navButton} onClick={() => goToSection("contact")}>
+          <button
+            type="button"
+            className={`${styles.navButton} ${isActive("contact") ? styles.navButtonActive : ""}`}
+            onClick={() => goToSection("contact")}
+          >
             Contact
           </button>
 
-          <Link href="/services" className={styles.navButton}>
+          <Link
+            href="/services"
+            className={`${styles.navButton} ${isActive("services") ? styles.navButtonActive : ""}`}
+          >
             Services
           </Link>
         </div>

@@ -71,12 +71,15 @@ export const ProductForm = () => {
 
   const [isBarnBurner, setIsBarnBurner] = useState(false);
   const [price, setPrice] = useState<string>("");
+  const [isOversized, setIsOversized] = useState(false);
+  const [isMonthlyPriceDrop, setIsMonthlyPriceDrop] = useState(false);
 
   // for restoring when toggling barn burner off
   const prevPriceRef = useRef<string>("");
   const prevCatsRef = useRef<CategoryValue[]>([]);
   const prevSubsRef = useRef<string[]>([]);
   const [barnDay, setBarnDay] = useState<BarnDay>(1);
+  const [categoryWarning, setCategoryWarning] = useState<string | null>(null);
 
   // Union subcategory options across selected categories (excluding barn-burner unless selected)
   const subcategoryOptions = useMemo<Option[]>(() => {
@@ -121,6 +124,9 @@ export const ProductForm = () => {
       const cleanedSubs = isBarnBurner ? subcategories : subcategories.filter((s) => validSubSet.has(s));
 
       const formData = new FormData(form);
+
+      formData.set("is_oversized", isOversized ? "true" : "false");
+      formData.set("is_monthly_price_drop", isMonthlyPriceDrop ? "true" : "false");
 
       // Barn Burner handling (server enforces too)
       if (isBarnBurner) {
@@ -181,6 +187,8 @@ export const ProductForm = () => {
       // reset UI
       form.reset();
       setIsBarnBurner(false);
+      setIsMonthlyPriceDrop(false);
+      setIsOversized(false);
       setBarnDay(1);
       setPrice("");
       setProductId("");
@@ -224,44 +232,72 @@ export const ProductForm = () => {
 
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="name">
-          Product name *
+          Product Name *
         </label>
         <input className={styles.input} id="name" name="name" type="text" required />
       </div>
 
       <div className={styles.fieldGroup}>
-        <label className={styles.checkboxRow}>
-          <input
-            type="checkbox"
-            checked={isBarnBurner}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setIsBarnBurner(checked);
+        <div className={styles.checkboxGrid}>
+          {/* Barn Burner */}
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={isBarnBurner}
+              disabled={isMonthlyPriceDrop}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                if (checked && isMonthlyPriceDrop) return;
 
-              if (checked) {
-                // store previous selections
-                prevPriceRef.current = price;
-                prevCatsRef.current = categories;
-                prevSubsRef.current = subcategories;
+                setIsBarnBurner(checked);
 
-                const day: BarnDay = 1;
-                setBarnDay(day);
+                if (checked) {
+                  prevPriceRef.current = price;
+                  prevCatsRef.current = categories;
+                  prevSubsRef.current = subcategories;
 
-                // lock BB selection
-                setCategories(["barn-burner"]);
-                setSubcategories([barnBurnerSubcategoryForDay(day)]);
-                setPrice(String(barnBurnerPriceForDay(day)));
-              } else {
-                // restore previous selections
-                setCategories(prevCatsRef.current ?? []);
-                setSubcategories(prevSubsRef.current ?? []);
-                setPrice(prevPriceRef.current || "");
-              }
-            }}
-          />
-          <span className={styles.checkboxLabel}>Is this a barn burner item?</span>
-        </label>
+                  const day: BarnDay = 1;
+                  setBarnDay(day);
+                  setCategories(["barn-burner"]);
+                  setSubcategories([barnBurnerSubcategoryForDay(day)]);
+                  setPrice(String(barnBurnerPriceForDay(day)));
+                } else {
+                  setCategories(prevCatsRef.current ?? []);
+                  setSubcategories(prevSubsRef.current ?? []);
+                  setPrice(prevPriceRef.current || "");
+                }
+              }}
+            />
+            <span className={styles.checkboxLabel}>Barn Burner Item?</span>
+          </label>
 
+          {/* Oversized */}
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={isOversized}
+              onChange={(e) => setIsOversized(e.target.checked)}
+            />
+            <span className={styles.checkboxLabel}>Oversized Item?</span>
+          </label>
+
+          {/* Monthly price drop */}
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={isMonthlyPriceDrop}
+              disabled={isBarnBurner}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsMonthlyPriceDrop(checked);
+                if (checked) setIsBarnBurner(false);
+              }}
+            />
+            <span className={styles.checkboxLabel}>Monthly Price Drop Item? (-10$/month)</span>
+          </label>
+        </div>
+
+        {/* Barn burner day selector stays BELOW */}
         {isBarnBurner && (
           <div className={styles.fieldGroup}>
             <label className={styles.label} htmlFor="barn_day">
@@ -323,10 +359,20 @@ export const ProductForm = () => {
           selected={categories}
           disabled={isBarnBurner}
           onToggle={(v) => {
+            // ❌ Block barn-burner selection from categories
+            if (v === "barn-burner") {
+              setCategoryWarning(
+                "To make an item a barn-burner, please select it through the checkbox above."
+              );
+              return;
+            }
+
+            setCategoryWarning(null);
+
             const next = toggleValue(categories as string[], v) as CategoryValue[];
             setCategories(next);
 
-            // prune subcategories not allowed anymore (unless barn burner)
+            // prune subcategories not allowed anymore
             if (!isBarnBurner) {
               const allowed = new Set(
                 next.flatMap((cat) => (SUBCATEGORY_MAP[cat] ?? []).map((s) => s.value))
@@ -334,7 +380,11 @@ export const ProductForm = () => {
               setSubcategories((prev) => prev.filter((s) => allowed.has(s)));
             }
           }}
-        />
+        />{categoryWarning && (
+          <p className={styles.status} role="alert">
+            {categoryWarning}
+          </p>
+        )}
         <p className={styles.status}>Select one or more.</p>
       </div>
 

@@ -13,6 +13,7 @@ import JunkForm from "./components/forms/JunkForm";
 import AssemblyForm from "./components/forms/AssemblyForm";
 import MarketplaceForm from "./components/forms/MarketplaceForm";
 import DonationForm from "./components/forms/DonationForm";
+import ScrollToTop from "@/components/ui/ScrollToTop";
 
 export default function ServicesClient() {
   const [selected, setSelected] = useState<ServiceId>("moving");
@@ -36,6 +37,7 @@ export default function ServicesClient() {
 
   return (
     <main className={styles.page}>
+      <ScrollToTop />
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.h1}>Services</h1>

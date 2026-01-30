@@ -15,7 +15,7 @@ type PromoRow = {
   is_active: boolean;
 };
 
-type ShippingMethod = "" | "pickup" | "delivery";
+type ShippingMethod = "" | "pickup" | "delivery_drop" | "inhouse_drop" | "quote";
 
 type FieldErrors = Partial<{
   firstName: string;
@@ -33,6 +33,16 @@ type FieldErrors = Partial<{
 
 const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
 
+// Pricing rules
+const OVERWEIGHT_FEE = 135;
+const TIER_1_MAX_KM = 49;
+const TIER_2_MAX_KM = 200;
+
+const PRICES = {
+  tier1: { delivery_drop: 17.5, inhouse_drop: 45 },
+  tier2: { delivery_drop: 55, inhouse_drop: 115 },
+} as const;
+
 function isValidEmail(v: string) {
   const s = v.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -45,10 +55,31 @@ function normalizeAndValidatePhone(raw: string) {
   return { ok: true as const, e164: p.number };
 }
 
+function formatKm(km: number) {
+  if (!isFinite(km) || km <= 0) return "";
+  return `${km.toFixed(1)} km`;
+}
+
+function computeBaseShippingFromKm(method: ShippingMethod, km: number | null) {
+  if (method === "pickup") return 0;
+  if (method === "" || method === "quote") return 0;
+  if (!km || !isFinite(km) || km <= 0) return 0;
+
+  if (km <= TIER_1_MAX_KM) {
+    return method === "delivery_drop" ? PRICES.tier1.delivery_drop : PRICES.tier1.inhouse_drop;
+  }
+
+  if (km <= TIER_2_MAX_KM) {
+    return method === "delivery_drop" ? PRICES.tier2.delivery_drop : PRICES.tier2.inhouse_drop;
+  }
+
+  return 0;
+}
+
 export default function CheckoutPage() {
   const supabase = useMemo(() => createClient(), []);
-
   const { items, subtotal } = useCart();
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,7 +98,7 @@ export default function CheckoutPage() {
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("");
 
-  // delivery address fields (only if delivery)
+  // delivery address fields (only if delivery/inhouse/quote)
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
   const [region, setRegion] = useState(""); // state/province
@@ -77,6 +108,11 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  // distance & quote state
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
+  const [distanceError, setDistanceError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -119,37 +155,129 @@ export default function CheckoutPage() {
   }, []);
 
   const cartItemsCount = useMemo(
-    () => items.reduce((sum, it) => sum + Math.max(1, Number(it.quantity || 1)), 0),
+    () => items.reduce((sum, it) => sum + Math.max(1, Number((it as any).quantity || 1)), 0),
     [items]
   );
 
-  // Shipping cost rules (matching what you did on cart page)
-  const shippingCost = useMemo(() => {
-    if (shippingMethod === "pickup") return 0;
+  const customerName = useMemo(() => {
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    return [fn, ln].filter(Boolean).join(" ").trim();
+  }, [firstName, lastName]);
 
-    if (shippingMethod === "delivery") {
-      const pc = postal.toUpperCase().replace(/\s+/g, "");
-      if (!pc) return 0;
+  const needsAddress =
+    shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop" || shippingMethod === "quote";
 
-      if (/^[KLMNP]/.test(pc)) return 15;
-      if (/^[HJG]/.test(pc)) return 20;
-      return 30;
+  const mergedShippingAddress = useMemo(() => {
+    if (!needsAddress) return "";
+    const parts = [street.trim(), city.trim(), region.trim(), postal.trim(), country.trim()].filter(Boolean);
+    return parts.join(", ");
+  }, [needsAddress, street, city, region, postal, country]);
+
+  const isOverweightCart = useMemo(() => {
+    // We assume CartProvider includes `is_oversized` on items after your recent work.
+    return items.some((it: any) => Boolean(it?.is_oversized));
+  }, [items]);
+
+  // Distance lookup:
+  // POST /api/shipping/distance
+  // { origin: string, destination: string }
+  // -> { distance_km: number }
+  useEffect(() => {
+    const shouldLookup =
+      (shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop" || shippingMethod === "quote") &&
+      street.trim() &&
+      city.trim() &&
+      region.trim() &&
+      postal.trim() &&
+      country.trim();
+
+    if (!shouldLookup) {
+      setDistanceKm(null);
+      setDistanceError(null);
+      setDistanceLoading(false);
+      return;
     }
 
-    return 0;
-  }, [shippingMethod, postal]);
+    let cancelled = false;
+
+    const run = async () => {
+      setDistanceLoading(true);
+      setDistanceError(null);
+
+      try {
+        const res = await fetch("/api/shipping/distance", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            origin: STORE_ADDRESS,
+            destination: mergedShippingAddress,
+          }),
+        });
+
+        const contentType = res.headers.get("content-type") || "";
+        const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : null;
+
+        if (!res.ok) {
+          const text = data ? (data as any).error : await res.text();
+          throw new Error(text || "Distance lookup failed.");
+        }
+
+        const km = Number((data as any)?.distance_km);
+        if (!isFinite(km) || km <= 0) throw new Error("Distance lookup returned an invalid distance.");
+
+        if (cancelled) return;
+
+        setDistanceKm(km);
+
+        // Auto-handle 200km+ as quote-only:
+        if (km > TIER_2_MAX_KM) {
+          setShippingMethod("quote");
+        }
+      } catch (e: any) {
+        if (cancelled) return;
+        setDistanceKm(null);
+        setDistanceError(e?.message ?? "Distance lookup failed.");
+      } finally {
+        if (!cancelled) setDistanceLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shippingMethod, mergedShippingAddress, street, city, region, postal, country]);
+
+  const quoteRequired = useMemo(() => {
+    if (shippingMethod === "quote") return true;
+    if (distanceKm != null && distanceKm > TIER_2_MAX_KM) return true;
+    return false;
+  }, [shippingMethod, distanceKm]);
+
+  // Shipping cost rules (distance tiers + overweight)
+  const shippingCost = useMemo(() => {
+    if (shippingMethod === "pickup") return 0;
+    if (shippingMethod === "" || shippingMethod === "quote") return 0;
+
+    const base = computeBaseShippingFromKm(shippingMethod, distanceKm);
+    const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
+
+    return Math.max(0, base + overweight);
+  }, [shippingMethod, distanceKm, isOverweightCart]);
 
   const promoDiscount = useMemo(() => {
     if (!promo) return 0;
 
+    const base = Math.max(0, subtotal + shippingCost);
+
     if (promo.percent_off != null) {
-      const base = Math.max(0, subtotal + shippingCost);
       const pct = Math.max(0, Math.min(100, Number(promo.percent_off)));
       return Math.min(base, (base * pct) / 100);
     }
 
     if (promo.amount_off != null) {
-      const base = Math.max(0, subtotal + shippingCost);
       const amt = Math.max(0, Number(promo.amount_off));
       return Math.min(base, amt);
     }
@@ -208,18 +336,6 @@ export default function CheckoutPage() {
   const taxes = 0;
   const totalCost = Math.max(0, taxableBase + taxes);
 
-  const customerName = useMemo(() => {
-    const fn = firstName.trim();
-    const ln = lastName.trim();
-    return [fn, ln].filter(Boolean).join(" ").trim();
-  }, [firstName, lastName]);
-
-  const mergedShippingAddress = useMemo(() => {
-    if (shippingMethod !== "delivery") return "";
-    const parts = [street.trim(), city.trim(), region.trim(), postal.trim(), country.trim()].filter(Boolean);
-    return parts.join(", ");
-  }, [shippingMethod, street, city, region, postal, country]);
-
   const validateFields = () => {
     const errors: FieldErrors = {};
 
@@ -234,12 +350,16 @@ export default function CheckoutPage() {
 
     if (!shippingMethod) errors.shippingMethod = "Please select a shipping method.";
 
-    if (shippingMethod === "delivery") {
+    if (needsAddress) {
       if (!street.trim()) errors.street = "Street address is required.";
       if (!city.trim()) errors.city = "City is required.";
       if (!region.trim()) errors.region = "Province is required.";
       if (!postal.trim()) errors.postal = "Postal code is required.";
       if (!country.trim()) errors.country = "Country is required.";
+    }
+
+    if (quoteRequired) {
+      errors.shippingMethod = "This address is 200km+ away. Please email for a case-specific quote.";
     }
 
     setFieldErrors(errors);
@@ -256,7 +376,7 @@ export default function CheckoutPage() {
     if (!okPhone) return false;
     if (!shippingMethod) return false;
 
-    if (shippingMethod === "delivery") {
+    if (needsAddress) {
       if (!street.trim()) return false;
       if (!city.trim()) return false;
       if (!region.trim()) return false;
@@ -264,8 +384,10 @@ export default function CheckoutPage() {
       if (!country.trim()) return false;
     }
 
+    if (quoteRequired) return false;
+
     return true;
-  }, [firstName, lastName, email, phone, shippingMethod, street, city, region, postal, country]);
+  }, [firstName, lastName, email, phone, shippingMethod, needsAddress, street, city, region, postal, country, quoteRequired]);
 
   const openConfirm = () => {
     setError(null);
@@ -280,7 +402,6 @@ export default function CheckoutPage() {
   const proceedToPayment = async () => {
     setError(null);
 
-    // final guard (in case user bypasses button)
     const ok = validateFields();
     if (!ok) {
       setError("Please fix the highlighted fields before proceeding.");
@@ -290,7 +411,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      const payloadItems = items.map((it) => ({
+      const payloadItems = items.map((it: any) => ({
         productId: it.productId,
         quantity: it.quantity,
       }));
@@ -307,9 +428,12 @@ export default function CheckoutPage() {
           customer_email: email.trim(),
           customer_phone: phoneE164,
           shipping_method: shippingMethod,
-          shipping_address: shippingMethod === "delivery" ? mergedShippingAddress : "",
+          shipping_address: needsAddress ? mergedShippingAddress : "",
           shipping_cost: shippingCost,
           promo_code: appliedPromo.trim(),
+          // optional (ignored by server if not used)
+          shipping_distance_km: distanceKm,
+          overweight_fee: isOverweightCart && shippingMethod !== "pickup" ? OVERWEIGHT_FEE : 0,
         }),
       });
 
@@ -333,6 +457,41 @@ export default function CheckoutPage() {
       setConfirmOpen(false);
     }
   };
+
+  const shippingLabel = useMemo(() => {
+    if (shippingMethod === "pickup") return "Pick up (held 21 days)";
+    if (shippingMethod === "delivery_drop") return "Delivery Drop (door)";
+    if (shippingMethod === "inhouse_drop") return "Inhouse Drop (indoors)";
+    if (shippingMethod === "quote") return "200km+ (email for quote)";
+    return "";
+  }, [shippingMethod]);
+
+  const shippingBreakdownText = useMemo(() => {
+    if (shippingMethod === "pickup") return "Shipping cost: $0.00";
+
+    if (shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop") {
+      if (distanceLoading) return "Calculating distance-based shipping…";
+      if (distanceError) return `Shipping calculation error: ${distanceError}`;
+      if (!distanceKm) return "Enter your full address to calculate shipping.";
+
+      if (distanceKm > TIER_2_MAX_KM) return "200km+ from the store — please email for a case-specific quote.";
+
+      const base = computeBaseShippingFromKm(shippingMethod, distanceKm);
+      const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
+      const parts: string[] = [];
+      parts.push(`Distance: ${formatKm(distanceKm)}`);
+      parts.push(`Base: $${base.toFixed(2)}`);
+      if (overweight) parts.push(`Overweight fee: $${overweight.toFixed(2)}`);
+      parts.push(`Total shipping: $${(base + overweight).toFixed(2)}`);
+      return parts.join(" • ");
+    }
+
+    if (shippingMethod === "quote") {
+      return "200km+ from the store — please email for a case-specific quote.";
+    }
+
+    return "";
+  }, [shippingMethod, distanceLoading, distanceError, distanceKm, isOverweightCart]);
 
   return (
     <main className={styles.page}>
@@ -432,12 +591,7 @@ export default function CheckoutPage() {
                       onChange={(e) => setPromoInput(e.target.value)}
                       placeholder="Enter your code"
                     />
-                    <button
-                      type="button"
-                      className={styles.promoBtn}
-                      onClick={applyPromo}
-                      disabled={promoLoading}
-                    >
+                    <button type="button" className={styles.promoBtn} onClick={applyPromo} disabled={promoLoading}>
                       {promoLoading ? "Checking…" : "Apply"}
                     </button>
                   </div>
@@ -453,7 +607,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className={styles.field}>
-                  <label className={styles.label}>Shipping method</label>
+                  <label className={styles.label}>Shipping option</label>
                   <select
                     className={styles.select}
                     value={shippingMethod}
@@ -463,7 +617,10 @@ export default function CheckoutPage() {
                       setError(null);
                       setFieldErrors((p) => ({ ...p, shippingMethod: undefined }));
 
-                      if (next !== "delivery") {
+                      setDistanceKm(null);
+                      setDistanceError(null);
+
+                      if (next === "pickup") {
                         setStreet("");
                         setCity("");
                         setRegion("");
@@ -476,30 +633,31 @@ export default function CheckoutPage() {
                           postal: undefined,
                           country: undefined,
                         }));
-                        // keep country as-is
                       }
                     }}
                   >
                     <option value="">Select an option</option>
-                    <option value="pickup">Store pickup</option>
-                    <option value="delivery">House delivery</option>
+                    <option value="pickup">Pick up (held 21 days only before forfeiture)</option>
+                    <option value="delivery_drop">Delivery Drop (driver drops item at the door)</option>
+                    <option value="inhouse_drop">Inhouse Drop (we bring the item indoors)</option>
                   </select>
-                  {fieldErrors.shippingMethod ? (
-                    <div className={styles.fieldError}>{fieldErrors.shippingMethod}</div>
-                  ) : null}
+                  {fieldErrors.shippingMethod ? <div className={styles.fieldError}>{fieldErrors.shippingMethod}</div> : null}
                 </div>
 
                 {shippingMethod === "pickup" ? (
                   <div className={styles.pickupBox}>
-                    <div className={styles.pickupTitle}>Store pickup location</div>
+                    <div className={styles.pickupTitle}>Pickup location</div>
                     <div className={styles.pickupAddr}>{STORE_ADDRESS}</div>
                     <div className={styles.pickupNote}>
                       Shipping cost: <strong>$0.00</strong>
+                      <br />
+                      <br />
+                      Must pick up items within 30 days of purchase, or items will be forfeited.
                     </div>
                   </div>
                 ) : null}
 
-                {shippingMethod === "delivery" ? (
+                {needsAddress ? (
                   <div className={styles.addressBox}>
                     <div className={styles.addressTitle}>Delivery address</div>
 
@@ -583,9 +741,13 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    <div className={styles.deliveryHint}>
-                      Estimated shipping: <strong>${shippingCost.toFixed(2)}</strong>
-                    </div>
+                    <div className={styles.deliveryHint}>{shippingBreakdownText}</div>
+
+                    {quoteRequired ? (
+                      <div className={styles.fieldError}>
+                        This delivery is 200km+ away. Please email for a case-specific quote before purchasing.
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -595,7 +757,9 @@ export default function CheckoutPage() {
                   className={styles.primaryBtn}
                   onClick={openConfirm}
                   disabled={!canProceed}
-                  title={!canProceed ? "Fill out all required fields first" : "Proceed"}
+                  title={
+                    !canProceed ? (quoteRequired ? "Email for a quote (200km+)" : "Fill out all required fields first") : "Proceed"
+                  }
                   type="button"
                 >
                   Proceed with payment
@@ -615,7 +779,7 @@ export default function CheckoutPage() {
           <div className={styles.hr} />
 
           <div className={styles.cartList}>
-            {items.map((it) => (
+            {items.map((it: any) => (
               <div key={it.productId} className={styles.cartRow}>
                 <div className={styles.cartRowLeft}>
                   <div className={styles.thumb}>
@@ -631,6 +795,7 @@ export default function CheckoutPage() {
                     <div className={styles.cartName}>{it.name}</div>
                     <div className={styles.cartMuted}>Qty: {it.quantity}</div>
                     <div className={styles.cartMuted}>${it.price.toFixed(2)} each</div>
+                    {it?.is_oversized ? <div className={styles.cartMuted}>Oversized item</div> : null}
                   </div>
                 </div>
 
@@ -653,15 +818,24 @@ export default function CheckoutPage() {
             </div>
 
             <div className={styles.calcRow}>
-              <span>Shipping</span>
+              <span>Shipping{shippingLabel ? ` (${shippingLabel})` : ""}</span>
               <span>
                 {shippingMethod === "pickup"
                   ? "FREE"
-                  : shippingMethod === "delivery"
+                  : quoteRequired
+                  ? "EMAIL FOR QUOTE"
+                  : shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop"
                   ? `$${shippingCost.toFixed(2)}`
                   : "$0.00"}
               </span>
             </div>
+
+            {(shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop") && (
+              <div className={styles.calcRow}>
+                <span>Distance</span>
+                <span>{distanceLoading ? "…" : distanceKm ? formatKm(distanceKm) : "—"}</span>
+              </div>
+            )}
 
             <div className={styles.calcRow}>
               <span>Taxes</span>
@@ -705,12 +879,19 @@ export default function CheckoutPage() {
               <button
                 className={styles.primaryBtn}
                 onClick={proceedToPayment}
-                disabled={submitting}
+                disabled={submitting || quoteRequired}
                 type="button"
+                title={quoteRequired ? "Email for a quote (200km+)" : undefined}
               >
                 {submitting ? "Redirecting…" : "Proceed with payment"}
               </button>
             </div>
+
+            {quoteRequired ? (
+              <p className={styles.error} style={{ marginTop: 10 }}>
+                This address is 200km+ away. Please email for a case-specific quote before purchasing.
+              </p>
+            ) : null}
           </div>
         </div>
       )}

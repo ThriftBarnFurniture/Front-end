@@ -23,6 +23,8 @@ export type Product = {
   created_by: string | null;
   image_urls: string[] | null;
   image_url: string | null;
+  original_price: number | string | null;
+  monthly_drop_count: number | null;
 };
 
 export async function getShopProducts() {
@@ -31,7 +33,7 @@ export async function getShopProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,description,price,category,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url, subcategory, room_tags, collections"
+      "id,sku,barcode,name,description,price,category,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url,subcategory,room_tags,collections,original_price,monthly_drop_count"
     )
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -60,7 +62,7 @@ export async function getProductById(id: string) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,description,price,category,subcategory,colors,collections,room_tags,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url"
+      "id,sku,barcode,name,description,price,category,subcategory,colors,collections,room_tags,condition,height,width,depth,quantity,is_active,created_at,updated_at,created_by,image_urls,image_url,original_price,monthly_drop_count"
     )
     .eq("id", id)
     .maybeSingle();

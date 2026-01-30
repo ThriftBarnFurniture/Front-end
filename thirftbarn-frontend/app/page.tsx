@@ -315,8 +315,6 @@ export default async function Home() {
       {/* ===== BARN BURNER (LIQUIDATION) ===== */}
       <BarnBurnerSection />
 
-      {/* ===== RED DIVIDER LINE ===== */}
-      <div className={styles.redDivider} />
 
       {/* ===== CONTACT (INFO + MAP) ===== */}
       <section id="contact" className={styles.contactSection}>

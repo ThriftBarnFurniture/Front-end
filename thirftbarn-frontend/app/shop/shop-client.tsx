@@ -19,26 +19,26 @@ type ProductUI = {
 
   created_at: string;
   img: string | null;
+
   priceLabel: string;
   priceNumber: number;
+
+  // ✅ monthly price drop display
+  original_price: number | string | null;
+  monthly_drop_count: number | null;
 };
 
 type SortKey = "newest" | "price-asc" | "price-desc" | "name-asc" | "name-desc";
 
 function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b)
-  );
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
 export default function ShopClient({ products }: { products: ProductUI[] }) {
   const [sort, setSort] = useState<SortKey>("newest");
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(
-    []
-  );
-
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
 
@@ -53,10 +53,8 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
       p.room_tags.forEach((r) => rooms.push(r));
       p.collections.forEach((c) => cols.push(c));
 
-      // ✅ Only show subcategories relevant to the currently selected categories
       const matchesSelectedCats =
-        selectedCategories.length === 0 ||
-        p.category.some((c) => selectedCategories.includes(c));
+        selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
 
       if (matchesSelectedCats) {
         p.subcategory.forEach((s) => subs.push(s));
@@ -85,45 +83,32 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
     if (room) setSelectedRooms([room]);
   }, [searchParams]);
 
-  // ✅ Auto-clear subcategories if no categories are selected
-  // ✅ Also prune subcategories that are no longer valid for the selected categories
   useEffect(() => {
     if (selectedCategories.length === 0) {
       if (selectedSubcategories.length) setSelectedSubcategories([]);
       return;
     }
-    setSelectedSubcategories((prev) =>
-      prev.filter((s) => options.subcategories.includes(s))
-    );
+    setSelectedSubcategories((prev) => prev.filter((s) => options.subcategories.includes(s)));
   }, [selectedCategories, options.subcategories, selectedSubcategories.length]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const catOk =
-        selectedCategories.length === 0 ||
-        p.category.some((c) => selectedCategories.includes(c));
+        selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
 
       const subOk =
         selectedSubcategories.length === 0 ||
         p.subcategory.some((s) => selectedSubcategories.includes(s));
 
       const roomOk =
-        selectedRooms.length === 0 ||
-        p.room_tags.some((r) => selectedRooms.includes(r));
+        selectedRooms.length === 0 || p.room_tags.some((r) => selectedRooms.includes(r));
 
       const colOk =
-        selectedCollections.length === 0 ||
-        p.collections.some((c) => selectedCollections.includes(c));
+        selectedCollections.length === 0 || p.collections.some((c) => selectedCollections.includes(c));
 
       return catOk && subOk && roomOk && colOk;
     });
-  }, [
-    products,
-    selectedCategories,
-    selectedSubcategories,
-    selectedRooms,
-    selectedCollections,
-  ]);
+  }, [products, selectedCategories, selectedSubcategories, selectedRooms, selectedCollections]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -140,9 +125,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
           return b.name.localeCompare(a.name);
         case "newest":
         default:
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
 
@@ -190,9 +173,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                   <input
                     type="checkbox"
                     checked={selectedCategories.includes(c)}
-                    onChange={() =>
-                      setSelectedCategories((prev) => toggle(prev, c))
-                    }
+                    onChange={() => setSelectedCategories((prev) => toggle(prev, c))}
                   />
                   <span>{c}</span>
                 </label>
@@ -201,24 +182,19 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
           </div>
         </div>
 
-        {/* ✅ Subcategory filter appears only when a category is selected */}
         {selectedCategories.length > 0 && (
           <div className={styles.filterBlock}>
             <div className={styles.filterTitle}>Subcategory</div>
             <div className={styles.filterList}>
               {options.subcategories.length === 0 ? (
-                <div className={styles.muted}>
-                  No subcategories for selected categories.
-                </div>
+                <div className={styles.muted}>No subcategories for selected categories.</div>
               ) : (
                 options.subcategories.map((s) => (
                   <label key={s} className={styles.checkRow}>
                     <input
                       type="checkbox"
                       checked={selectedSubcategories.includes(s)}
-                      onChange={() =>
-                        setSelectedSubcategories((prev) => toggle(prev, s))
-                      }
+                      onChange={() => setSelectedSubcategories((prev) => toggle(prev, s))}
                     />
                     <span>{s}</span>
                   </label>
@@ -259,9 +235,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                   <input
                     type="checkbox"
                     checked={selectedCollections.includes(c)}
-                    onChange={() =>
-                      setSelectedCollections((prev) => toggle(prev, c))
-                    }
+                    onChange={() => setSelectedCollections((prev) => toggle(prev, c))}
                   />
                   <span>{c}</span>
                 </label>
@@ -274,8 +248,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
       <section className={styles.main}>
         <div className={styles.topbar}>
           <div className={styles.count}>
-            Showing <strong>{sorted.length}</strong> of{" "}
-            <strong>{products.length}</strong>
+            Showing <strong>{sorted.length}</strong> of <strong>{products.length}</strong>
           </div>
 
           <div className={styles.sortWrap}>
@@ -301,6 +274,14 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
             {sorted.map((p) => {
               if ((p.quantity ?? 0) <= 0) return null;
 
+              const original =
+                typeof p.original_price === "string" ? Number(p.original_price) : p.original_price;
+
+              const showDropped =
+                (p.monthly_drop_count ?? 0) > 0 &&
+                Number.isFinite(original) &&
+                p.priceNumber < (original as number);
+
               return (
                 <Link key={p.id} href={`/item/${p.id}`} className={styles.card}>
                   <div className={styles.imageWrap}>
@@ -316,14 +297,21 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                       <div className={styles.noImage}>No image</div>
                     )}
 
-                    {p.quantity !== null && p.quantity <= 0 && (
-                      <div className={styles.badge}>Sold</div>
-                    )}
+                    {p.quantity !== null && p.quantity <= 0 && <div className={styles.badge}>Sold</div>}
                   </div>
 
                   <div className={styles.meta}>
                     <div className={styles.name}>{p.name}</div>
-                    <div className={styles.price}>{p.priceLabel}</div>
+
+                    {showDropped ? (
+                      <div className={styles.priceRow}>
+                        <span className={styles.oldPrice}>${(original as number).toFixed(2)}</span>
+                        <span className={styles.price}>${p.priceNumber.toFixed(2)}</span>
+                        <span className={styles.dropBadge}>Price dropped</span>
+                      </div>
+                    ) : (
+                      <div className={styles.price}>{p.priceLabel}</div>
+                    )}
                   </div>
                 </Link>
               );

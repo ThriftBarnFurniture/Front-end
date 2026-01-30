@@ -8,6 +8,7 @@
   min-height: calc(100vh - 1px);
   background: var(--color-bg);
   padding: 120px var(--gutter) 80px;
+  margin-top: 60px;
 }
 
 .container {
@@ -24,6 +25,7 @@
   font-size: clamp(2.2rem, 2rem + 1.2vw, 3rem);
   font-weight: 900;
   letter-spacing: 0.02em;
+  color: var(--color-brand-dark);
 }
 
 .subhead {

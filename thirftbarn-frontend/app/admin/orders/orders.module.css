@@ -1,0 +1,248 @@
+/* Wrapper */
+.wrap {
+  margin-top: 16px;
+}
+
+/* Error box */
+.errorBox {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 0, 0, 0.06);
+  font-weight: 700;
+}
+
+/* Table */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.theadRow {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tr {
+  cursor: pointer;
+}
+
+.tr:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.td {
+  padding: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  vertical-align: top;
+}
+
+.orderMain {
+  font-weight: 900;
+}
+
+.orderSub {
+  opacity: 0.7;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.status {
+  font-weight: 900;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal overlay */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Modal */
+.modal {
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  background: #fff;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+/* Modal header */
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modalTitle {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.modalSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.iconBtn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Modal body */
+.modalBody {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Sections */
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.sectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+/* Key-value */
+.kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  row-gap: 8px;
+  column-gap: 12px;
+}
+
+.k {
+  font-weight: 800;
+  opacity: 0.7;
+}
+
+.v {
+  word-break: break-word;
+}
+
+/* Price breakdown */
+.breakdown {
+  max-width: 420px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.rowTotal {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.hr {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 10px 0;
+}
+
+.muted {
+  opacity: 0.7;
+}
+
+/* Items */
+.items {
+  display: grid;
+  gap: 12px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.itemLeft {
+  min-width: 0;
+}
+
+.itemName {
+  font-weight: 900;
+}
+
+.itemMeta {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.itemRight {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Modal footer */
+.modalFooter {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: flex-end;
+}

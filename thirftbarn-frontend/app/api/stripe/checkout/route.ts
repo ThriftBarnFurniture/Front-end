@@ -10,12 +10,11 @@ type Body = {
   customer_email?: string;
   customer_phone?: string;
 
-  shipping_method?: "pickup" | "delivery";
-  shipping_address?: string; // only required for delivery
-  shipping_cost?: number; // optional, default 0
+  shipping_method?: "pickup" | "delivery_drop" | "inhouse_drop" | "quote";
+  shipping_address?: string; // required for delivery_drop/inhouse_drop/quote
 
   promo_code?: string;
-  promo_discount?: number;
+  promo_discount?: number; // ignored (server computes)
 };
 
 type PromoRow = {
@@ -26,6 +25,18 @@ type PromoRow = {
   ends_at: string | null;
   is_active: boolean;
 };
+
+const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
+
+const OVERWEIGHT_FEE_CAD = 135;
+
+const TIER_1_MAX_KM = 49;
+const TIER_2_MAX_KM = 200;
+
+const PRICES = {
+  tier1: { delivery_drop: 17.5, inhouse_drop: 45 },
+  tier2: { delivery_drop: 55, inhouse_drop: 115 },
+} as const;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -45,6 +56,45 @@ function makeOrderNumber() {
   return `TB-${y}${m}${day}-${rand}`;
 }
 
+function computeBaseShippingFromKm(method: "delivery_drop" | "inhouse_drop", km: number) {
+  if (km <= TIER_1_MAX_KM) {
+    return method === "delivery_drop" ? PRICES.tier1.delivery_drop : PRICES.tier1.inhouse_drop;
+  }
+  if (km <= TIER_2_MAX_KM) {
+    return method === "delivery_drop" ? PRICES.tier2.delivery_drop : PRICES.tier2.inhouse_drop;
+  }
+  return 0;
+}
+
+async function getDistanceKm(origin: string, destination: string) {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) throw new Error("Missing GOOGLE_PLACES_API_KEY");
+
+  const url =
+    "https://maps.googleapis.com/maps/api/distancematrix/json" +
+    `?origins=${encodeURIComponent(origin)}` +
+    `&destinations=${encodeURIComponent(destination)}` +
+    `&units=metric` +
+    `&key=${apiKey}`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to contact Google Distance Matrix API.");
+
+  const data = await res.json();
+  const element = data?.rows?.[0]?.elements?.[0];
+
+  if (!element || element.status !== "OK") {
+    throw new Error("Unable to calculate distance for this address.");
+  }
+
+  const meters = Number(element.distance?.value);
+  if (!Number.isFinite(meters) || meters <= 0) {
+    throw new Error("Invalid distance returned.");
+  }
+
+  return meters / 1000;
+}
+
 export async function POST(req: Request) {
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -54,13 +104,13 @@ export async function POST(req: Request) {
     if (!body?.items?.length) {
       return new NextResponse("No items in cart.", { status: 400 });
     }
+
     const customer_name = String(body?.customer_name ?? "").trim();
     const customer_email = String(body?.customer_email ?? "").trim();
     const customer_phone = String(body?.customer_phone ?? "").trim();
 
-    const shipping_method = (body?.shipping_method ?? "") as "pickup" | "delivery" | "";
+    const shipping_method = (body?.shipping_method ?? "") as Body["shipping_method"] | "";
     const shipping_address = String(body?.shipping_address ?? "").trim();
-    const shipping_cost = Number(body?.shipping_cost ?? 0);
 
     const promo_code = String(body?.promo_code ?? "").trim().toUpperCase();
     const supabase = createSupabaseAdmin();
@@ -84,8 +134,8 @@ export async function POST(req: Request) {
       if (pErr) throw new Error(pErr.message);
 
       if (promo) {
-        promo_applied_code = promo.code; // already uppercase via constraint
-        // We'll compute promo_cents later once subtotal/shipping are known
+        promo_applied_code = promo.code;
+        // we'll compute promo_cents after we know subtotal + shipping
       }
     }
 
@@ -93,15 +143,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing checkout info." }, { status: 400 });
     }
 
-    if (shipping_method !== "pickup" && shipping_method !== "delivery") {
+    if (shipping_method !== "pickup" && shipping_method !== "delivery_drop" && shipping_method !== "inhouse_drop" && shipping_method !== "quote") {
       return NextResponse.json({ error: "Missing shipping method." }, { status: 400 });
     }
 
-    if (shipping_method === "delivery" && !shipping_address) {
+    const needsAddress =
+      shipping_method === "delivery_drop" || shipping_method === "inhouse_drop" || shipping_method === "quote";
+
+    if (needsAddress && !shipping_address) {
       return NextResponse.json({ error: "Missing delivery address." }, { status: 400 });
     }
-
-
 
     // Normalize & validate quantities
     const wanted = body.items
@@ -114,9 +165,10 @@ export async function POST(req: Request) {
     const ids = wanted.map((w) => w.productId);
 
     // Fetch products by IDs (server-trusted)
+    // ✅ include is_oversized so we can apply $135 fee if any item is oversized
     const { data: products, error } = await supabase
       .from("products")
-      .select("id,name,price,quantity,is_active,image_url")
+      .select("id,name,price,quantity,is_active,image_url,is_oversized")
       .in("id", ids);
 
     if (error) throw new Error(error.message);
@@ -133,7 +185,6 @@ export async function POST(req: Request) {
       if (!p) return new NextResponse("One or more products not found.", { status: 404 });
       if (!p.is_active) return new NextResponse(`Item unavailable: ${p.name}`, { status: 400 });
 
-      // quantity === 0 (or less) -> your exact warning
       if (typeof p.quantity === "number" && p.quantity <= 0) {
         return new NextResponse(
           "An item in your cart is out of stock, please remove to continue with purchase.",
@@ -141,15 +192,42 @@ export async function POST(req: Request) {
         );
       }
 
-      // not enough stock -> keep your existing message (or also change it if you want)
       if (typeof p.quantity === "number" && p.quantity < w.quantity) {
         return new NextResponse(`Not enough stock for: ${p.name}`, { status: 400 });
       }
     }
 
+    const hasOverweight = wanted.some((w) => Boolean(map.get(w.productId)?.is_oversized));
+
+    // ✅ SERVER-CALCULATED SHIPPING (ignore any client shipping_cost)
+    let distance_km: number | null = null;
+    let base_shipping_cad = 0;
+
+    if (shipping_method === "pickup") {
+      base_shipping_cad = 0;
+    } else {
+      // quote is blocked
+      distance_km = await getDistanceKm(STORE_ADDRESS, shipping_address);
+
+      if (distance_km > TIER_2_MAX_KM || shipping_method === "quote") {
+        return NextResponse.json(
+          { error: "This address is 200km+ away. Please email for a case-specific quote." },
+          { status: 400 }
+        );
+      }
+
+      if (shipping_method !== "delivery_drop" && shipping_method !== "inhouse_drop") {
+        return NextResponse.json({ error: "Invalid shipping method." }, { status: 400 });
+      }
+
+      base_shipping_cad = computeBaseShippingFromKm(shipping_method, distance_km);
+    }
+
+    const overweight_fee_cad = shipping_method === "pickup" ? 0 : hasOverweight ? OVERWEIGHT_FEE_CAD : 0;
+    const shipping_cost_cad = Math.max(0, base_shipping_cad + overweight_fee_cad);
 
     // Build Stripe line items from Supabase prices (secure)
-    const line_items = wanted.map((w) => {
+    const line_items: any[] = wanted.map((w) => {
       const p = map.get(w.productId)!;
 
       return {
@@ -176,26 +254,19 @@ export async function POST(req: Request) {
         quantity: w.quantity,
         unit_price_cents: toCents(Number(p.price)),
         name: p.name,
+        is_oversized: Boolean((p as any).is_oversized),
       };
     });
 
-    const subtotal_cents = orderItems.reduce(
-      (sum, it) => sum + it.unit_price_cents * it.quantity,
-      0
-    );
+    const subtotal_cents = orderItems.reduce((sum, it) => sum + it.unit_price_cents * it.quantity, 0);
 
-    const shipping_cents = Math.max(
-      0,
-      Math.round((Number.isFinite(shipping_cost) ? shipping_cost : 0) * 100)
-    );
-
+    const shipping_cents = Math.max(0, Math.round(shipping_cost_cad * 100));
     const taxable_base_cents = subtotal_cents + shipping_cents;
 
     // ✅ compute promo_cents using promo row rules (percent_off OR amount_off)
     if (promo_applied_code) {
       const nowIso = new Date().toISOString();
 
-      // Re-fetch promo row to avoid any earlier logic drift (optional but safe)
       const { data: promo, error: pErr } = await supabase
         .from("promos")
         .select("code,percent_off,amount_off,starts_at,ends_at,is_active")
@@ -215,26 +286,36 @@ export async function POST(req: Request) {
           promo_cents = Math.round(Number(promo.amount_off) * 100);
         }
       } else {
-        // promo expired between request + compute; treat as not applied
         promo_applied_code = null;
         promo_cents = 0;
       }
     }
 
-    // ✅ never discount more than the (subtotal + shipping)
     promo_cents = clamp(promo_cents, 0, taxable_base_cents);
-    const tax_cents = 0; // later
+    const tax_cents = 0;
     const total_cents = taxable_base_cents - promo_cents + tax_cents;
-    
+
     // ✅ Add shipping as its own Stripe line item so it gets charged
     if (shipping_cents > 0) {
+      const shippingName =
+        shipping_method === "delivery_drop"
+          ? "Shipping — Delivery Drop"
+          : shipping_method === "inhouse_drop"
+          ? "Shipping — Inhouse Drop"
+          : "Shipping";
+
+      const descParts: string[] = [];
+      if (distance_km != null) descParts.push(`Distance: ${distance_km.toFixed(1)} km`);
+      if (overweight_fee_cad > 0) descParts.push(`Overweight fee included`);
+
       line_items.push({
         quantity: 1,
         price_data: {
           currency: "cad",
           unit_amount: shipping_cents,
           product_data: {
-            name: "Shipping",
+            name: shippingName,
+            description: descParts.length ? descParts.join(" • ") : undefined,
             images: undefined,
           },
         },
@@ -243,18 +324,6 @@ export async function POST(req: Request) {
 
     // OPTIONAL: attach logged-in user_id so it shows in /account/orders
     let userId: string | null = null;
-    try {
-      const supabaseServer = await createClient();
-      const { data } = await supabaseServer.auth.getUser();
-      userId = data.user?.id ?? null;
-    } catch {
-      // if server auth isn't configured here yet, it's fine
-      userId = null;
-    }
-
-    // Create pending order FIRST (so webhook updates it)
-    const order_number = makeOrderNumber();
-
     let userEmail: string | null = null;
     try {
       const supabaseServer = await createClient();
@@ -265,6 +334,9 @@ export async function POST(req: Request) {
       userId = null;
       userEmail = null;
     }
+
+    // Create pending order FIRST (so webhook updates it)
+    const order_number = makeOrderNumber();
 
     let discountCouponId: string | null = null;
 
@@ -285,12 +357,20 @@ export async function POST(req: Request) {
         customer_email: customer_email,
         customer_name: customer_name,
         customer_phone: customer_phone,
-        shipping_address: shipping_method === "pickup"
-                          ? "2786 ON-34  Hawkesbury, ON K6A 2R2"
-                          : shipping_address,
+
+        shipping_address: shipping_method === "pickup" ? STORE_ADDRESS : shipping_address,
+        shipping_method: shipping_method,
+
         promo_code: promo_applied_code,
         promo_discount: promo_cents / 100,
+
         shipping_cost: shipping_cents / 100,
+
+        // extra helpful breakdowns (optional; only if these columns exist)
+        // If your orders table doesn't have these columns, REMOVE these fields.
+        // distance_km: distance_km,
+        // overweight_fee: overweight_fee_cad,
+
         items: orderItems,
         subtotal: subtotal_cents / 100,
         tax: tax_cents / 100,
@@ -305,7 +385,6 @@ export async function POST(req: Request) {
         currency: "cad",
         status: "pending",
       })
-
       .select("order_id")
       .single();
 
@@ -328,21 +407,24 @@ export async function POST(req: Request) {
         customer_email,
         stripe_email: null,
         customer_phone,
-        shipping_address,
+
+        shipping_method,
+        shipping_address: shipping_method === "pickup" ? STORE_ADDRESS : shipping_address,
+
+        shipping_cost_cents: String(shipping_cents),
+        shipping_base_cents: String(Math.round(base_shipping_cad * 100)),
+        overweight_fee_cents: String(Math.round(overweight_fee_cad * 100)),
+        distance_km: distance_km != null ? String(distance_km) : "",
+
         promo_code: promo_applied_code ?? "",
         promo_discount_cents: String(promo_cents),
-        shipping_cost_cents: String(shipping_cents),
-        shipping_method,
       },
     });
 
     if (!session.url) throw new Error("Stripe session missing url.");
 
     // Store session id for idempotency and linking
-    const { error: updErr } = await supabase
-      .from("orders")
-      .update({ stripe_session_id: session.id })
-      .eq("order_id", orderId);
+    const { error: updErr } = await supabase.from("orders").update({ stripe_session_id: session.id }).eq("order_id", orderId);
 
     if (updErr) throw new Error(updErr.message);
 
