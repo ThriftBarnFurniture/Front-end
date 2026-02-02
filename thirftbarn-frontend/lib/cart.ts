@@ -4,6 +4,7 @@ export type CartItem = {
   imageUrl?: string | null;
   price: number; // display only (NOT trusted at checkout)
   quantity: number;
+  is_oversized?: boolean;
 };
 
 const STORAGE_KEY = "tb_cart_v1";

@@ -261,6 +261,8 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   font-size: var(--fs-2xl);
+  display: flex;
+  justify-content: center;
 }
 
 .productRow {
@@ -347,7 +349,6 @@
 .altSectionHeading {
   margin: 0 0 26px;
   display: flex;
-  justify-content: right;
   color: var(--color-brand-dark);
   font-family: var(--font-header);
   font-weight: var(--fw-black);
@@ -424,7 +425,7 @@
 }
 
 .barnBurnerSubtext{
-  margin: 12px auto 0;
+  margin: 40px auto -40px;
   max-width: 720px;
   text-align: center;
   font-family: var(--font-text);
@@ -437,7 +438,7 @@
 .barnBurnerHeader {
   display: grid;
   gap: 2px;
-  margin-bottom: 18px;
+  margin-bottom: 50px;
   justify-content: center;
 }
 
@@ -472,68 +473,6 @@
 }
 
 /* ===== BARN BURNER DAY GRID ===== */
-.barnBurnerDayGrid {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 1200px) {
-  .barnBurnerDayGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .barnBurnerDayGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.barnBurnerDayCard {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  text-decoration: none;
-  min-height: 120px;
-}
-
-.barnBurnerDayTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.barnBurnerDayBadge {
-  font-family: var(--font-header);
-  font-weight: var(--fw-black);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  font-size: 0.95rem;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.barnBurnerDayPrice {
-  font-weight: 900;
-  font-size: 1.25rem;
-}
-
-.barnBurnerDayBottom {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: auto;
-}
 
 .barnBurnerDayMeta {
   display: inline-flex;
@@ -542,20 +481,127 @@
   opacity: 0.95;
 }
 
+.barnBurnerDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.barnBurnerDayCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  padding: 16px 12px;
+  border-radius: 16px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  min-height: 150px;
+
+  color: #ffffff;
+}
+
+.barnBurnerDayCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.barnBurnerDayLabel {
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  font-size: 20px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+.barnBurnerDayPrice {
+  font-size: 40px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.barnBurnerDayCountLine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 14px;
+  opacity: 0.95;
+}
+
 .barnBurnerDayCount {
   font-weight: 900;
-  font-size: 1.15rem;
+  font-size: 16px;
 }
 
 .barnBurnerDayCountLabel {
-  font-weight: 800;
-  opacity: 0.9;
+  font-size: 16px;
+  opacity: 0.85;
 }
 
 .barnBurnerDayCta {
-  font-weight: 900;
-  opacity: 0.95;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transform: scaleX(1.15);
+
+  margin-top: auto;
+
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1;
+
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--color-brand),
+    color-mix(in srgb, var(--color-brand) 75%, white)
+  );
+
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
 }
+
+.barnBurnerDayCard:hover .barnBurnerDayCta {
+  transform: scaleX(1.15) translateX(3px);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .barnBurnerDayCard {
+    min-height: 140px;
+  }
+}
+
 
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {

@@ -71,3 +71,27 @@
 .dragActive {
   cursor: grabbing;
 }
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.oldPrice {
+  text-decoration: line-through;
+  opacity: 0.7;
+  font-weight: var(--fw-black);
+}
+
+.dropBadge {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  font-weight: 900;
+}

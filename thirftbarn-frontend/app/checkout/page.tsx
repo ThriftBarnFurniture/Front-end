@@ -34,7 +34,7 @@ type FieldErrors = Partial<{
 const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
 
 // Pricing rules
-const OVERWEIGHT_FEE = 135;
+const OVERSIZED_FEE = 135;
 const TIER_1_MAX_KM = 49;
 const TIER_2_MAX_KM = 200;
 
@@ -174,10 +174,23 @@ export default function CheckoutPage() {
     return parts.join(", ");
   }, [needsAddress, street, city, region, postal, country]);
 
-  const isOverweightCart = useMemo(() => {
-    // We assume CartProvider includes `is_oversized` on items after your recent work.
+  const hasOversizedItem = useMemo(() => {
     return items.some((it: any) => Boolean(it?.is_oversized));
   }, [items]);
+
+  const baseShipping = useMemo(() => {
+    if (shippingMethod === "pickup") return 0;
+    if (shippingMethod === "" || shippingMethod === "quote") return 0;
+    return computeBaseShippingFromKm(shippingMethod, distanceKm);
+  }, [shippingMethod, distanceKm]);
+
+  const oversizedFee = useMemo(() => {
+    return shippingMethod === "inhouse_drop" && hasOversizedItem ? OVERSIZED_FEE : 0;
+  }, [shippingMethod, hasOversizedItem]);
+
+  const shippingCost = useMemo(() => {
+    return Math.max(0, baseShipping + oversizedFee);
+  }, [baseShipping, oversizedFee]);
 
   // Distance lookup:
   // POST /api/shipping/distance
@@ -255,17 +268,6 @@ export default function CheckoutPage() {
     if (distanceKm != null && distanceKm > TIER_2_MAX_KM) return true;
     return false;
   }, [shippingMethod, distanceKm]);
-
-  // Shipping cost rules (distance tiers + overweight)
-  const shippingCost = useMemo(() => {
-    if (shippingMethod === "pickup") return 0;
-    if (shippingMethod === "" || shippingMethod === "quote") return 0;
-
-    const base = computeBaseShippingFromKm(shippingMethod, distanceKm);
-    const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
-
-    return Math.max(0, base + overweight);
-  }, [shippingMethod, distanceKm, isOverweightCart]);
 
   const promoDiscount = useMemo(() => {
     if (!promo) return 0;
@@ -433,7 +435,7 @@ export default function CheckoutPage() {
           promo_code: appliedPromo.trim(),
           // optional (ignored by server if not used)
           shipping_distance_km: distanceKm,
-          overweight_fee: isOverweightCart && shippingMethod !== "pickup" ? OVERWEIGHT_FEE : 0,
+          oversized_fee: shippingMethod === "inhouse_drop" && hasOversizedItem ? OVERSIZED_FEE : 0,
         }),
       });
 
@@ -459,10 +461,10 @@ export default function CheckoutPage() {
   };
 
   const shippingLabel = useMemo(() => {
-    if (shippingMethod === "pickup") return "Pick up (held 21 days)";
-    if (shippingMethod === "delivery_drop") return "Delivery Drop (door)";
-    if (shippingMethod === "inhouse_drop") return "Inhouse Drop (indoors)";
-    if (shippingMethod === "quote") return "200km+ (email for quote)";
+    if (shippingMethod === "pickup") return "Pick Up";
+    if (shippingMethod === "delivery_drop") return "Door Drop";
+    if (shippingMethod === "inhouse_drop") return "In-House Drop";
+    if (shippingMethod === "quote") return "200km+ ";
     return "";
   }, [shippingMethod]);
 
@@ -477,12 +479,11 @@ export default function CheckoutPage() {
       if (distanceKm > TIER_2_MAX_KM) return "200km+ from the store — please email for a case-specific quote.";
 
       const base = computeBaseShippingFromKm(shippingMethod, distanceKm);
-      const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
       const parts: string[] = [];
       parts.push(`Distance: ${formatKm(distanceKm)}`);
       parts.push(`Base: $${base.toFixed(2)}`);
-      if (overweight) parts.push(`Overweight fee: $${overweight.toFixed(2)}`);
-      parts.push(`Total shipping: $${(base + overweight).toFixed(2)}`);
+      if (oversizedFee > 0) parts.push(`Oversized item fee: $${oversizedFee.toFixed(2)}`);
+      parts.push(`Total shipping: $${(base + oversizedFee).toFixed(2)}`);
       return parts.join(" • ");
     }
 
@@ -491,7 +492,7 @@ export default function CheckoutPage() {
     }
 
     return "";
-  }, [shippingMethod, distanceLoading, distanceError, distanceKm, isOverweightCart]);
+  }, [shippingMethod, distanceLoading, distanceError, distanceKm, oversizedFee, hasOversizedItem]);
 
   return (
     <main className={styles.page}>
@@ -824,18 +825,22 @@ export default function CheckoutPage() {
                   ? "FREE"
                   : quoteRequired
                   ? "EMAIL FOR QUOTE"
-                  : shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop"
-                  ? `$${shippingCost.toFixed(2)}`
+                  : shippingMethod === "delivery_drop"
+                  ? `$${shippingCost.toFixed(2)}` // delivery_drop never has oversized fee
+                  : shippingMethod === "inhouse_drop"
+                  ? oversizedFee > 0
+                    ? `$${baseShipping.toFixed(2)}` // ✅ show base only
+                    : `$${shippingCost.toFixed(2)}`
                   : "$0.00"}
               </span>
             </div>
 
-            {(shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop") && (
+            {!quoteRequired && shippingMethod === "inhouse_drop" && oversizedFee > 0 ? (
               <div className={styles.calcRow}>
-                <span>Distance</span>
-                <span>{distanceLoading ? "…" : distanceKm ? formatKm(distanceKm) : "—"}</span>
+                <span className={styles.muted}>Oversized item fee</span>
+                <span className={styles.muted}>${oversizedFee.toFixed(2)}</span>
               </div>
-            )}
+            ) : null}
 
             <div className={styles.calcRow}>
               <span>Taxes</span>

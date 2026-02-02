@@ -62,7 +62,7 @@ async function OrdersList({ userId }: { userId: string }) {
           </div>
 
           <div className={styles.orderActions}>
-            <Link className={styles.viewLink} href={`/checkout/success?order_id=${o.order_id}`}>
+            <Link className={styles.viewLink} href={`/account/orders/${o.order_id}`}>
               View
             </Link>
           </div>

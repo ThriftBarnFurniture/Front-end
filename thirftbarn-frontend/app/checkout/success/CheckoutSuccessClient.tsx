@@ -34,6 +34,7 @@ type ProductMini = {
   name: string | null;
   image_url: string | null;
   price: number | null;
+  is_oversized?: boolean | null;
 };
 
 export default function CheckoutSuccessClient() {
@@ -59,8 +60,9 @@ export default function CheckoutSuccessClient() {
 
   // Clear cart after successful checkout
   useEffect(() => {
+    if (!sessionId) return;
     clear();
-  }, [clear]);
+  }, [sessionId, clear]);
 
   // Load order by stripe_session_id (guest-safe via server endpoint)
   useEffect(() => {
@@ -95,6 +97,47 @@ export default function CheckoutSuccessClient() {
       cancelled = true;
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId) return; // session flow already handles it
+    if (!orderIdParam) return;
+
+    let cancelled = false;
+
+    async function loadOrderById() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const supabase = createClient();
+
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) throw new Error("Please log in to view this order.");
+
+        // RLS should restrict to own orders; adding user_id check is extra safe.
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("order_id", orderIdParam)
+          .eq("user_id", auth.user.id)
+          .single();
+
+        if (error) throw new Error(error.message);
+
+        if (!cancelled) setOrder((data ?? null) as OrderRow | null);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? "Failed to load order.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadOrderById();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, orderIdParam]);
+
 
   // Finalize checkout
   useEffect(() => {

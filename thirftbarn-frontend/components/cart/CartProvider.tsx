@@ -33,8 +33,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<CartToast[]>([]);
 
   useEffect(() => {
-    setItems(readCart());
-  }, []);
+  const loaded = readCart();
+
+  // migrate old carts that don't have is_oversized
+  const migrated = loaded.map((it) => ({
+    ...it,
+    is_oversized: Boolean(it.is_oversized),
+  }));
+
+  setItems(migrated);
+}, []);
+
 
   useEffect(() => {
     writeCart(items);

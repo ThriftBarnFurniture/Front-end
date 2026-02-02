@@ -69,34 +69,13 @@ const getBoolean = (formData: FormData, key: string) => {
   return raw === "true" || raw === "1" || raw === "on" || raw === "yes";
 };
 
-type BarnDay = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-const parseBarnDay = (formData: FormData): BarnDay | null => {
+const parseBarnDay = (formData: FormData): number | null => {
   const raw = String(formData.get("barn_burner_day") ?? "").trim();
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
   if (n < 1 || n > 7) return null;
-  return n as BarnDay;
+  return n;
 };
-
-const barnBurnerPriceForDay = (day: BarnDay) => 45 - 5 * day; // 1->40 ... 7->10
-const barnBurnerSubcategoryForDay = (day: BarnDay) => `day-${day}`;
-
-function utcDateString(d = new Date()) {
-  // YYYY-MM-DD in UTC
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-const getOptionalMoney = (formData: FormData, key: string): number | null => {
-  const raw = String(formData.get(key) ?? "").trim();
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.max(0, n) : null;
-};
-
 
 const validateProductInputs = ({
   name,
@@ -125,12 +104,10 @@ const validateProductInputs = ({
     return "Name, description, quantity, and condition are required.";
   }
 
-  // ✅ categories required (now array)
   if (!categories || categories.length === 0) {
     return "At least one category is required.";
   }
 
-  // ✅ if barn burner, subcategory must be present (day-x)
   if (isBarnBurner && (!subcategories || subcategories.length === 0)) {
     return "Barn burner requires a start day (subcategory).";
   }
@@ -148,7 +125,8 @@ const validateProductInputs = ({
     return "Quantity must be a whole number.";
   }
 
-  if (!isBarnBurner && (price === null || price < 0)) {
+  // ✅ price is required for ALL items now (including barn burner)
+  if (price === null || price < 0) {
     return "Price is required.";
   }
 
@@ -273,7 +251,6 @@ export const POST = async (request: Request) => {
     const quantityValue = String(formData.get("quantity") ?? "").trim();
     const condition = String(formData.get("condition") ?? "").trim();
 
-    // ✅ NEW: arrays
     const categories = getMultiTextArray(formData, "category", "categories");
     const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
@@ -289,10 +266,6 @@ export const POST = async (request: Request) => {
     const isOversized = getBoolean(formData, "is_oversized");
     const isMonthlyPriceDrop = getBoolean(formData, "is_monthly_price_drop");
 
-    // optional: allow admin to override monthly drop amount, else default to 10 in DB
-    const monthlyDropAmount = getOptionalMoney(formData, "monthly_drop_amount");
-
-    // prevent mixing price-drop systems
     if (isBarnBurner && isMonthlyPriceDrop) {
       return NextResponse.json(
         { error: "Item cannot be both Barn Burner and Monthly Price Drop." },
@@ -305,17 +278,11 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
     }
 
-    const price = isBarnBurner
-      ? barnBurnerPriceForDay(barnDay as BarnDay)
-      : getRequiredNumber(formData, "price");
-
+    const price = getRequiredNumber(formData, "price");
     const images = parseImages(formData);
 
-    // ✅ Enforce categories/subcategories for barn burner (server-side)
     const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
-    const enforcedSubcategories = isBarnBurner
-      ? [barnBurnerSubcategoryForDay(barnDay as BarnDay)]
-      : subcategories;
+    const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
 
     const validationError = validateProductInputs({
       name,
@@ -338,30 +305,15 @@ export const POST = async (request: Request) => {
     const imageUrls = await uploadImagesToR2(images);
     const tableName = getProductsTableName();
 
-    let barn_burner_started_at: string | null = null;
-    let barn_burner_day: number | null = null;
-    let barn_burner_last_tick: string | null = null;
+    const nowIso = new Date().toISOString();
 
-    if (isBarnBurner) {
-      const now = new Date();
-      barn_burner_started_at = now.toISOString();
-      barn_burner_day = barnDay as BarnDay;
-      barn_burner_last_tick = now.toISOString().slice(0, 10);
-    }
+    // ✅ Let DB cron handle ticking; we just set the start markers.
+    const barn_burner_started_at = isBarnBurner ? nowIso : null;
+    const barn_burner_day = isBarnBurner ? barnDay : null;
+    const barn_burner_last_tick = isBarnBurner ? null : null;
 
-    let monthly_drop_started_at: string | null = null;
-    let monthly_drop_last_tick: string | null = null; // will write as date string; Postgres will cast to date
-    let monthly_drop_amount: number | null = null;
-
-    if (isMonthlyPriceDrop) {
-      const now = new Date();
-      monthly_drop_started_at = now.toISOString();
-
-      // mark “this month already handled” so your cron doesn't drop immediately on the start month
-      monthly_drop_last_tick = utcDateString(now);
-
-      monthly_drop_amount = monthlyDropAmount ?? 10;
-    }
+    const monthly_drop_started_at = isMonthlyPriceDrop ? nowIso : null;
+    const monthly_drop_last_tick = isMonthlyPriceDrop ? null : null;
 
     const productPayload: Record<string, unknown> = {
       sku: makeSku(),
@@ -379,13 +331,16 @@ export const POST = async (request: Request) => {
       width,
       depth,
       quantity,
+
+      // ✅ two price columns: initial_price never changes; price is current and will be ticked by DB
+      initial_price: price,
       price,
 
       image_url: imageUrls[0],
       image_urls: imageUrls,
 
       created_by: userId,
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
 
       is_barn_burner: isBarnBurner,
       barn_burner_started_at,
@@ -398,9 +353,6 @@ export const POST = async (request: Request) => {
       monthly_drop_started_at,
       monthly_drop_last_tick,
     };
-    if (isMonthlyPriceDrop) {
-      productPayload.monthly_drop_amount = monthlyDropAmount ?? 10;
-    }
 
     const data = await supabaseRestInsert(tableName, accessToken, productPayload);
 
@@ -432,7 +384,6 @@ export const PATCH = async (request: Request) => {
     const quantityValue = String(formData.get("quantity") ?? "").trim();
     const condition = String(formData.get("condition") ?? "").trim();
 
-    // ✅ arrays
     const categories = getMultiTextArray(formData, "category", "categories");
     const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
@@ -445,15 +396,8 @@ export const PATCH = async (request: Request) => {
     const depth = getOptionalNumber(formData, "depth");
 
     const isBarnBurner = getBoolean(formData, "is_barn_burner");
-
-    const barnDay = isBarnBurner ? parseBarnDay(formData) : null;
-    if (isBarnBurner && !barnDay) {
-      return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
-    }
-
     const isOversized = getBoolean(formData, "is_oversized");
     const isMonthlyPriceDrop = getBoolean(formData, "is_monthly_price_drop");
-    const monthlyDropAmount = getOptionalMoney(formData, "monthly_drop_amount");
 
     if (isBarnBurner && isMonthlyPriceDrop) {
       return NextResponse.json(
@@ -462,19 +406,18 @@ export const PATCH = async (request: Request) => {
       );
     }
 
-    const price = isBarnBurner
-      ? barnBurnerPriceForDay(barnDay as BarnDay)
-      : getRequiredNumber(formData, "price");
+    const barnDay = isBarnBurner ? parseBarnDay(formData) : null;
+    if (isBarnBurner && !barnDay) {
+      return NextResponse.json({ error: "Barn burner day must be an integer from 1 to 7." }, { status: 400 });
+    }
 
+    const price = getRequiredNumber(formData, "price");
     const images = parseImages(formData);
 
-    // ✅ enforce barn burner values
     const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
-    const enforcedSubcategories = isBarnBurner
-      ? [barnBurnerSubcategoryForDay(barnDay as BarnDay)]
-      : subcategories;
+    const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
 
-    // PATCH validation (images optional, but rest required)
+    // PATCH validation (images optional)
     if (!name || !description || !quantityValue || !condition) {
       return NextResponse.json(
         { error: "Name, description, quantity, and condition are required." },
@@ -491,34 +434,19 @@ export const PATCH = async (request: Request) => {
     if (!Number.isInteger(quantity) || quantity < 0) {
       return NextResponse.json({ error: "Quantity must be a whole number." }, { status: 400 });
     }
-    if (!isBarnBurner && (price === null || price < 0)) {
+    if (price === null || price < 0) {
       return NextResponse.json({ error: "Price is required." }, { status: 400 });
     }
 
-    let barn_burner_started_at: string | null = null;
-    let barn_burner_day: number | null = null;
-    let barn_burner_last_tick: string | null = null;
+    const nowIso = new Date().toISOString();
 
-    if (isBarnBurner) {
-      const now = new Date();
-      barn_burner_started_at = now.toISOString();
-      barn_burner_day = barnDay as BarnDay;
-      barn_burner_last_tick = now.toISOString().slice(0, 10);
-    }
+    // When toggling programs on, reset last_tick so DB cron can handle next tick cleanly
+    const barn_burner_started_at = isBarnBurner ? nowIso : null;
+    const barn_burner_day = isBarnBurner ? barnDay : null;
+    const barn_burner_last_tick = isBarnBurner ? null : null;
 
-    let monthly_drop_started_at: string | null = null;
-    let monthly_drop_last_tick: string | null = null;
-    let monthly_drop_amount: number | null = null;
-
-    if (isMonthlyPriceDrop) {
-      const now = new Date();
-      monthly_drop_started_at = now.toISOString();
-      monthly_drop_last_tick = utcDateString(now);
-      monthly_drop_amount = monthlyDropAmount ?? 10;
-    } else {
-      monthly_drop_started_at = null;
-      monthly_drop_last_tick = null;
-    }
+    const monthly_drop_started_at = isMonthlyPriceDrop ? nowIso : null;
+    const monthly_drop_last_tick = isMonthlyPriceDrop ? null : null;
 
     const tableName = getProductsTableName();
 
@@ -536,8 +464,12 @@ export const PATCH = async (request: Request) => {
       width,
       depth,
       quantity,
+
+      // ✅ price can be edited manually; initial_price is NOT touched on edits
       price,
-      updated_at: new Date().toISOString(),
+
+      // keep updated_at if you still have the column
+      updated_at: nowIso,
 
       is_barn_burner: isBarnBurner,
       barn_burner_started_at,
@@ -551,24 +483,19 @@ export const PATCH = async (request: Request) => {
       monthly_drop_last_tick,
     };
 
-    if (isMonthlyPriceDrop) {
-      productPayload.monthly_drop_amount = monthlyDropAmount ?? 10;
-    }
-    
-
     if (images.length > 0) {
       const imageUrls = await uploadImagesToR2(images);
       productPayload.image_url = imageUrls[0];
       productPayload.image_urls = imageUrls;
 
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
-
       await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
+
       return NextResponse.json({ product: data, imageUrls }, { status: 200 });
     } else {
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
-
       await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
+
       return NextResponse.json({ product: data, imageUrls: [] }, { status: 200 });
     }
   } catch (error) {
@@ -592,15 +519,13 @@ export const GET = async (request: Request) => {
     let query = supabase
       .from(tableName)
       .select(
-        "id,name,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active," +
-        "is_barn_burner,barn_burner_started_at,barn_burner_day,barn_burner_last_tick," +
-        "is_oversized,is_monthly_price_drop,monthly_drop_started_at,monthly_drop_last_tick,monthly_drop_amount"
+        "id,name,initial_price,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active," +
+          "is_barn_burner,barn_burner_started_at,barn_burner_day,barn_burner_last_tick," +
+          "is_oversized,is_monthly_price_drop,monthly_drop_started_at,monthly_drop_last_tick"
       )
       .order("created_at", { ascending: false })
       .limit(500);
 
-    // ✅ category/subcategory are arrays — avoid ilike on arrays.
-    // We'll keep search on name only (safe).
     if (qRaw) {
       query = query.ilike("name", `%${qRaw}%`);
     }

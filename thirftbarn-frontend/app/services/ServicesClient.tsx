@@ -63,7 +63,7 @@ export default function ServicesClient() {
               >
                 <div className={styles.serviceImageWrap}>
                   <img
-                    src={`/services/${service.id}.jpg`}
+                    src={`/services/${service.id}.png`}
                     alt={service.title}
                     className={styles.serviceImage}
                     loading="lazy"

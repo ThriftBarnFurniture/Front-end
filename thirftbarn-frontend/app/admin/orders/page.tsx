@@ -10,7 +10,33 @@ export default async function AdminOrdersPage() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "order_id, order_number, customer_email, status, total, currency, channel, purchase_date, stripe_session_id, payment_id, amount_total_cents, items"
+      `
+      order_id,
+      order_number,
+      customer_email,
+      customer_name,
+      customer_phone,
+      shipping_address,
+      stripe_email,
+      status,
+      currency,
+      channel,
+      purchase_date,
+      payment_method,
+      payment_id,
+      stripe_session_id,
+      amount_total_cents,
+      subtotal,
+      tax,
+      shipping_cost,
+      promo_code,
+      promo_discount,
+      shipping_method,
+      shipping_distance_km,
+      overweight_fee,
+      total,
+      items
+      `
     )
     .order("purchase_date", { ascending: false })
     .limit(200);

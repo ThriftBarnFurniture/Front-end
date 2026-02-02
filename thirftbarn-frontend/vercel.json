@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/barn-burner/tick?secret=@barn_burner_cron_secret",
-      "schedule": "0 6 * * *"
-    }
-  ]
-}

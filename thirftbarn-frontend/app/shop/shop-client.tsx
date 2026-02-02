@@ -23,9 +23,8 @@ type ProductUI = {
   priceLabel: string;
   priceNumber: number;
 
-  // ✅ monthly price drop display
-  original_price: number | string | null;
-  monthly_drop_count: number | null;
+  // ✅ NEW: for "price dropped" display
+  initial_price: number | string | null;
 };
 
 type SortKey = "newest" | "price-asc" | "price-desc" | "name-asc" | "name-desc";
@@ -97,8 +96,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
         selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
 
       const subOk =
-        selectedSubcategories.length === 0 ||
-        p.subcategory.some((s) => selectedSubcategories.includes(s));
+        selectedSubcategories.length === 0 || p.subcategory.some((s) => selectedSubcategories.includes(s));
 
       const roomOk =
         selectedRooms.length === 0 || p.room_tags.some((r) => selectedRooms.includes(r));
@@ -274,13 +272,11 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
             {sorted.map((p) => {
               if ((p.quantity ?? 0) <= 0) return null;
 
-              const original =
-                typeof p.original_price === "string" ? Number(p.original_price) : p.original_price;
+              const initial =
+                typeof p.initial_price === "string" ? Number(p.initial_price) : p.initial_price;
 
               const showDropped =
-                (p.monthly_drop_count ?? 0) > 0 &&
-                Number.isFinite(original) &&
-                p.priceNumber < (original as number);
+                Number.isFinite(initial) && p.priceNumber < (initial as number);
 
               return (
                 <Link key={p.id} href={`/item/${p.id}`} className={styles.card}>
@@ -305,7 +301,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
 
                     {showDropped ? (
                       <div className={styles.priceRow}>
-                        <span className={styles.oldPrice}>${(original as number).toFixed(2)}</span>
+                        <span className={styles.oldPrice}>${(initial as number).toFixed(2)}</span>
                         <span className={styles.price}>${p.priceNumber.toFixed(2)}</span>
                         <span className={styles.dropBadge}>Price dropped</span>
                       </div>

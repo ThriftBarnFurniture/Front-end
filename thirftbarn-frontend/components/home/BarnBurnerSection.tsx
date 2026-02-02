@@ -59,36 +59,34 @@ export default async function BarnBurnerSection() {
               Items start at <strong>$40</strong> and drop <strong>$5 every day</strong>! <br/>
               Grab it while it's still hot!
             </p>
-            <p className={styles.barnBurnerSubtext}>
-              All unsold products can be found in our <a href="/shop?collection=5-under">5$ and Under</a> section after Day 7.
-            </p>
           </Reveal>
         </div>
 
-        <Reveal delayMs={160}>
-          <div className={styles.barnBurnerDayGrid}>
-            {days.map((d) => (
+        <div className={styles.barnBurnerDayGrid}>
+          {days.map((d, i) => (
+            <Reveal key={d.day} delayMs={160 + i * 70}>
               <Link
-                key={d.day}
-                href={`/shop?category=barn-burner&day=${d.day}`}
+                href={`/shop?category=barn-burner&subcategory=day-${d.day}`}
                 className={`${styles.barnBurnerDayCard} popHover`}
                 aria-label={`Shop Barn Burner Day ${d.day}`}
               >
-                <div className={styles.barnBurnerDayTop}>
-                  <div className={styles.barnBurnerDayBadge}>DAY {d.day}</div>
-                  <div className={styles.barnBurnerDayPrice}>${d.price.toFixed(2)}</div>
+                <div className={styles.barnBurnerDayLabel}>🔥DAY {d.day}🔥</div>
+                <div className={styles.barnBurnerDayPrice}>${d.price.toFixed(2)}</div>
+                <div className={styles.barnBurnerDayCountLine}>
+                  <span className={styles.barnBurnerDayCount}>{d.count}</span>
+                  <span className={styles.barnBurnerDayCountLabel}>items</span>
                 </div>
-
-                <div className={styles.barnBurnerDayBottom}>
-                  <div className={styles.barnBurnerDayMeta}>
-                    <span className={styles.barnBurnerDayCount}>{d.count}</span>
-                    <span className={styles.barnBurnerDayCountLabel}>items</span>
-                  </div>
-                  <div className={styles.barnBurnerDayCta}>Shop Day {d.day}→</div>
-                </div>
+                <div className={styles.barnBurnerDayCta}>➜</div>
               </Link>
-            ))}
-          </div>
+            </Reveal>
+          ))}
+        </div>
+
+
+        <Reveal delayMs={80}>
+          <p className={styles.barnBurnerSubtext}>
+            All unsold products can be found in our <a href="/shop?collection=5-under">5$ and Under</a> section after Day 7.
+          </p>
         </Reveal>
       </div>
     </section>

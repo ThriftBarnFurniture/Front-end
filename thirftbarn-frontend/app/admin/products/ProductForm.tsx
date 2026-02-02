@@ -12,9 +12,9 @@ import {
   COLOR_OPTIONS,
 } from "./productFormOptions";
 
-
-const barnBurnerPriceForDay = (day: BarnDay) => 45 - 5 * day; // day1=40 ... day7=10
-const barnBurnerSubcategoryForDay = (day: BarnDay) => `day-${day}`; // "day-1"..."day-7"
+// Day1=40, Day2=35 ... Day7=10
+const barnBurnerPriceForDay = (day: BarnDay) => Math.max(10, 40 - 5 * (day - 1));
+const barnBurnerSubcategoryForDay = (day: BarnDay) => `day-${day}`;
 
 function toggleValue(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -62,7 +62,7 @@ export const ProductForm = () => {
   // still supported (for PATCH), but hidden now
   const [productId, setProductId] = useState("");
 
-  // ✅ arrays
+  // arrays
   const [categories, setCategories] = useState<CategoryValue[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [roomTags, setRoomTags] = useState<string[]>([]);
@@ -71,6 +71,7 @@ export const ProductForm = () => {
 
   const [isBarnBurner, setIsBarnBurner] = useState(false);
   const [price, setPrice] = useState<string>("");
+
   const [isOversized, setIsOversized] = useState(false);
   const [isMonthlyPriceDrop, setIsMonthlyPriceDrop] = useState(false);
 
@@ -78,10 +79,11 @@ export const ProductForm = () => {
   const prevPriceRef = useRef<string>("");
   const prevCatsRef = useRef<CategoryValue[]>([]);
   const prevSubsRef = useRef<string[]>([]);
+
   const [barnDay, setBarnDay] = useState<BarnDay>(1);
   const [categoryWarning, setCategoryWarning] = useState<string | null>(null);
 
-  // Union subcategory options across selected categories (excluding barn-burner unless selected)
+  // Union subcategory options across selected categories
   const subcategoryOptions = useMemo<Option[]>(() => {
     const out: Option[] = [];
     const seen = new Set<string>();
@@ -112,12 +114,15 @@ export const ProductForm = () => {
     setIsSubmitting(true);
 
     try {
-      // quick client guard to match API validation (better UX)
+      // Client guards
       if (!isBarnBurner && categories.length === 0) {
         throw new Error("Please select at least one category.");
       }
       if (colors.length === 0) {
         throw new Error("Please select at least one color.");
+      }
+      if (!price.trim()) {
+        throw new Error("Please enter a price.");
       }
 
       // Ensure subs are valid for selected categories (unless barn burner)
@@ -128,38 +133,23 @@ export const ProductForm = () => {
       formData.set("is_oversized", isOversized ? "true" : "false");
       formData.set("is_monthly_price_drop", isMonthlyPriceDrop ? "true" : "false");
 
-      // Barn Burner handling (server enforces too)
+      // ✅ Barn Burner: force price + set day
       if (isBarnBurner) {
-        const locked = barnBurnerPriceForDay(barnDay);
-        formData.set("price", String(locked));
-
-        const now = new Date();
-        const today = now.toISOString().slice(0, 10);
-
+        const forced = barnBurnerPriceForDay(barnDay);
+        formData.set("price", String(forced)); // server will store this as price + initial_price via API
         formData.set("is_barn_burner", "true");
-        formData.set("barn_burner_started_at", now.toISOString());
         formData.set("barn_burner_day", String(barnDay));
-        formData.set("barn_burner_last_tick", today);
       } else {
         formData.set("is_barn_burner", "false");
-        formData.set("barn_burner_started_at", "");
         formData.set("barn_burner_day", "");
-        formData.set("barn_burner_last_tick", "");
       }
 
-      /**
-       * ✅ IMPORTANT CHANGE:
-       * Your updated API accepts arrays via repeated keys "category" and "subcategory"
-       * (and is optionally compatible with "categories"/"subcategories").
-       *
-       * We will send repeated "category" + repeated "subcategory".
-       */
+      // arrays via repeated keys
       formData.delete("category");
       formData.delete("subcategory");
       categories.forEach((v) => formData.append("category", v));
       cleanedSubs.forEach((v) => formData.append("subcategory", v));
 
-      // Arrays (already text[] in schema)
       formData.delete("room_tags");
       formData.delete("collections");
       formData.delete("colors");
@@ -180,7 +170,9 @@ export const ProductForm = () => {
 
       if (!response.ok) {
         const errorMessage =
-          typeof payload === "string" ? payload || "Unable to save product." : payload?.error ?? "Unable to save product.";
+          typeof payload === "string"
+            ? payload || "Unable to save product."
+            : payload?.error ?? "Unable to save product.";
         throw new Error(errorMessage);
       }
 
@@ -213,21 +205,15 @@ export const ProductForm = () => {
     []
   );
 
-  const roomAsOptions: Option[] = useMemo(
-    () => ROOM_TAGS.map((t) => ({ value: t.value, label: t.label })),
-    []
-  );
-
+  const roomAsOptions: Option[] = useMemo(() => ROOM_TAGS.map((t) => ({ value: t.value, label: t.label })), []);
   const collectionsAsOptions: Option[] = useMemo(
     () => COLLECTIONS.map((c) => ({ value: c.value, label: c.label })),
     []
   );
-
   const colorsAsOptions: Option[] = useMemo(() => asOptionList(COLOR_OPTIONS), []);
 
   return (
     <form className={styles.form} onSubmit={onSubmit}>
-      {/* Hidden productId for updates only */}
       <input type="hidden" name="productId" value={productId} />
 
       <div className={styles.fieldGroup}>
@@ -239,7 +225,6 @@ export const ProductForm = () => {
 
       <div className={styles.fieldGroup}>
         <div className={styles.checkboxGrid}>
-          {/* Barn Burner */}
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
@@ -252,16 +237,22 @@ export const ProductForm = () => {
                 setIsBarnBurner(checked);
 
                 if (checked) {
+                  // store current state to restore later
                   prevPriceRef.current = price;
                   prevCatsRef.current = categories;
                   prevSubsRef.current = subcategories;
 
                   const day: BarnDay = 1;
                   setBarnDay(day);
+
+                  // force barn-burner classification
                   setCategories(["barn-burner"]);
                   setSubcategories([barnBurnerSubcategoryForDay(day)]);
+
+                  // force price
                   setPrice(String(barnBurnerPriceForDay(day)));
                 } else {
+                  // restore previous values
                   setCategories(prevCatsRef.current ?? []);
                   setSubcategories(prevSubsRef.current ?? []);
                   setPrice(prevPriceRef.current || "");
@@ -271,17 +262,11 @@ export const ProductForm = () => {
             <span className={styles.checkboxLabel}>Barn Burner Item?</span>
           </label>
 
-          {/* Oversized */}
           <label className={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={isOversized}
-              onChange={(e) => setIsOversized(e.target.checked)}
-            />
+            <input type="checkbox" checked={isOversized} onChange={(e) => setIsOversized(e.target.checked)} />
             <span className={styles.checkboxLabel}>Oversized Item?</span>
           </label>
 
-          {/* Monthly price drop */}
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
@@ -297,7 +282,6 @@ export const ProductForm = () => {
           </label>
         </div>
 
-        {/* Barn burner day selector stays BELOW */}
         {isBarnBurner && (
           <div className={styles.fieldGroup}>
             <label className={styles.label} htmlFor="barn_day">
@@ -311,7 +295,7 @@ export const ProductForm = () => {
                 const day = Number(e.target.value) as BarnDay;
                 setBarnDay(day);
                 setSubcategories([barnBurnerSubcategoryForDay(day)]);
-                setPrice(String(barnBurnerPriceForDay(day)));
+                setPrice(String(barnBurnerPriceForDay(day))); // ✅ force the correct day price
               }}
             >
               <option value={1}>Day 1</option>
@@ -346,12 +330,11 @@ export const ProductForm = () => {
           min="0"
           required
           value={price}
-          disabled={isBarnBurner}
+          disabled={isBarnBurner} // ✅ lock editing
           onChange={(e) => setPrice(e.target.value)}
         />
       </div>
 
-      {/* ✅ Categories (multi) */}
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Categories *</label>
         <ChipGrid
@@ -359,11 +342,8 @@ export const ProductForm = () => {
           selected={categories}
           disabled={isBarnBurner}
           onToggle={(v) => {
-            // ❌ Block barn-burner selection from categories
             if (v === "barn-burner") {
-              setCategoryWarning(
-                "To make an item a barn-burner, please select it through the checkbox above."
-              );
+              setCategoryWarning("To make an item a barn-burner, please select it through the checkbox above.");
               return;
             }
 
@@ -372,15 +352,13 @@ export const ProductForm = () => {
             const next = toggleValue(categories as string[], v) as CategoryValue[];
             setCategories(next);
 
-            // prune subcategories not allowed anymore
             if (!isBarnBurner) {
-              const allowed = new Set(
-                next.flatMap((cat) => (SUBCATEGORY_MAP[cat] ?? []).map((s) => s.value))
-              );
+              const allowed = new Set(next.flatMap((cat) => (SUBCATEGORY_MAP[cat] ?? []).map((s) => s.value)));
               setSubcategories((prev) => prev.filter((s) => allowed.has(s)));
             }
           }}
-        />{categoryWarning && (
+        />
+        {categoryWarning && (
           <p className={styles.status} role="alert">
             {categoryWarning}
           </p>
@@ -388,7 +366,6 @@ export const ProductForm = () => {
         <p className={styles.status}>Select one or more.</p>
       </div>
 
-      {/* ✅ Subcategories (multi) */}
       {categories.length > 0 && (
         <div className={styles.fieldGroup}>
           <label className={styles.label}>Subcategories</label>
@@ -402,13 +379,11 @@ export const ProductForm = () => {
         </div>
       )}
 
-      {/* ✅ Room tags (multi) */}
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Room tags</label>
         <ChipGrid options={roomAsOptions} selected={roomTags} onToggle={(v) => setRoomTags(toggleValue(roomTags, v))} />
       </div>
 
-      {/* ✅ Collections (multi) */}
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Collections</label>
         <ChipGrid
@@ -418,14 +393,12 @@ export const ProductForm = () => {
         />
       </div>
 
-      {/* ✅ Colors (multi, required) */}
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Colors *</label>
         <ChipGrid options={colorsAsOptions} selected={colors} onToggle={(v) => setColors(toggleValue(colors, v))} />
         <p className={styles.status}>Select one or more colors.</p>
       </div>
 
-      {/* Dimensions with inches */}
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Dimensions (inches)</label>
         <div className={styles.dimGrid}>
@@ -435,7 +408,6 @@ export const ProductForm = () => {
         </div>
       </div>
 
-      {/* Condition REQUIRED */}
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="condition">
           Condition *
@@ -452,7 +424,6 @@ export const ProductForm = () => {
         </select>
       </div>
 
-      {/* Description REQUIRED */}
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="description">
           Description *
@@ -460,7 +431,6 @@ export const ProductForm = () => {
         <textarea className={styles.textarea} id="description" name="description" rows={6} required />
       </div>
 
-      {/* Photos REQUIRED*/}
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="images">
           Photos * (max 10MB)

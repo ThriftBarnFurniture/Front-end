@@ -12,6 +12,7 @@ type NewProduct = {
   id: string;
   name: string | null;
   price: number | null;
+  initial_price: number | null;
   image_url: string | null;
   image_urls: string[] | null;
   created_at: string | null;
@@ -22,7 +23,7 @@ async function getNewestProducts(limit = 5): Promise<NewProduct[]> {
 
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,price,image_url,image_urls,created_at")
+    .select("id,name,price,initial_price,image_url,image_urls,created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -34,47 +35,9 @@ async function getNewestProducts(limit = 5): Promise<NewProduct[]> {
   return (data ?? []) as NewProduct[];
 }
 
-type BarnBurnerProduct = {
-  id: string;
-  name: string | null;
-  price: number | null;
-  image_url: string | null;
-  image_urls: string[] | null;
-  created_at: string | null;
-};
-
-async function getBarnBurnerProducts(limit = 8): Promise<BarnBurnerProduct[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("products")
-    .select("id,name,price,image_url,image_urls,created_at")
-    .contains("category", ["barn-burner"])
-    .eq("is_active", true)
-    .gt("quantity", 0)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    console.error("getBarnBurnerProducts error:", error.message);
-    return [];
-  }
-
-  return (data ?? []) as BarnBurnerProduct[];
-}
-
-function getTodayLabel(d: Date) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
-}
-
 export default async function Home() {
   const newestProducts = await getNewestProducts(15);
 
-  // ✅ add this
-  const barnBurnerProducts = await getBarnBurnerProducts(10);
-
-  const now = new Date();
-  const todayLabel = getTodayLabel(now);
   const myStoreInfo = {
     name: 'Thrift Barn Furniture',
     address: '2786 ON-34',
@@ -243,33 +206,8 @@ export default async function Home() {
         </div>
       </section>
 
-
-      {/* ===== RED DIVIDER LINE ===== */}
-      <div className={styles.redDivider} />
-
-      {/* ===== NEW TO THE BARN ===== */}
-      <section className={styles.newToBarnSection} aria-label="New to the Barn">
-        <div className={styles.sectionInner}>
-          <Reveal>
-          <h2 className={styles.sectionHeading}>NEW TO THE BARN.</h2>
-          </Reveal>
-
-          {/* ✅ Carousel */}
-          <Reveal delayMs={80}>
-          <NewToBarnCarousel products={newestProducts} />
-          </Reveal>
-
-          {/* ✅ Button under carousel */}
-          <Reveal delayMs={160}>
-          <div className={styles.newToBarnCtaWrap}>
-            <Link href="/shop" className={`${styles.viewAllBtn} popHover`}>
-              View all products
-            </Link>
-          </div>
-          </Reveal>
-        </div>
-      </section>
-
+      {/* ===== BARN BURNER (LIQUIDATION) ===== */}
+      <BarnBurnerSection />
 
       {/* ===== SHOP BY CATEGORY ===== */}
       <section className={styles.shopByRoomSection} aria-label="Shop by Category">
@@ -312,8 +250,28 @@ export default async function Home() {
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />
 
-      {/* ===== BARN BURNER (LIQUIDATION) ===== */}
-      <BarnBurnerSection />
+      {/* ===== NEW TO THE BARN ===== */}
+      <section className={styles.newToBarnSection} aria-label="New to the Barn">
+        <div className={styles.sectionInner}>
+          <Reveal>
+          <h2 className={styles.sectionHeading}>NEW TO THE BARN.</h2>
+          </Reveal>
+
+          {/* ✅ Carousel */}
+          <Reveal delayMs={80}>
+          <NewToBarnCarousel products={newestProducts} />
+          </Reveal>
+
+          {/* ✅ Button under carousel */}
+          <Reveal delayMs={160}>
+          <div className={styles.newToBarnCtaWrap}>
+            <Link href="/shop" className={`${styles.viewAllBtn} popHover`}>
+              View all products
+            </Link>
+          </div>
+          </Reveal>
+        </div>
+      </section>
 
 
       {/* ===== CONTACT (INFO + MAP) ===== */}

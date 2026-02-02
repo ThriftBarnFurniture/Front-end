@@ -10,6 +10,7 @@ type Props = {
     name: string;
     price: string | number;
     image_url?: string | null;
+    is_oversized?: boolean | null;
   };
 
   disabled?: boolean;
@@ -74,6 +75,7 @@ export default function AddToCartButton({
         name: product.name,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         imageUrl: product.image_url ?? null,
+        is_oversized: Boolean(product?.is_oversized),
       },
       canAdd
     );

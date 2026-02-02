@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./orders.module.css";
 
 type AnyObj = Record<string, any>;
@@ -44,6 +44,22 @@ type OrderRow = {
   stripe_email?: string | null;
 };
 
+function formatDate(ts: string | null | undefined) {
+  if (!ts) return "—";
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "America/Toronto",
+  }).format(new Date(ts));
+}
+
+
+
 function money(n: number | null | undefined, currency = "CAD") {
   const val = typeof n === "number" && Number.isFinite(n) ? n : null;
   if (val === null) return "—";
@@ -60,7 +76,7 @@ function safeText(s: any) {
 }
 
 function parseItems(raw: any): OrderItemUI[] {
-  // If stored as JSON string
+  // If stored as JSON string wrapper
   if (typeof raw === "string") {
     try {
       return parseItems(JSON.parse(raw));
@@ -69,44 +85,58 @@ function parseItems(raw: any): OrderItemUI[] {
     }
   }
 
-  // If stored as array directly
+  // If stored as array (your case: text[] => string[])
   if (Array.isArray(raw)) {
-    return raw
-      .map((it: AnyObj): OrderItemUI | null => {
-        if (!it) return null;
+    const objs: AnyObj[] = raw
+      .map((x) => {
+        if (!x) return null;
 
+        // text[] element: JSON string
+        if (typeof x === "string") {
+          try {
+            return JSON.parse(x);
+          } catch {
+            return null;
+          }
+        }
+
+        // already an object
+        if (typeof x === "object") return x;
+
+        return null;
+      })
+      .filter(Boolean) as AnyObj[];
+
+    return objs
+      .map((it): OrderItemUI | null => {
         const name =
-          String(it.name ?? it.product_name ?? it.title ?? it.description ?? "").trim() ||
-          "Item";
+          String(it.name ?? it.product_name ?? it.title ?? it.description ?? "").trim() || "Item";
 
         const qtyRaw = it.qty ?? it.quantity ?? it.count ?? 1;
         const qty = Number.isFinite(Number(qtyRaw)) ? Math.max(1, Number(qtyRaw)) : 1;
 
-        // unit price candidates (support cents)
-        const unitPriceRaw =
-          it.unit_price ??
-          it.price ??
-          it.unitPrice ??
-          it.amount ??
-          it.amount_each ??
-          it.unit_amount;
+        // Prefer cents fields first (matches your checkout success logic)
+        const centsRaw =
+          it.unit_price_cents ??
+          it.unitPriceCents ??
+          it.unit_amount_cents ??
+          it.amount_cents ??
+          null;
 
         let unitPrice: number | null = null;
-        if (unitPriceRaw !== undefined && unitPriceRaw !== null && unitPriceRaw !== "") {
-          const n = Number(unitPriceRaw);
-          if (Number.isFinite(n)) unitPrice = n;
-        }
 
-        // if price is in cents
-        const unitCents = it.unit_amount_cents ?? it.unit_amount_cents ?? it.amount_cents ?? it.unit_amount;
-        if (unitPrice === null && Number.isFinite(Number(unitCents))) {
-          const cents = Number(unitCents);
-          // heuristic: treat >= 100 as cents
-          unitPrice = cents >= 100 ? cents / 100 : cents;
+        if (centsRaw !== null && Number.isFinite(Number(centsRaw))) {
+          unitPrice = Number(centsRaw) / 100;
+        } else {
+          // fallback: dollar fields
+          const dollarsRaw = it.unit_price ?? it.price ?? it.unitPrice ?? it.amount ?? null;
+          if (dollarsRaw !== null && Number.isFinite(Number(dollarsRaw))) {
+            unitPrice = Number(dollarsRaw);
+          }
         }
 
         return {
-          id: it.id ?? it.product_id ?? null,
+          id: it.product_id ?? it.productId ?? it.id ?? null,
           name,
           qty,
           unitPrice,
@@ -164,6 +194,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
       setBusyId(null);
     }
   }
+  
 
   async function refund(orderId: string) {
     if (!confirm("Refund this order? This will create a Stripe refund.")) return;
@@ -183,6 +214,47 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
   }
 
   const closeModal = () => setOpenId(null);
+
+  const [productMap, setProductMap] = useState<Record<string, { image_url: string | null }>>({});
+
+  useEffect(() => {
+    if (!selected) {
+      setProductMap({});
+      return;
+    }
+
+    const items = parseItems(selected.items);
+    const ids = Array.from(new Set(items.map((i) => i.id).filter(Boolean))) as string[];
+
+    if (ids.length === 0) {
+      setProductMap({});
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/products/by-ids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || "Failed to load product images.");
+
+        if (!cancelled) setProductMap((json?.products ?? {}) as Record<string, { image_url: string | null }>);
+      } catch (e) {
+        console.warn("Failed to load product images", e);
+        if (!cancelled) setProductMap({});
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   return (
     <div className={styles.wrap}>
@@ -231,7 +303,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
                   </td>
 
                   <td className={styles.td}>
-                    {o.purchase_date ? new Date(o.purchase_date).toLocaleString() : "—"}
+                    {formatDate(o.purchase_date)}
                   </td>
 
                   <td className={styles.td}>{o.customer_email ?? "—"}</td>
@@ -298,7 +370,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
                   Order {selected.order_number ?? selected.order_id}
                 </div>
                 <div className={styles.modalSubtitle}>
-                  {selected.purchase_date ? new Date(selected.purchase_date).toLocaleString() : "—"} •{" "}
+                  {formatDate(selected.purchase_date)} • 
                   {safeUpper(selected.status)} • {safeUpper(selected.channel)} • {safeUpper(selected.currency || "cad")}
                 </div>
               </div>
@@ -316,9 +388,14 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
                 const currency = safeUpper(selected.currency || "cad");
                 const total = bestTotal(selected);
 
-                const subtotal =
+                const subtotalRaw =
                   typeof selected.subtotal === "number" && Number.isFinite(selected.subtotal)
                     ? selected.subtotal
+                    : null;
+
+                const subtotal =
+                  subtotalRaw !== null && (subtotalRaw !== 0 || computedSub === 0)
+                    ? subtotalRaw
                     : computedSub;
 
                 const tax =
@@ -413,15 +490,24 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
                           {items.map((it, idx) => (
                             <div key={`${it.id ?? it.name}-${idx}`} className={styles.itemRow}>
                               <div className={styles.itemLeft}>
-                                <div className={styles.itemName}>{it.name}</div>
-                                <div className={styles.itemMeta}>
-                                  Qty: <strong>{it.qty}</strong>
-                                  {it.unitPrice !== null && (
-                                    <>
-                                      {" "}
-                                      • Unit: {money(it.unitPrice, currency)}
-                                    </>
+                                <div className={styles.itemThumb}>
+                                  {it.id && productMap[it.id]?.image_url ? (
+                                    <img
+                                      src={productMap[it.id]!.image_url!}
+                                      alt={it.name}
+                                      className={styles.itemThumbImg}
+                                    />
+                                  ) : (
+                                    <div className={styles.itemThumbFallback} />
                                   )}
+                                </div>
+
+                                <div className={styles.itemInfo}>
+                                  <div className={styles.itemName}>{it.name}</div>
+                                  <div className={styles.itemMeta}>
+                                    Qty: <strong>{it.qty}</strong>
+                                    {it.unitPrice !== null && <> • Unit: {money(it.unitPrice, currency)}</>}
+                                  </div>
                                 </div>
                               </div>
 

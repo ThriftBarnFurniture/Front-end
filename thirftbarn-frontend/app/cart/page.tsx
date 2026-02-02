@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
 
 // Pricing rules
-const OVERWEIGHT_FEE = 135;
+const OVERSIZED_FEE = 135;
 const TIER_1_MAX_KM = 49;
 const TIER_2_MAX_KM = 200;
 
@@ -67,7 +67,7 @@ export default function CartPage() {
     return parts.join(", ");
   }, [needsAddress, street, city, region, postal, country]);
 
-  const isOverweightCart = useMemo(() => items.some((it: any) => Boolean(it?.is_oversized)), [items]);
+  const hasOversizedItem = useMemo(() => items.some((it: any) => Boolean(it?.is_oversized)), [items]);
 
   // Update cart page so Qty input clamps to available stock
   useEffect(() => {
@@ -185,9 +185,9 @@ export default function CartPage() {
     if (distanceKm > TIER_2_MAX_KM) return 0;
 
     const base = computeBaseShippingFromKm(shipping, distanceKm);
-    const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
-    return Math.max(0, base + overweight);
-  }, [shipping, needsAddress, distanceKm, isOverweightCart]);
+    const oversized = shipping === "inhouse_drop" && hasOversizedItem ? OVERSIZED_FEE : 0;
+    return Math.max(0, base + oversized);
+  }, [shipping, needsAddress, distanceKm, hasOversizedItem]);
 
   const estimateText = useMemo(() => {
     if (shipping === "pickup") return "Pickup is free. Held 21 days before forfeiture.";
@@ -198,12 +198,13 @@ export default function CartPage() {
     if (!distanceKm) return "Enter your full address to calculate shipping.";
     if (distanceKm > TIER_2_MAX_KM) return "200km+ from the store — email for a case-specific quote.";
     const base = computeBaseShippingFromKm(shipping, distanceKm);
-    const overweight = isOverweightCart ? OVERWEIGHT_FEE : 0;
-    const total = base + overweight;
+    const oversized = shipping === "inhouse_drop" && hasOversizedItem ? OVERSIZED_FEE : 0;
+    const total = base + oversized;
+
     return `Distance: ${formatKm(distanceKm)} • Base: $${base.toFixed(2)}${
-      overweight ? ` • Overweight fee: $${overweight.toFixed(2)}` : ""
+      oversized ? ` • Oversized item fee: $${oversized.toFixed(2)}` : ""
     } • Estimated: $${total.toFixed(2)}`;
-  }, [shipping, needsAddress, distanceLoading, distanceError, mergedAddress, distanceKm, isOverweightCart]);
+  }, [shipping, needsAddress, distanceLoading, distanceError, mergedAddress, distanceKm, hasOversizedItem]);
 
   const checkout = async () => {
     setWarning(null);

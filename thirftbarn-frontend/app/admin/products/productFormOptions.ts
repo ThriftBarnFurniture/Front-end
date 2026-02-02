@@ -177,7 +177,7 @@ export const SUBCATEGORY_MAP: Record<
     { value: "garden", label: "Garden" },
     { value: "bicycle", label: "Bicycle" },
     { value: "bbq", label: "BBQ" },
-    { value: "raised-planer", label: "Raised Planer" },
+    { value: "raised-planter", label: "Raised Planter" },
     { value: "picnic-table", label: "Picnic table" },
     { value: "exercise-equipment", label: "Exercise Equipment" },
   ],

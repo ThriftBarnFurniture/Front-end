@@ -6,7 +6,6 @@ import ScrollToTop from "@/components/ui/ScrollToTop";
 export default async function ShopPage() {
   const products = await getShopProducts();
 
-  // Prepare client-safe data (no server imports needed in client)
   const prepared = products.map((p) => ({
     id: p.id,
     name: p.name,
@@ -18,9 +17,8 @@ export default async function ShopPage() {
     collections: p.collections ?? [],
     subcategory: p.subcategory ?? [],
 
-    // ✅ NEW (send to client)
-    original_price: p.original_price ?? null,
-    monthly_drop_count: p.monthly_drop_count ?? 0,
+    // ✅ NEW canonical comparison
+    initial_price: p.initial_price ?? null,
 
     img: getPrimaryImage(p) ?? null,
     priceLabel: formatPrice(p.price),

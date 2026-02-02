@@ -15,20 +15,32 @@ export default async function ItemPage({
   const product = await getProductById(id);
   if (!product) notFound();
 
-
-  // Optional: hide inactive items from public users
-  // If you want employees/admins to still view, handle that separately.
+  // Hide inactive items from public users
   if (!product.is_active) notFound();
 
   const images = getAllImages(product);
-  const price = formatPrice(product.price);
-  const showDropped =
-    (product.monthly_drop_count ?? 0) > 0 &&
-    product.original_price != null &&
-    Number(product.price) < Number(product.original_price);
 
-  const oldPrice = showDropped ? formatPrice(product.original_price as number) : null;
+  const currentPriceNum =
+    product.price != null ? Number(product.price) : null;
+    
+  const initialPriceNum =
+    (product as any).initial_price != null
+      ? Number((product as any).initial_price)
+      : null;
+
+  const showDropped =
+    currentPriceNum != null &&
+    initialPriceNum != null &&
+    currentPriceNum < initialPriceNum;
+
+  const price = currentPriceNum != null ? formatPrice(currentPriceNum) : "";
+  const oldPrice = showDropped && initialPriceNum != null ? formatPrice(initialPriceNum) : null;
+
   const soldOut = product.quantity !== null && product.quantity <= 0;
+
+  // Optional: program badges (purely display)
+  const isBarnBurner = Boolean((product as any).is_barn_burner);
+  const isMonthlyDrop = Boolean((product as any).is_monthly_price_drop);
 
   return (
     <main className={styles.page}>
@@ -43,24 +55,23 @@ export default async function ItemPage({
 
           <div className={styles.priceRow}>
             {showDropped ? (
-              <div className={styles.priceRow}>
+              <>
                 <div className={styles.oldPrice}>{oldPrice}</div>
                 <div className={styles.price}>{price}</div>
                 <div className={styles.dropBadge}>Price dropped</div>
-                {soldOut && <div className={styles.badge}>Sold</div>}
-              </div>
+              </>
             ) : (
-              <div className={styles.priceRow}>
-                <div className={styles.price}>{price}</div>
-                {soldOut && <div className={styles.badge}>Sold</div>}
-              </div>
+              <div className={styles.price}>{price}</div>
             )}
+
+            {/* Program badges (optional, remove if you don't want them) */}
+            {isBarnBurner && <div className={styles.dropBadge}>Barn Burner</div>}
+            {!isBarnBurner && isMonthlyDrop && <div className={styles.dropBadge}>Monthly Drop</div>}
+
             {soldOut && <div className={styles.badge}>Sold</div>}
           </div>
 
-          {product.description && (
-            <p className={styles.desc}>{product.description}</p>
-          )}
+          {product.description && <p className={styles.desc}>{product.description}</p>}
 
           <div className={styles.ctaWrap}>
             <AddToCartButton
@@ -71,18 +82,15 @@ export default async function ItemPage({
                 name: product.name,
                 price: product.price,
                 image_url: product.image_url ?? null,
+                is_oversized: Boolean((product as any).is_oversized),
               }}
             />
           </div>
 
-          {/* “Details” like the screenshot (simple dash list) */}
-          {/* “Details” */}
           <ul className={styles.details}>
-            {/* Category + Subcategory */}
             {product.category && <li>Category: {product.category.join(", ")}</li>}
             {product.subcategory && <li>Subcategory: {product.subcategory.join(", ")}</li>}
 
-            {/* room_tags / collections / colors (arrays or strings) */}
             {Array.isArray((product as any).room_tags) && (product as any).room_tags.length > 0 && (
               <li>Room Tags: {(product as any).room_tags.join(", ")}</li>
             )}
@@ -104,10 +112,8 @@ export default async function ItemPage({
               <li>Colors: {(product as any).colors}</li>
             )}
 
-            {/* Condition */}
             {product.condition && <li>Condition: {product.condition}</li>}
 
-            {/* Dimensions in ONE row: H x W x D (inches) */}
             {(() => {
               const h = product.height ?? null;
               const w = product.width ?? null;

@@ -28,7 +28,7 @@ type PromoRow = {
 
 const STORE_ADDRESS = "2786 ON-34  Hawkesbury, ON K6A 2R2";
 
-const OVERWEIGHT_FEE_CAD = 135;
+const OVERSIZED_FEE_CAD = 135;
 
 const TIER_1_MAX_KM = 49;
 const TIER_2_MAX_KM = 200;
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const hasOverweight = wanted.some((w) => Boolean(map.get(w.productId)?.is_oversized));
+    const hasOversizedItem = wanted.some((w) => Boolean(map.get(w.productId)?.is_oversized));
 
     // ✅ SERVER-CALCULATED SHIPPING (ignore any client shipping_cost)
     let distance_km: number | null = null;
@@ -223,8 +223,8 @@ export async function POST(req: Request) {
       base_shipping_cad = computeBaseShippingFromKm(shipping_method, distance_km);
     }
 
-    const overweight_fee_cad = shipping_method === "pickup" ? 0 : hasOverweight ? OVERWEIGHT_FEE_CAD : 0;
-    const shipping_cost_cad = Math.max(0, base_shipping_cad + overweight_fee_cad);
+    const oversized_fee_cad =shipping_method === "inhouse_drop" && hasOversizedItem ? OVERSIZED_FEE_CAD : 0;
+    const shipping_cost_cad = Math.max(0, base_shipping_cad + oversized_fee_cad);
 
     // Build Stripe line items from Supabase prices (secure)
     const line_items: any[] = wanted.map((w) => {
@@ -306,7 +306,7 @@ export async function POST(req: Request) {
 
       const descParts: string[] = [];
       if (distance_km != null) descParts.push(`Distance: ${distance_km.toFixed(1)} km`);
-      if (overweight_fee_cad > 0) descParts.push(`Overweight fee included`);
+      if (oversized_fee_cad > 0) descParts.push(`Oversized item fee included`);
 
       line_items.push({
         quantity: 1,
@@ -413,7 +413,7 @@ export async function POST(req: Request) {
 
         shipping_cost_cents: String(shipping_cents),
         shipping_base_cents: String(Math.round(base_shipping_cad * 100)),
-        overweight_fee_cents: String(Math.round(overweight_fee_cad * 100)),
+        oversized_fee_cents: String(Math.round(oversized_fee_cad * 100)),
         distance_km: distance_km != null ? String(distance_km) : "",
 
         promo_code: promo_applied_code ?? "",

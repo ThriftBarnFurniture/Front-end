@@ -9,6 +9,7 @@ type NewProduct = {
   id: string;
   name: string | null;
   price: number | null;
+  initial_price: number | null;
   image_url: string | null;
   image_urls: string[] | null;
   created_at: string | null;
@@ -137,8 +138,19 @@ export default function NewToBarnCarousel({
             p.image_url ||
             (Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls[0] : null) ||
             "/furniture.jpg";
+          const priceNum = p.price != null ? Number(p.price) : null;
+          const initialNum = p.initial_price != null ? Number(p.initial_price) : null;
 
-          const priceText = typeof p.price === "number" ? `$${p.price.toFixed(2)}` : "";
+          const showDropped =
+            priceNum != null &&
+            initialNum != null &&
+            Number.isFinite(priceNum) &&
+            Number.isFinite(initialNum) &&
+            priceNum < initialNum;
+
+          const priceText = priceNum != null && Number.isFinite(priceNum) ? `$${priceNum.toFixed(2)}` : "";
+          const oldPriceText =
+            initialNum != null && Number.isFinite(initialNum) ? `$${initialNum.toFixed(2)}` : "";
 
           return (
             <Link
@@ -165,7 +177,15 @@ export default function NewToBarnCarousel({
 
                 <div className={styles.meta}>
                   <p className={styles.name}>{p.name ?? "Untitled"}</p>
-                  <p className={styles.price}>{priceText}</p>
+                  {showDropped ? (
+                    <div className={styles.priceRow}>
+                      <span className={styles.oldPrice}>{oldPriceText}</span>
+                      <span className={styles.price}>{priceText}</span>
+                      <span className={styles.dropBadge}>Sale</span>
+                    </div>
+                  ) : (
+                    <p className={styles.price}>{priceText}</p>
+                  )}
                 </div>
               </article>
             </Link>
