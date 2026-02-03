@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 // OPTIONAL (recommended): attach logged-in user_id to orders
 import { createClient } from "@/utils/supabase/server";
@@ -97,6 +97,7 @@ async function getDistanceKm(origin: string, destination: string) {
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (!siteUrl) throw new Error("Missing NEXT_PUBLIC_SITE_URL");
 

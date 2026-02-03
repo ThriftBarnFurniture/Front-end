@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
 import Stripe from "stripe";
 
@@ -7,6 +7,8 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripe = getStripe();
+
   if (!webhookSecret) {
     return new NextResponse("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
   }

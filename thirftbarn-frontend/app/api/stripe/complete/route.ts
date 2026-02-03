@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
 
 type Body = {
@@ -8,6 +8,7 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripe();
     const body = (await req.json()) as Body;
     const sessionId = String(body?.sessionId || "");
     if (!sessionId) {

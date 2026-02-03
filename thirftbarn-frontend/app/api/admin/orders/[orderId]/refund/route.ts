@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 
 export async function POST(
   _req: Request,
@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     await requireAdmin();
-
+    const stripe = getStripe();
     const supabase = createSupabaseAdmin();
     const { orderId } = await ctx.params;
 
