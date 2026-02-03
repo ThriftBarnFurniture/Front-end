@@ -2,13 +2,17 @@
    Home page (uses global tokens)
    ========================================================= */
 
+/* ===== PAGE ===== */
 .page {
   width: 100%;
   background: var(--color-bg);
   padding-top: var(--header-offset);
 }
 
-/* ===== HERO ===== */
+/* =========================================================
+   HERO
+   ========================================================= */
+
 .hero {
   position: relative;
   height: 700px;
@@ -80,7 +84,10 @@
 }
 .heroButton:hover { filter: brightness(1.05); }
 
-/* ===== ABOUT ===== */
+/* =========================================================
+   ABOUT
+   ========================================================= */
+
 .aboutSection {
   padding: var(--space-10) var(--gutter) var(--space-9);
   background: var(--color-bg);
@@ -141,8 +148,6 @@
   background: url("/Icon-Leaf.svg") no-repeat center;
   background-size: contain;
 }
-
-
 
 .bigCircle {
   width: 310px;
@@ -233,6 +238,10 @@
   top: 120px;
 }
 
+/* =========================================================
+   SHARED HELPERS
+   ========================================================= */
+
 /* Divider */
 .redDivider {
   height: 1px;
@@ -241,16 +250,88 @@
   margin: 50px auto 0;
 }
 
-/* ===== NEW TO THE BARN ===== */
+.sectionInner {
+  width: min(var(--container-wide), 92vw);
+  margin: 0 auto;
+}
+
+/* =========================================================
+   SHOP BY ROOM / CATEGORY
+   ========================================================= */
+
+.shopByRoomSection {
+  padding: var(--space-9) var(--gutter) var(--space-9);
+  background: var(--color-bg);
+}
+
+.altSectionHeading {
+  margin: 0 0 26px;
+  display: flex;
+  color: var(--color-brand-dark);
+  font-family: var(--font-header);
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: var(--fs-2xl);
+}
+
+.roomGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 36px 44px;
+  justify-items: center;
+  align-items: start;
+  margin-top: 10px;
+}
+
+.roomItem {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.roomCircle {
+  position: relative;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #dedede;
+  box-shadow: var(--shadow-sm);
+}
+
+.roomLabel {
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: var(--fw-black);
+  color: var(--color-brand-dark);
+  font-size: var(--fs-base);
+}
+
+.roomItemLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.roomItemLink:hover .roomCircle {
+  transform: translateY(-2px);
+  transition: transform 0.15s ease;
+}
+
+.roomItemLink:focus-visible .roomCircle {
+  outline: 3px solid rgba(177, 15, 15, 0.35);
+  outline-offset: 4px;
+}
+
+/* =========================================================
+   NEW TO THE BARN
+   ========================================================= */
+
 .newToBarnSection {
   padding: var(--space-9) var(--gutter) var(--space-9);
   background: var(--color-bg);
   background-color: var(--color-brand-dark);
-}
-
-.sectionInner {
-  width: min(var(--container-wide), 92vw);
-  margin: 0 auto;
 }
 
 .sectionHeading {
@@ -338,75 +419,10 @@
   filter: brightness(1.05);
 }
 
+/* =========================================================
+   BARN BURNER
+   ========================================================= */
 
-
-/* ===== SHOP BY ROOM ===== */
-.shopByRoomSection {
-  padding: var(--space-9) var(--gutter) var(--space-9);
-  background: var(--color-bg);
-}
-
-.altSectionHeading {
-  margin: 0 0 26px;
-  display: flex;
-  color: var(--color-brand-dark);
-  font-family: var(--font-header);
-  font-weight: var(--fw-black);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  font-size: var(--fs-2xl);
-}
-
-.roomGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 36px 44px;
-  justify-items: center;
-  align-items: start;
-  margin-top: 10px;
-}
-
-.roomItem {
-  display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
-}
-
-.roomCircle {
-  position: relative;
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #dedede;
-  box-shadow: var(--shadow-sm);
-}
-
-.roomLabel {
-  margin: 0;
-  font-family: var(--font-text);
-  font-weight: var(--fw-black);
-  color: var(--color-brand-dark);
-  font-size: var(--fs-base);
-}
-
-.roomItemLink {
-  text-decoration: none;
-  color: inherit;
-}
-
-.roomItemLink:hover .roomCircle {
-  transform: translateY(-2px);
-  transition: transform 0.15s ease;
-}
-
-.roomItemLink:focus-visible .roomCircle {
-  outline: 3px solid rgba(177, 15, 15, 0.35);
-  outline-offset: 4px;
-}
-
-/* ===== BARN BURNER ===== */
 .barnBurnerSection {
   padding: var(--space-9) var(--gutter) var(--space-9);
   background: var(--color-brand-dark);
@@ -585,49 +601,10 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
+/* =========================================================
+   CONTACT
+   ========================================================= */
 
-/* Responsive */
-@media (max-width: 1100px) {
-  .barnBurnerDayGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .barnBurnerDayGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .barnBurnerDayCard {
-    min-height: 140px;
-  }
-}
-
-
-/* ===== Responsive ===== */
-@media (max-width: 1200px) {
-  .productRow { grid-template-columns: repeat(4, 1fr); }
-  .roomCircle { width: 230px; height: 230px; }
-}
-
-@media (max-width: 992px) {
-  .productRow { grid-template-columns: repeat(3, 1fr); }
-  .roomGrid { grid-template-columns: repeat(2, 1fr); }
-  .roomCircle { width: 220px; height: 220px; }
-}
-
-@media (max-width: 768px) {
-  .productRow { grid-template-columns: repeat(2, 1fr); }
-  .sectionHeading { text-align: center; }
-}
-
-@media (max-width: 480px) {
-  .productRow { grid-template-columns: 1fr; }
-  .roomGrid { grid-template-columns: 1fr; }
-  .roomCircle { width: 240px; height: 240px; }
-}
-
-
-/* ===== CONTACT ===== */
 .contactSection {
   width: 100%;
   scroll-margin-top: 110px;
@@ -694,6 +671,7 @@
   display: grid;
   gap: 6px;
 }
+
 .serviceContactLabel {
   margin: 0;
   color: var(--color-brand);
@@ -728,22 +706,36 @@
 }
 
 /* =========================================================
-   Media (1600 / 1200 / 992 / 768 / 480)
+   MEDIA QUERIES
    ========================================================= */
 
-@media (max-width: 1600px) {
-  /* no-op */
+@media (max-width: 1300px) {
+  .barnBurnerDayLabel{
+    font-size: 15px;
+  }
 }
 
 @media (max-width: 1200px) {
-  .contactGrid { grid-template-columns: repeat(2, 1fr); }
+  .productRow { grid-template-columns: repeat(4, 1fr); }
+  .roomCircle { width: 200px; height: 200px; }
+  .contactGrid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 1100px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 992px) {
+  .productRow { grid-template-columns: repeat(3, 1fr); }
+  .roomGrid { grid-template-columns: repeat(3, 1fr); }
+  .roomCircle { width: 200px; height: 200px; }
+
   .heroTitle { font-size: 34px; }
   .heroSubtitle { font-size: 24px; }
 
-    /* About becomes a single centered column */
+  /* About becomes a single centered column */
   .aboutLayout {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto auto;
@@ -832,11 +824,23 @@
   .aboutList li::after {
     content: none;
   }
-
 }
 
 @media (max-width: 768px) {
+  .productRow { grid-template-columns: repeat(2, 1fr); }
+  .sectionHeading { text-align: center; }
   .contactMapWrap { height: var(--map-height-mobile); padding-bottom: 650px;}
+  .roomGrid { grid-template-columns: repeat(2, 1fr); }
+  .contactGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .barnBurnerDayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .barnBurnerDayCard {
+    min-height: 140px;
+  }
 }
 
 @media (max-width: 625px) {
@@ -844,9 +848,17 @@
 }
 
 @media (max-width: 480px) {
+  .barnBurnerTitle{
+    font-size: var(--fs-xl);
+  }
   .page {
     padding-top: var(--header-offset-mobile);
   }
+
+  .productRow { grid-template-columns: 1fr; }
+  .roomGrid { grid-template-columns: 1fr; }
+  .roomCircle { width: 240px; height: 240px; }
+
   .contactMapWrap { height: var(--map-height-mobile); padding-bottom: 650px;}
 
   .aboutCircleBig {
@@ -874,6 +886,7 @@
     left: 160px;
     top: 110px;
   }
+
   .aboutBottomLeft {
     margin-bottom: -95px;
   }

@@ -22,8 +22,8 @@
   --color-border: rgba(0, 0, 0, 0.10);
 
   /* Brand */
-  --color-brand: #b10f0f;        /* primary red */
-  --color-brand-2: #ff0000;      /* marquee red / accent */
+  --color-brand: #b10f0f;
+  --color-brand-2: #ff0000;
   --color-brand-dark: #7b0d0d;
 
   /* Link */
@@ -86,6 +86,8 @@
   /* Map heights */
   --map-height-desktop: 800px;
   --map-height-mobile: 350px;
+
+  /* Shadcn tokens */
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -139,11 +141,6 @@ body {
 .leaflet-container {
   width: 100%;
   height: 100%;
-}
-
-/* Optional: reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
 }
 
 @theme inline {
@@ -245,7 +242,6 @@ body {
   filter: blur(0);
 }
 
-/* ---------- Bubbly hover / tap ---------- */
 /* ---------- Soft premium hover ---------- */
 .popHover {
   transform: translateY(0) scale(1);
@@ -267,6 +263,9 @@ body {
 
 /* ---------- Respect reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   .reveal,
   .revealIn,
   .popHover,

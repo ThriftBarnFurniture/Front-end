@@ -16,7 +16,6 @@ export default async function EditProductPage({
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  // ✅ IMPORTANT: don’t use localhost in production
   const base =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "";
 

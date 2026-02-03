@@ -16,7 +16,8 @@ export const Navbar = () => {
   const router = useRouter();
   const { totalItems } = useCart();
   const [googleReviewCount, setGoogleReviewCount] = useState<number | null>(null);
-
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // ---- NEW: auth state for the user icon ----
   const supabase = useMemo(() => createClient(), []);
@@ -239,6 +240,34 @@ export const Navbar = () => {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+
+      const clickedMenu = mobileMenuRef.current?.contains(target);
+      const clickedButton = menuButtonRef.current?.contains(target);
+
+      // only close if click is outside BOTH the menu + the hamburger button
+      if (!clickedMenu && !clickedButton) {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const onScroll = () => setMobileOpen(false);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [mobileOpen]);
+
   // ---- NEW: load admin flag from profiles.is_admin ----
   useEffect(() => {
     let cancelled = false;
@@ -312,6 +341,7 @@ export const Navbar = () => {
       <nav className={styles.navbar} aria-label="Main navigation">
         {/* Mobile hamburger (only visible under 400px via CSS) */}
         <button
+          ref={menuButtonRef}
           type="button"
           className={styles.menuButton}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -468,7 +498,7 @@ export const Navbar = () => {
       </nav>
 
       {/* Mobile dropdown (only visible under 400px via CSS) */}
-      <div className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
+      <div ref={mobileMenuRef} className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
         <Link href="/shop" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
           Shop
         </Link>
