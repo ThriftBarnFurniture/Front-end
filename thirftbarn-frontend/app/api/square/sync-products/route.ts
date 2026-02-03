@@ -250,7 +250,11 @@ export async function POST(req: Request) {
       }
 
       // Try image (best-effort)
-      const img = await upsertSquareImageIfPossible(p, up.square_item_id);
+      const squareItemId = up.square_item_id;
+      const img = squareItemId ? await upsertSquareImageIfPossible(p, squareItemId) : null;
+      const squareImageId = img?.image_id ?? null;
+
+
 
       // Save Square IDs back to Supabase for next runs (idempotent)
       const { error: upErr } = await supabase
@@ -258,7 +262,7 @@ export async function POST(req: Request) {
         .update({
           square_item_id: up.square_item_id,
           square_variation_id: up.square_variation_id,
-          square_image_id: img.image_id,
+          square_image_id: squareImageId,
         })
         .eq("id", p.id);
 
@@ -277,7 +281,7 @@ export async function POST(req: Request) {
           status: "synced",
           square_item_id: up.square_item_id,
           square_variation_id: up.square_variation_id,
-          square_image_id: img.image_id,
+          square_image_id: squareImageId,
         });
       }
 
