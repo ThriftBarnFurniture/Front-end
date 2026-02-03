@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+
+const stripe = getStripe();
+
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 // OPTIONAL (recommended): attach logged-in user_id to orders
 import { createClient } from "@/utils/supabase/server";

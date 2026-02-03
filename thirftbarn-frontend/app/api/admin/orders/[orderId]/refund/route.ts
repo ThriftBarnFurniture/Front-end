@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+
+const stripe = getStripe();
+
 
 export async function POST(
   _req: Request,
