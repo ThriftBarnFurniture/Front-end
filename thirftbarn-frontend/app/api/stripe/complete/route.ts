@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
-
-const stripe = getStripe();
-
+import { stripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
 
 type Body = {
