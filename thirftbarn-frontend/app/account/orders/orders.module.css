@@ -66,3 +66,71 @@
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
+
+
+
+/* Action buttons */
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  background: transparent;
+  color: #111;
+  border: 1.5px solid rgba(0, 0, 0, 0.16);
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.ghostBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  border: 2px solid #b10012;
+  background: rgba(177, 0, 18, 0.06);
+  color: #b10012;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.dangerBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.1);
+}
+
+.actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}

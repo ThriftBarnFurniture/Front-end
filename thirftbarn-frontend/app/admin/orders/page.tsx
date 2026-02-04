@@ -51,7 +51,7 @@ export default async function AdminOrdersPage() {
   }
 
   return (
-    <div style={{ padding: 24, marginTop: '200px' }}>
+    <div style={{ padding: 24, marginTop: '150px', paddingBottom: '100px' }}>
       <h1 style={{ fontSize: 28, fontWeight: 900 }}>Orders</h1>
       <OrdersTable initialOrders={orders ?? []} />
     </div>

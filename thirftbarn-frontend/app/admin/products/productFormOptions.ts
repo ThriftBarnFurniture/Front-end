@@ -258,8 +258,6 @@ export const COLOR_OPTIONS = [
   "Yellow",
   "Orange",
   "Clear/Glass",
-  "Transparent",
-  "Multicolor",
   "Brass",
   "Copper",
   "Chrome",

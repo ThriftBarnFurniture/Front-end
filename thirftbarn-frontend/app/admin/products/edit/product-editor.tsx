@@ -45,7 +45,7 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
           className={styles.search}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name, price, colors, or category…"
+          placeholder="Find a product or click one in the list below"
         />
       </div>
 

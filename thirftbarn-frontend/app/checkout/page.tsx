@@ -130,18 +130,23 @@ export default function CheckoutPage() {
         if (res.ok) {
           const data = await res.json();
 
-          const full = String(data?.full_name ?? "").trim();
-          if (full && (!firstName || !lastName)) {
-            const parts = full.split(" ").filter(Boolean);
-            if (parts.length === 1) setFirstName(parts[0]);
-            if (parts.length >= 2) {
-              setFirstName(parts[0]);
-              setLastName(parts.slice(1).join(" "));
-            }
-          }
+          // name
+          if (data?.first_name) setFirstName(String(data.first_name));
+          if (data?.last_name) setLastName(String(data.last_name));
 
+          // fallback to full_name if first/last missing (optional)
+          // (keep your existing full_name split logic if you want)
+
+          // email/phone
           if (data?.email) setEmail(String(data.email));
           if (data?.phone) setPhone(String(data.phone));
+
+          // address fields (ONLY if user hasn't typed yet)
+          if (data?.street) setStreet(String(data.street));
+          if (data?.city) setCity(String(data.city));
+          if (data?.region) setRegion(String(data.region));
+          if (data?.postal) setPostal(String(data.postal));
+          if (data?.country) setCountry(String(data.country));
         }
       } catch {
         // ignore

@@ -14,6 +14,15 @@ export default async function OrdersPage() {
           <div className={accountStyles.titleWrap}>
             <h1 className={accountStyles.h1}>Orders</h1>
             <p className={accountStyles.sub}>Your order history.</p>
+
+            <div className={styles.actions}>
+              <Link className={styles.ghostBtn} href="/account">
+                Back
+              </Link>
+              <Link className={styles.dangerBtn} href="/logout">
+                Sign out
+              </Link>
+            </div>
           </div>
         </div>
 

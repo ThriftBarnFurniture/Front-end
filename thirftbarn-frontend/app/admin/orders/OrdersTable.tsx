@@ -370,8 +370,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
                   Order {selected.order_number ?? selected.order_id}
                 </div>
                 <div className={styles.modalSubtitle}>
-                  {formatDate(selected.purchase_date)} • 
-                  {safeUpper(selected.status)} • {safeUpper(selected.channel)} • {safeUpper(selected.currency || "cad")}
+                  {formatDate(selected.purchase_date)} • {safeUpper(selected.status)} • {safeUpper(selected.channel)} • {safeUpper(selected.currency || "cad")}
                 </div>
               </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import styles from "./page.module.css";
+import React, { useMemo, useRef, useState } from "react";
+import styles from "./forms.module.css";
 import type { BarnDay, CategoryValue, Option } from "./productFormOptions";
 import {
   CATEGORY_OPTIONS,
@@ -55,33 +55,152 @@ function ChipGrid({
   );
 }
 
-export const ProductForm = () => {
+function colorToHex(label: string) {
+  const k = label.trim().toLowerCase();
+
+  // Basic + your common furniture colors
+  const map: Record<string, string> = {
+    black: "#111111",
+    white: "#ffffff",
+    gray: "#9ca3af",
+    grey: "#9ca3af",
+    silver: "#c0c0c0",
+    gold: "#d4af37",
+    beige: "#f5f5dc",
+    cream: "#fffdd0",
+    brown: "#8b5a2b",
+    tan: "#d2b48c",
+
+    "natural wood": "#c8a165",
+    oak: "#c9a26b",
+    walnut: "#5b3a29",
+    cherry: "#7b2d26",
+    pine: "#d6c28f",
+    mahogany: "#4a1f1f",
+
+    blue: "#2563eb",
+    navy: "#1e3a8a",
+    teal: "#0f766e",
+    green: "#16a34a",
+    olive: "#556b2f",
+    red: "#dc2626",
+    burgundy: "#800020",
+    pink: "#ec4899",
+    purple: "#7c3aed",
+    yellow: "#f59e0b",
+    orange: "#f97316",
+
+    brass: "#b5a642",
+    copper: "#b87333",
+    chrome: "#bfc5c9",
+
+    "clear/glass": "#e5e7eb",
+  };
+
+  return map[k] ?? "#111111";
+}
+
+function ColorChipGrid({
+  options,
+  selected,
+  onToggle,
+  disabled,
+}: {
+  options: Option[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={styles.chipGrid} aria-disabled={disabled ? "true" : "false"}>
+      {options.map((o) => {
+        const active = selected.includes(o.value);
+        const hex = colorToHex(o.label);
+        const isWhite = o.label.trim().toLowerCase() === "white";
+
+        return (
+          <button
+            key={o.value}
+            type="button"
+            className={[styles.chip, styles.colorChip, active ? styles.chipActive : ""].join(" ")}
+            onClick={() => !disabled && onToggle(o.value)}
+            disabled={disabled}
+            style={
+              {
+                ["--swatch" as any]: hex,
+                ["--tint" as any]: active && !isWhite ? `${hex}22` : "transparent",
+              } as React.CSSProperties
+            }
+          >
+            <span className={[styles.swatch, isWhite ? styles.swatchWhite : ""].join(" ")} aria-hidden />
+            <span className={styles.colorLabel}>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export const ProductForm = ({
+  mode = "create",
+  initialProduct,
+}: {
+  mode?: "create" | "edit";
+  initialProduct?: Record<string, any>;
+}) => {
+  const init = initialProduct ?? {};
+
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // still supported (for PATCH), but hidden now
-  const [productId, setProductId] = useState("");
+  // supported (PATCH), hidden input
+  const [productId, setProductId] = useState<string>(mode === "edit" ? String(init.id ?? "") : "");
 
-  // arrays
-  const [categories, setCategories] = useState<CategoryValue[]>([]);
-  const [subcategories, setSubcategories] = useState<string[]>([]);
-  const [roomTags, setRoomTags] = useState<string[]>([]);
-  const [collections, setCollections] = useState<string[]>([]);
-  const [colors, setColors] = useState<string[]>([]);
+  // arrays (prefill in edit)
+  const [categories, setCategories] = useState<CategoryValue[]>(() => {
+    const v = init.category ?? init.categories;
+    if (Array.isArray(v)) return v as CategoryValue[];
+    if (typeof v === "string" && v.trim()) return [v as CategoryValue];
+    return [];
+  });
 
-  const [isBarnBurner, setIsBarnBurner] = useState(false);
-  const [price, setPrice] = useState<string>("");
+  const [subcategories, setSubcategories] = useState<string[]>(() => {
+    const v = init.subcategory ?? init.subcategories;
+    if (Array.isArray(v)) return v.filter(Boolean);
+    if (typeof v === "string" && v.trim()) return [v];
+    return [];
+  });
 
-  const [isOversized, setIsOversized] = useState(false);
-  const [isMonthlyPriceDrop, setIsMonthlyPriceDrop] = useState(false);
+  const [roomTags, setRoomTags] = useState<string[]>(() => (Array.isArray(init.room_tags) ? init.room_tags : []));
+  const [collections, setCollections] = useState<string[]>(() => (Array.isArray(init.collections) ? init.collections : []));
+  const [colors, setColors] = useState<string[]>(() => (Array.isArray(init.colors) ? init.colors : []));
+
+  const [isBarnBurner, setIsBarnBurner] = useState<boolean>(!!init.is_barn_burner);
+  const [barnDay, setBarnDay] = useState<BarnDay>((Number(init.barn_burner_day ?? 1) || 1) as BarnDay);
+
+  const [price, setPrice] = useState<string>(() => (init.price != null ? String(init.price) : ""));
+  const [isOversized, setIsOversized] = useState<boolean>(!!init.is_oversized);
+  const [isMonthlyPriceDrop, setIsMonthlyPriceDrop] = useState<boolean>(!!init.is_monthly_price_drop);
 
   // for restoring when toggling barn burner off
   const prevPriceRef = useRef<string>("");
   const prevCatsRef = useRef<CategoryValue[]>([]);
   const prevSubsRef = useRef<string[]>([]);
 
-  const [barnDay, setBarnDay] = useState<BarnDay>(1);
   const [categoryWarning, setCategoryWarning] = useState<string | null>(null);
+
+  // Existing photos for edit mode
+  const initialImages = useMemo(() => {
+    const arr = Array.isArray(init?.image_urls) ? init.image_urls.filter(Boolean) : [];
+    const single = init?.image_url ? [init.image_url] : [];
+    return Array.from(new Set([...arr, ...single]));
+  }, [init]);
+
+  const [keptImages, setKeptImages] = useState<string[]>(initialImages);
+
+  const onToggleRemove = (url: string) => {
+    setKeptImages((prev) => (prev.includes(url) ? prev.filter((x) => x !== url) : [...prev, url]));
+  };
 
   // Union subcategory options across selected categories
   const subcategoryOptions = useMemo<Option[]>(() => {
@@ -115,28 +234,23 @@ export const ProductForm = () => {
 
     try {
       // Client guards
-      if (!isBarnBurner && categories.length === 0) {
-        throw new Error("Please select at least one category.");
-      }
-      if (colors.length === 0) {
-        throw new Error("Please select at least one color.");
-      }
-      if (!price.trim()) {
-        throw new Error("Please enter a price.");
-      }
+      if (!isBarnBurner && categories.length === 0) throw new Error("Please select at least one category.");
+      if (colors.length === 0) throw new Error("Please select at least one color.");
+      if (!price.trim()) throw new Error("Please enter a price.");
 
       // Ensure subs are valid for selected categories (unless barn burner)
       const cleanedSubs = isBarnBurner ? subcategories : subcategories.filter((s) => validSubSet.has(s));
 
       const formData = new FormData(form);
 
+      // booleans
       formData.set("is_oversized", isOversized ? "true" : "false");
       formData.set("is_monthly_price_drop", isMonthlyPriceDrop ? "true" : "false");
 
       // ✅ Barn Burner: force price + set day
       if (isBarnBurner) {
         const forced = barnBurnerPriceForDay(barnDay);
-        formData.set("price", String(forced)); // server will store this as price + initial_price via API
+        formData.set("price", String(forced));
         formData.set("is_barn_burner", "true");
         formData.set("barn_burner_day", String(barnDay));
       } else {
@@ -157,8 +271,15 @@ export const ProductForm = () => {
       collections.forEach((v) => formData.append("collections", v));
       colors.forEach((v) => formData.append("colors", v));
 
-      const selectedProductId = String(formData.get("productId") ?? "").trim();
-      const method = selectedProductId ? "PATCH" : "POST";
+      // edit mode extras: productId + keep_image_urls
+      if (mode === "edit") {
+        const id = String(init.id ?? productId).trim();
+        formData.set("productId", id);
+        formData.delete("keep_image_urls");
+        keptImages.forEach((u) => formData.append("keep_image_urls", u));
+      }
+
+      const method = mode === "edit" ? "PATCH" : "POST";
 
       const response = await fetch("/api/admin/products", {
         method,
@@ -170,28 +291,28 @@ export const ProductForm = () => {
 
       if (!response.ok) {
         const errorMessage =
-          typeof payload === "string"
-            ? payload || "Unable to save product."
-            : payload?.error ?? "Unable to save product.";
+          typeof payload === "string" ? payload || "Unable to save product." : payload?.error ?? "Unable to save product.";
         throw new Error(errorMessage);
       }
 
-      // reset UI
-      form.reset();
-      setIsBarnBurner(false);
-      setIsMonthlyPriceDrop(false);
-      setIsOversized(false);
-      setBarnDay(1);
-      setPrice("");
-      setProductId("");
+      if (mode !== "edit") {
+        // reset UI on create only
+        form.reset();
+        setIsBarnBurner(false);
+        setIsMonthlyPriceDrop(false);
+        setIsOversized(false);
+        setBarnDay(1);
+        setPrice("");
+        setProductId("");
 
-      setCategories([]);
-      setSubcategories([]);
-      setRoomTags([]);
-      setCollections([]);
-      setColors([]);
+        setCategories([]);
+        setSubcategories([]);
+        setRoomTags([]);
+        setCollections([]);
+        setColors([]);
+      }
 
-      setStatus("Product saved successfully.");
+      setStatus(mode === "edit" ? "Saved ✅" : "Product saved successfully.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong.";
       setStatus(message);
@@ -206,10 +327,7 @@ export const ProductForm = () => {
   );
 
   const roomAsOptions: Option[] = useMemo(() => ROOM_TAGS.map((t) => ({ value: t.value, label: t.label })), []);
-  const collectionsAsOptions: Option[] = useMemo(
-    () => COLLECTIONS.map((c) => ({ value: c.value, label: c.label })),
-    []
-  );
+  const collectionsAsOptions: Option[] = useMemo(() => COLLECTIONS.map((c) => ({ value: c.value, label: c.label })), []);
   const colorsAsOptions: Option[] = useMemo(() => asOptionList(COLOR_OPTIONS), []);
 
   return (
@@ -220,7 +338,7 @@ export const ProductForm = () => {
         <label className={styles.label} htmlFor="name">
           Product Name *
         </label>
-        <input className={styles.input} id="name" name="name" type="text" required />
+        <input className={styles.input} id="name" name="name" type="text" required defaultValue={init.name ?? ""} />
       </div>
 
       <div className={styles.fieldGroup}>
@@ -237,22 +355,17 @@ export const ProductForm = () => {
                 setIsBarnBurner(checked);
 
                 if (checked) {
-                  // store current state to restore later
                   prevPriceRef.current = price;
                   prevCatsRef.current = categories;
                   prevSubsRef.current = subcategories;
 
-                  const day: BarnDay = 1;
+                  const day: BarnDay = (Number(init.barn_burner_day ?? 1) || 1) as BarnDay;
                   setBarnDay(day);
 
-                  // force barn-burner classification
                   setCategories(["barn-burner"]);
                   setSubcategories([barnBurnerSubcategoryForDay(day)]);
-
-                  // force price
                   setPrice(String(barnBurnerPriceForDay(day)));
                 } else {
-                  // restore previous values
                   setCategories(prevCatsRef.current ?? []);
                   setSubcategories(prevSubsRef.current ?? []);
                   setPrice(prevPriceRef.current || "");
@@ -295,7 +408,7 @@ export const ProductForm = () => {
                 const day = Number(e.target.value) as BarnDay;
                 setBarnDay(day);
                 setSubcategories([barnBurnerSubcategoryForDay(day)]);
-                setPrice(String(barnBurnerPriceForDay(day))); // ✅ force the correct day price
+                setPrice(String(barnBurnerPriceForDay(day)));
               }}
             >
               <option value={1}>Day 1</option>
@@ -314,7 +427,16 @@ export const ProductForm = () => {
         <label className={styles.label} htmlFor="quantity">
           Quantity *
         </label>
-        <input className={styles.input} id="quantity" name="quantity" type="number" step="1" min="0" required />
+        <input
+          className={styles.input}
+          id="quantity"
+          name="quantity"
+          type="number"
+          step="1"
+          min="0"
+          required
+          defaultValue={init.quantity ?? 0}
+        />
       </div>
 
       <div className={styles.fieldGroup}>
@@ -330,7 +452,7 @@ export const ProductForm = () => {
           min="0"
           required
           value={price}
-          disabled={isBarnBurner} // ✅ lock editing
+          disabled={isBarnBurner}
           onChange={(e) => setPrice(e.target.value)}
         />
       </div>
@@ -386,25 +508,45 @@ export const ProductForm = () => {
 
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Collections</label>
-        <ChipGrid
-          options={collectionsAsOptions}
-          selected={collections}
-          onToggle={(v) => setCollections(toggleValue(collections, v))}
-        />
+        <ChipGrid options={collectionsAsOptions} selected={collections} onToggle={(v) => setCollections(toggleValue(collections, v))} />
       </div>
 
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Colors *</label>
-        <ChipGrid options={colorsAsOptions} selected={colors} onToggle={(v) => setColors(toggleValue(colors, v))} />
+        <ColorChipGrid options={colorsAsOptions} selected={colors} onToggle={(v) => setColors(toggleValue(colors, v))} />
         <p className={styles.status}>Select one or more colors.</p>
       </div>
 
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Dimensions (inches)</label>
         <div className={styles.dimGrid}>
-          <input className={styles.input} name="height" type="number" step="0.01" min="0" placeholder='Height (")' />
-          <input className={styles.input} name="width" type="number" step="0.01" min="0" placeholder='Width (")' />
-          <input className={styles.input} name="depth" type="number" step="0.01" min="0" placeholder='Depth (")' />
+          <input
+            className={styles.input}
+            name="height"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder='Height (")'
+            defaultValue={init.height ?? ""}
+          />
+          <input
+            className={styles.input}
+            name="width"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder='Width (")'
+            defaultValue={init.width ?? ""}
+          />
+          <input
+            className={styles.input}
+            name="depth"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder='Depth (")'
+            defaultValue={init.depth ?? ""}
+          />
         </div>
       </div>
 
@@ -412,7 +554,7 @@ export const ProductForm = () => {
         <label className={styles.label} htmlFor="condition">
           Condition *
         </label>
-        <select className={styles.input} id="condition" name="condition" required defaultValue="">
+        <select className={styles.input} id="condition" name="condition" required defaultValue={init.condition ?? ""}>
           <option value="" disabled>
             Select…
           </option>
@@ -428,18 +570,59 @@ export const ProductForm = () => {
         <label className={styles.label} htmlFor="description">
           Description *
         </label>
-        <textarea className={styles.textarea} id="description" name="description" rows={6} required />
+        <textarea className={styles.textarea} id="description" name="description" rows={6} required defaultValue={init.description ?? ""} />
       </div>
+
+      {mode === "edit" && (
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Current photos</label>
+
+          {initialImages.length === 0 ? (
+            <p className={styles.status}>No photos found.</p>
+          ) : (
+            <div className={styles.imageGrid}>
+              {initialImages.map((url: string) => {
+                const kept = keptImages.includes(url);
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    className={[styles.imageTile, kept ? "" : styles.imageTileRemove].join(" ")}
+                    onClick={() => onToggleRemove(url)}
+                    title={kept ? "Click to remove" : "Click to keep"}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className={styles.imageThumb} />
+                    <div className={styles.imageCaption}>{kept ? "Keeping" : "Will remove"}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <p className={styles.status}>
+            Click a photo to toggle <strong>remove/keep</strong>.
+          </p>
+        </div>
+      )}
 
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="images">
-          Photos * (max 10MB)
+          {mode === "edit" ? "Add new photos (optional)" : "Photos * (max 10MB)"}
         </label>
-        <input className={styles.input} id="images" name="images" type="file" accept="image/*" multiple required />
+        <input
+          className={styles.input}
+          id="images"
+          name="images"
+          type="file"
+          accept="image/*"
+          multiple
+          required={mode !== "edit"}
+        />
       </div>
 
       <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving..." : "Upload product"}
+        {isSubmitting ? "Saving..." : mode === "edit" ? "Save changes" : "Upload product"}
       </button>
 
       {status && <p className={styles.status}>{status}</p>}

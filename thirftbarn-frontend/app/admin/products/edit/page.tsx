@@ -1,11 +1,11 @@
+import Link from "next/link";
 import styles from "../page.module.css";
 import { ProductEditor } from "./product-editor";
 import { cookies } from "next/headers";
 
 export default async function AdminProductsEditPage() {
-  const cookieStore = await cookies(); // ✅ MUST await
+  const cookieStore = await cookies();
 
-  // Convert cookies to "key=value; key2=value2" format
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
@@ -13,9 +13,7 @@ export default async function AdminProductsEditPage() {
 
   const res = await fetch("https://front-end-cdca.vercel.app/api/admin/products", {
     cache: "no-store",
-    headers: {
-      cookie: cookieHeader, // ✅ correct
-    },
+    headers: { cookie: cookieHeader },
   });
 
   const data = res.ok ? await res.json() : [];
@@ -23,17 +21,24 @@ export default async function AdminProductsEditPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.card}>
-        <header className={styles.header}>
-          <p className={styles.eyebrow}>Admin</p>
-          <h1 className={styles.title}>Edit Products</h1>
-          <p className={styles.subtitle}>
-            Search by name, price, colors, or category.
-          </p>
-        </header>
+      <div className={styles.container}>
+        <section className={styles.card}>
+          <header className={styles.header}>
+            <div className={styles.titleWrap}>
+              <p className={styles.eyebrow}>Admin</p>
+              <h1 className={styles.title}>Edit Products</h1>
+            </div>
 
-        <ProductEditor initialProducts={products} />
-      </section>
+            <div className={styles.actions}>
+              <Link href="/admin/products" className={styles.dangerBtn}>
+                ← Back
+              </Link>
+            </div>
+          </header>
+
+          <ProductEditor initialProducts={products} />
+        </section>
+      </div>
     </main>
   );
 }

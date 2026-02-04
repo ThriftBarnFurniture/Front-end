@@ -4,37 +4,43 @@ import styles from "./page.module.css";
 export default function AdminProductsPage() {
   return (
     <main className={styles.page}>
-      <section className={styles.card}>
+      <div className={styles.container}>
         <header className={styles.header}>
-          <p className={styles.eyebrow}>Admin</p>
-          <h1 className={styles.title}>Manage Products</h1>
-          <p className={styles.subtitle}>
-            Choose an action: upload a new product or search/edit existing ones.
-          </p>
+          <div className={styles.titleWrap}>
+            <h1 className={styles.h1}>Manage Products</h1>
+          </div>
+
+          <div className={styles.actions}>
+            <Link className={styles.dangerBtn} href="/">
+              Back to Store
+            </Link>
+          </div>
         </header>
 
-        <div className={styles.actions}>
-          <Link href="/admin/products/upload" className={styles.actionCard}>
-            <div className={styles.actionTop}>
-              <h2 className={styles.actionTitle}>Upload Product</h2>
-              <p className={styles.actionDesc}>
-                Add a new item to Supabase and upload images.
-              </p>
-            </div>
-            <span className={styles.actionCta}>Go to upload →</span>
-          </Link>
+        <h2 className={styles.sectionTitle}>Select a tool</h2>
 
-          <Link href="/admin/products/edit" className={styles.actionCard}>
-            <div className={styles.actionTop}>
-              <h2 className={styles.actionTitle}>Edit Product</h2>
-              <p className={styles.actionDesc}>
-                Browse + search existing products by name, price, color, category.
-              </p>
+        <div className={styles.grid}>
+          <section className={styles.card}>
+            <h3 className={styles.cardTitle}>Upload Product</h3>
+            <p className={styles.cardText}>Add a new item to Supabase.</p>
+            <div className={styles.cardLinkRow}>
+              <Link className={styles.linkPill} href="/admin/products/upload">
+                Upload <span aria-hidden>›</span>
+              </Link>
             </div>
-            <span className={styles.actionCta}>Go to editor →</span>
-          </Link>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.cardTitle}>Edit Products</h3>
+            <p className={styles.cardText}>Edit existing Products.</p>
+            <div className={styles.cardLinkRow}>
+              <Link className={styles.linkPill} href="/admin/products/edit">
+                Edit <span aria-hidden>›</span>
+              </Link>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

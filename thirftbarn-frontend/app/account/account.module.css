@@ -277,6 +277,13 @@
 }
 
 /* ProfileForm layout */
+
+.inlineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .kv {
   margin-top: 16px;
   display: grid;
