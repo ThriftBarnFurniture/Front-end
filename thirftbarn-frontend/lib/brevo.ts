@@ -1,5 +1,3 @@
-import SibApiV3Sdk from "sib-api-v3-sdk";
-
 type OrderItem = {
   name?: string | null;
   qty?: number | null;
@@ -30,7 +28,7 @@ function money(n: number | null | undefined, currency: string | null | undefined
   }
 }
 
-function escapeHtml(s: string) {
+function esc(s: string) {
   return s
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -49,12 +47,6 @@ export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
   if (!toEmail) throw new Error("Missing SERVICES_OWNER_EMAIL");
   if (!fromEmail) throw new Error("Missing BREVO_FROM_EMAIL");
 
-  // Configure Brevo client
-  const client = SibApiV3Sdk.ApiClient.instance;
-  client.authentications["api-key"].apiKey = apiKey;
-
-  const api = new SibApiV3Sdk.TransactionalEmailsApi();
-
   const subject = `New order${payload.orderNumber ? ` #${payload.orderNumber}` : ""} — ${money(
     payload.total ?? null,
     payload.currency ?? "CAD"
@@ -62,46 +54,57 @@ export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
 
   const itemsHtml =
     payload.items && payload.items.length
-      ? `<ul>
-          ${payload.items
-            .map((it) => {
-              const name = escapeHtml(it.name || "Item");
-              const qty = it.qty ?? 1;
-              const unit = it.unitPrice ?? null;
-              return `<li><b>${name}</b> — qty: ${qty}${unit != null ? ` — unit: ${money(unit, payload.currency)}` : ""}</li>`;
-            })
-            .join("")}
-        </ul>`
-      : `<p><i>No item details available in payload.</i></p>`;
+      ? `<ul>${payload.items
+          .map((it) => {
+            const name = esc(it.name || "Item");
+            const qty = it.qty ?? 1;
+            const unit = it.unitPrice ?? null;
+            return `<li><b>${name}</b> — qty: ${qty}${unit != null ? ` — unit: ${esc(money(unit, payload.currency))}` : ""}</li>`;
+          })
+          .join("")}</ul>`
+      : `<p><i>No item details available.</i></p>`;
 
-  const html = `
+  const htmlContent = `
     <div style="font-family:Arial,sans-serif;line-height:1.4">
       <h2 style="margin:0 0 8px">New order received</h2>
       <p style="margin:0 0 12px">
-        <b>Order:</b> ${escapeHtml(payload.orderNumber || "—")}<br/>
-        <b>Total:</b> ${escapeHtml(money(payload.total ?? null, payload.currency ?? "CAD"))}<br/>
-        <b>Stripe session:</b> ${escapeHtml(payload.stripeSessionId || "—")}
+        <b>Order:</b> ${esc(payload.orderNumber || "—")}<br/>
+        <b>Total:</b> ${esc(money(payload.total ?? null, payload.currency ?? "CAD"))}<br/>
+        <b>Stripe session:</b> ${esc(payload.stripeSessionId || "—")}
       </p>
 
       <h3 style="margin:18px 0 6px">Customer</h3>
       <p style="margin:0 0 12px">
-        <b>Name:</b> ${escapeHtml(payload.customerName || "—")}<br/>
-        <b>Email:</b> ${escapeHtml(payload.customerEmail || "—")}<br/>
-        <b>Phone:</b> ${escapeHtml(payload.customerPhone || "—")}
+        <b>Name:</b> ${esc(payload.customerName || "—")}<br/>
+        <b>Email:</b> ${esc(payload.customerEmail || "—")}<br/>
+        <b>Phone:</b> ${esc(payload.customerPhone || "—")}
       </p>
 
       <h3 style="margin:18px 0 6px">Shipping</h3>
-      <p style="margin:0 0 12px">${escapeHtml(payload.shippingAddress || "—")}</p>
+      <p style="margin:0 0 12px">${esc(payload.shippingAddress || "—")}</p>
 
       <h3 style="margin:18px 0 6px">Items</h3>
       ${itemsHtml}
     </div>
   `;
 
-  await api.sendTransacEmail({
-    sender: { email: fromEmail, name: fromName },
-    to: [{ email: toEmail }],
-    subject,
-    htmlContent: html,
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": apiKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { email: fromEmail, name: fromName },
+      to: [{ email: toEmail }],
+      subject,
+      htmlContent,
+    }),
   });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Brevo send failed: ${res.status} ${res.statusText} ${text}`);
+  }
 }
