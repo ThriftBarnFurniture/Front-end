@@ -39,12 +39,12 @@ function esc(s: string) {
 
 export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
   const apiKey = process.env.BREVO_API_KEY;
-  const toEmail = process.env.SERVICES_OWNER_EMAIL;
+  const toEmail = process.env.BREVO_OWNER_EMAIL;
   const fromEmail = process.env.BREVO_FROM_EMAIL;
   const fromName = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
 
   if (!apiKey) throw new Error("Missing BREVO_API_KEY");
-  if (!toEmail) throw new Error("Missing SERVICES_OWNER_EMAIL");
+  if (!toEmail) throw new Error("Missing BREVO_OWNER_EMAIL");
   if (!fromEmail) throw new Error("Missing BREVO_FROM_EMAIL");
 
   const subject = `New order${payload.orderNumber ? ` #${payload.orderNumber}` : ""} — ${money(

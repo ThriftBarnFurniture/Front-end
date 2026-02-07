@@ -180,9 +180,9 @@ export async function POST(req: Request) {
     const SMTP_USER = requiredEnv("BREVO_SMTP_USER");
     const SMTP_PASS = requiredEnv("BREVO_SMTP_PASS");
 
-    const FROM_EMAIL = requiredEnv("SERVICES_FROM_EMAIL");
-    const FROM_NAME = process.env.SERVICES_FROM_NAME ?? "Thrift Barn Furniture";
-    const OWNER_TO_EMAIL = requiredEnv("SERVICES_OWNER_EMAIL");
+    const FROM_EMAIL = requiredEnv("BREVO_FROM_EMAIL");
+    const FROM_NAME = process.env.BREVO_FROM_NAME ?? "Thrift Barn Furniture";
+    const OWNER_TO_EMAIL = requiredEnv("BREVO_OWNER_EMAIL");
 
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,

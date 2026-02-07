@@ -136,7 +136,7 @@ export async function fulfillStripeCheckoutSession(
 
   const order_id = updated.order_id as string;
 
-  // Decrement inventory + write inventory_events
+  // Decrement inventory
   for (const w of wanted) {
     const p = pMap.get(w.productId)!;
     const newQty = (Number(p.quantity) || 0) - w.quantity;
@@ -147,19 +147,6 @@ export async function fulfillStripeCheckoutSession(
       .eq("id", w.productId);
 
     if (prodErr) throw new Error(prodErr.message);
-
-    const { error: logErr } = await supabase.from("inventory_events").insert({
-      product_id: w.productId,
-      delta: -w.quantity,
-      reason: "sale",
-      source: "stripe_web",
-      order_id,
-      created_at: new Date().toISOString(),
-    });
-
-    if (logErr) {
-      console.error("Failed to record inventory event.", logErr);
-    }
   }
 
   // Return useful info for admin notifications
