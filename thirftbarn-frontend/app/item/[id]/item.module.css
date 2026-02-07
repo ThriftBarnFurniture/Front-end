@@ -14,6 +14,10 @@
   background: transparent;
 }
 
+/* =========================================================
+   Layout
+   ========================================================= */
+
 .layout {
   display: grid;
   grid-template-columns: 560px 1fr;
@@ -38,9 +42,9 @@
   padding: 0;
 }
 
-/* -----------------------------
+/* =========================================================
    Right side typography
------------------------------- */
+   ========================================================= */
 
 .title {
   margin: 0 0 0.55rem;
@@ -52,14 +56,19 @@
 
 .priceRow {
   display: flex;
-  gap: 0.75rem;
   align-items: baseline;
+  gap: 10px;
   margin-bottom: 1.35rem;
 }
 
 .price {
   font-size: 1.65rem;
   font-weight: 3400;
+}
+
+.oldPrice {
+  text-decoration: line-through;
+  opacity: 0.65;
 }
 
 .badge {
@@ -69,6 +78,21 @@
   border: 1px solid rgba(0, 0, 0, 0.12);
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+.dropBadge {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.desc {
+  margin: 0 0 1.15rem;
+  line-height: 1.7;
+  color: rgba(0, 0, 0, 0.72);
+  max-width: 62ch;
 }
 
 /* CTA wrapper: style the button rendered by AddToCartButton */
@@ -109,13 +133,6 @@
   transform: none;
 }
 
-.desc {
-  margin: 0 0 1.15rem;
-  line-height: 1.7;
-  color: rgba(0, 0, 0, 0.72);
-  max-width: 62ch;
-}
-
 /* Details list like screenshot ("- Details") */
 .details {
   margin: 0.9rem 0 0;
@@ -137,16 +154,9 @@
   color: rgba(0, 0, 0, 0.55);
 }
 
-/* If you keep "In stock", style it subtly */
-.stockLine {
-  margin-top: 0.9rem;
-  color: rgba(0, 0, 0, 0.62);
-  font-size: 0.95rem;
-}
-
-/* -----------------------------
+/* =========================================================
    Gallery (left side)
------------------------------- */
+   ========================================================= */
 
 .gallery {
   display: grid;
@@ -209,28 +219,4 @@
 
 .thumbImg {
   object-fit: cover;
-}
-
-
-.priceRow {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.oldPrice {
-  text-decoration: line-through;
-  opacity: 0.65;
-}
-
-.newPrice {
-  font-weight: 900;
-}
-
-.dropBadge {
-  font-size: 0.85rem;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,0.18);
-  background: rgba(0,0,0,0.04);
 }

@@ -303,7 +303,6 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                       <div className={styles.priceRow}>
                         <span className={styles.oldPrice}>${(initial as number).toFixed(2)}</span>
                         <span className={styles.price}>${p.priceNumber.toFixed(2)}</span>
-                        <span className={styles.dropBadge}>Price dropped</span>
                       </div>
                     ) : (
                       <div className={styles.price}>{p.priceLabel}</div>

@@ -29,6 +29,7 @@
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
     "sass": "^1.97.1",
+    "sib-api-v3-sdk": "^8.5.0",
     "stripe": "^20.1.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.9"

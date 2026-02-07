@@ -57,31 +57,6 @@
   background: rgba(0, 0, 0, 0.12);
 }
 
-/* NEW remove button */
-.removeBtn {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  background: rgba(0, 0, 0, 0.06);
-  color: black;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.removeBtn:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-/* Helper text */
-.stockText {
-  font-weight: 700;
-  opacity: 0.75;
-}
-
 /* Helper row that holds "In cart" + tiny remove */
 .stockRow {
   display: flex;
@@ -90,7 +65,7 @@
   width: 100%;
 }
 
-/* Keep existing stockText but make it not too bold */
+/* Helper text */
 .stockText {
   font-weight: 700;
   opacity: 0.75;

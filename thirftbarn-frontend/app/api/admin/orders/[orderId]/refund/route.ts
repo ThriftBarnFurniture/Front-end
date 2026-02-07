@@ -17,11 +17,19 @@ export async function POST(
 
     const { data: order, error: oErr } = await supabase
       .from("orders")
-      .select("order_id,status,payment_id,items,amount_total_cents,currency")
+      .select("order_id,status,payment_id,items,amount_total_cents,currency,stripe_refund_id")
       .eq("order_id", orderId)
       .single();
 
     if (oErr) throw new Error(oErr.message);
+
+    // ✅ Idempotency: don’t refund twice
+    if (String(order.status ?? "").toLowerCase() === "refunded" || order.stripe_refund_id) {
+      return NextResponse.json(
+        { ok: true, refund_id: order.stripe_refund_id ?? null },
+        { status: 200 }
+      );
+    }
 
     if (!order.payment_id) {
       return new NextResponse("Order missing payment_id (Stripe payment_intent).", {

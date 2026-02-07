@@ -1,3 +1,7 @@
+/* =========================================================
+   Page + Layout
+   ========================================================= */
+
 .page {
   padding: 160px 0 60px;
   background: var(--color-bg);
@@ -29,6 +33,10 @@
   padding: var(--space-6);
 }
 
+/* =========================================================
+   Left: Checkout form
+   ========================================================= */
+
 .h1 {
   margin: 0;
   font-family: var(--font-header);
@@ -48,15 +56,15 @@
   text-align: left;
 }
 
-.field {
-  display: grid;
-  gap: 8px;
-}
-
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+.field {
+  display: grid;
+  gap: 8px;
 }
 
 .label {
@@ -83,6 +91,35 @@
   font-family: var(--font-text);
 }
 
+/* Promo */
+.promoRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.promoBtn {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  font-weight: 900;
+  cursor: pointer;
+  background: transparent;
+}
+
+.promoBtn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.promoHint {
+  margin-top: 8px;
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+/* Buttons */
 .primaryBtn {
   width: 100%;
   height: 46px;
@@ -101,13 +138,57 @@
   padding: 0 14px;
 }
 
+/* Errors */
 .error {
   margin-top: 6px;
   color: #b00020;
   font-weight: 900;
 }
 
-/* Right summary */
+.fieldError {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #b42318; /* red */
+}
+
+/* Pickup / Delivery boxes */
+.pickupBox,
+.addressBox {
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.pickupTitle,
+.addressTitle {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.pickupAddr {
+  font-weight: 800;
+  color: var(--color-muted);
+  line-height: 1.3;
+}
+
+.pickupNote {
+  margin-top: 10px;
+  font-weight: 900;
+}
+
+.deliveryHint {
+  margin-top: 10px;
+  font-weight: 900;
+  color: var(--color-muted);
+}
+
+/* =========================================================
+   Right: Summary
+   ========================================================= */
+
 .summaryTop {
   display: flex;
   justify-content: space-between;
@@ -219,6 +300,10 @@
   gap: 12px;
 }
 
+.muted {
+  color: var(--color-muted);
+}
+
 .totalRow {
   margin-top: 14px;
   display: flex;
@@ -248,40 +333,10 @@
   text-decoration: underline;
 }
 
-/* Pickup / Delivery boxes */
-.pickupBox,
-.addressBox {
-  margin-top: 6px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: rgba(0, 0, 0, 0.03);
-}
+/* =========================================================
+   Modal
+   ========================================================= */
 
-.pickupTitle,
-.addressTitle {
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-
-.pickupAddr {
-  font-weight: 800;
-  color: var(--color-muted);
-  line-height: 1.3;
-}
-
-.pickupNote {
-  margin-top: 10px;
-  font-weight: 900;
-}
-
-.deliveryHint {
-  margin-top: 10px;
-  font-weight: 900;
-  color: var(--color-muted);
-}
-
-/* Modal */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -321,45 +376,9 @@
   gap: 10px;
 }
 
-.promoRow {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.promoBtn {
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid var(--color-border);
-  font-weight: 900;
-  cursor: pointer;
-  background: transparent;
-}
-
-.promoBtn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.promoHint {
-  margin-top: 8px;
-  color: var(--color-muted);
-  font-weight: 800;
-}
-
-.fieldError {
-  margin-top: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #b42318; /* red */
-}
-
-.inputError {
-  border-color: rgba(180, 35, 24, 0.7) !important;
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
-}
-
+/* =========================================================
+   Responsive
+   ========================================================= */
 
 @media (max-width: 980px) {
   .shell {

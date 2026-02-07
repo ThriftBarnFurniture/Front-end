@@ -58,7 +58,6 @@ export default async function ItemPage({
               <>
                 <div className={styles.oldPrice}>{oldPrice}</div>
                 <div className={styles.price}>{price}</div>
-                <div className={styles.dropBadge}>Price dropped</div>
               </>
             ) : (
               <div className={styles.price}>{price}</div>

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (profErr) return NextResponse.json({ error: profErr.message }, { status: 500 });
-    if (!profile?.is_admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!profile?.is_admin) return NextResponse.json({ error: "Admins only" }, { status: 403 });
 
     const body = await req.json();
     const id = String(body?.id ?? "").trim();

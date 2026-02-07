@@ -368,15 +368,6 @@
   background: rgba(0, 0, 0, 0.05);
 }
 
-/* Mobile */
-@media (max-width: 720px) {
-  .kvRow {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-}
-
-
 /* Responsive */
 @media (max-width: 720px) {
   .header {
@@ -399,4 +390,22 @@
   .dangerCard {
     grid-column: auto;
   }
+
+  .v {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: stretch;
+  }
+
+  .kvRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
 }
+
+@media (max-width: 550px) {
+  .v {
+    grid-template-columns: repeat(1, 1fr);
+    align-items: stretch;
+  }
+}
+

@@ -36,7 +36,8 @@ export async function fulfillStripeCheckoutSession(
     .eq("stripe_session_id", session.id)
     .maybeSingle();
 
-  if (existing?.order_id && String(existing.status).toLowerCase() === "paid") {
+  const st = String(existing?.status ?? "").toLowerCase();
+  if (existing?.order_id && (st === "paid" || st === "fulfilled" || st === "refunded")) {
     return { order_id: existing.order_id, duplicate: true };
   }
 
@@ -161,5 +162,20 @@ export async function fulfillStripeCheckoutSession(
     }
   }
 
-  return { order_id };
+  // Return useful info for admin notifications
+  return {
+    order_id,
+    order_number: null, // if you have this column, we can fetch/return it too
+    total: updatePayload.total as number,
+    currency: String(currency || "cad").toUpperCase(),
+    customer_email: (updatePayload.customer_email as string | undefined) ?? stripe_email,
+    stripe_email,
+    shipping_address: null, // if you store this in metadata or orders, return it here
+    items: items.map((it) => ({
+      name: it.name,
+      qty: it.quantity,
+      unitPrice: (it.unit_price_cents ?? 0) / 100,
+    })),
+    stripe_session_id: session.id,
+  };
 }
