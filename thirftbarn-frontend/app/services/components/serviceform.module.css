@@ -223,7 +223,7 @@
 .errorBox {
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: #ffd4d4;
   padding: var(--space-4);
   font-weight: 700;
 }
@@ -231,7 +231,7 @@
 .successBox {
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: #daffeb;
   padding: var(--space-4);
   font-weight: 700;
 }
@@ -254,7 +254,7 @@
   cursor: pointer;
   font-weight: 900;
   background: var(--color-brand);
-  color: var(--color-on-brand);
+  color: #ffffff;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 

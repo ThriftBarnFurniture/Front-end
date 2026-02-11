@@ -111,9 +111,6 @@ export default function ServiceForm({
       {/* Service id (also set in submit) */}
       <input type="hidden" name="service_id" value={serviceId} />
 
-      {error ? <ErrorBox message={error} /> : null}
-      {successMsg ? <SuccessBox message={successMsg} /> : null}
-
       <div className={styles.formBody}>{children}</div>
 
       <div className={styles.actions}>
@@ -124,6 +121,9 @@ export default function ServiceForm({
         >
           {submitting ? "Sending..." : "Send Request"}
         </button>
+
+        {error ? <ErrorBox message={error} /> : null}
+        {successMsg ? <SuccessBox message={successMsg} /> : null}
 
         <div className={styles.actionsHint}>
           You’ll receive a confirmation email with the details you submitted.

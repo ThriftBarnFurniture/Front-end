@@ -220,11 +220,6 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
             autoComplete="email"
           />
         </Field>
-
-        <HelpPill>
-          Thanks for the details — a member of the Barn will reach out soon for
-          booking!
-        </HelpPill>
       </Section>
     </>
   );

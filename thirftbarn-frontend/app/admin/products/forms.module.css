@@ -99,7 +99,7 @@
   border-radius: 14px;
   border: none;
   background: var(--color-brand);
-  color: var(--color-brand-contrast);
+  color: #ffffff;
   font-weight: 900;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;

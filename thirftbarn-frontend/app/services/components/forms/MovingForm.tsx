@@ -191,7 +191,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
                 value={kingBed}
                 onChange={setKingBed}
               />
-              <input type="hidden" name="moving_king_bed" value={kingBed} />
             </Field>
           </Row>
         ) : null}
@@ -204,11 +203,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
               value={mattressBags}
               onChange={setMattressBags}
             />
-            <input
-              type="hidden"
-              name="moving_mattress_bags"
-              value={mattressBags}
-            />
           </Field>
 
           <Field label="Packing required?">
@@ -217,11 +211,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
               options={YES_NO_OPTIONS}
               value={packing}
               onChange={setPacking}
-            />
-            <input
-              type="hidden"
-              name="moving_packing_required"
-              value={packing}
             />
           </Field>
         </Row>
@@ -234,11 +223,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
               value={disassembly}
               onChange={setDisassembly}
             />
-            <input
-              type="hidden"
-              name="moving_disassembly_required"
-              value={disassembly}
-            />
           </Field>
 
           <Field label="Assembly required?">
@@ -247,11 +231,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
               options={YES_NO_OPTIONS}
               value={assembly}
               onChange={setAssembly}
-            />
-            <input
-              type="hidden"
-              name="moving_assembly_required"
-              value={assembly}
             />
           </Field>
         </Row>
@@ -294,11 +273,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
               options={YES_NO_OPTIONS}
               value={oversized}
               onChange={setOversized}
-            />
-            <input
-              type="hidden"
-              name="moving_oversized_item"
-              value={oversized}
             />
           </Field>
         </Row>
@@ -352,11 +326,6 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
             autoComplete="email"
           />
         </Field>
-
-        <HelpPill>
-          Thanks for the details — a member of the Barn will reach out soon for
-          booking!
-        </HelpPill>
       </Section>
     </>
   );

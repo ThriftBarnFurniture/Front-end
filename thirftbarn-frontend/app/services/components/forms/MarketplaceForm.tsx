@@ -163,11 +163,6 @@ export default function MarketplaceForm({ serviceId }: { serviceId: ServiceId })
             placeholder="Example: seller lives in condo, loading dock available, please call upon arrival..."
           />
         </Field>
-
-        <HelpPill>
-          Thanks for the details — a member of the Barn will reach out soon for
-          booking!
-        </HelpPill>
       </Section>
 
       <Section

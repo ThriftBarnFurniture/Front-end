@@ -107,11 +107,6 @@ export default function DonationForm({ serviceId }: { serviceId: ServiceId }) {
             placeholder="Example: items located in garage, driveway parking available..."
           />
         </Field>
-
-        <HelpPill>
-          Thanks for the details — a member of the Barn will reach out soon for
-          booking!
-        </HelpPill>
       </Section>
 
       <Section
