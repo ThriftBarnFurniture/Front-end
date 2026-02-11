@@ -84,11 +84,6 @@ export default function DonationForm({ serviceId }: { serviceId: ServiceId }) {
             value={assemblyDisassembly}
             onChange={setAssemblyDisassembly}
           />
-          <input
-            type="hidden"
-            name="donation_assembly_disassembly"
-            value={assemblyDisassembly}
-          />
         </Field>
 
         <Field

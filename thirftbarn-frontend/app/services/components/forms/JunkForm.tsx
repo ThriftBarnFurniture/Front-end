@@ -102,7 +102,6 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
               value={hasValueItems}
               onChange={setHasValueItems}
             />
-            <input type="hidden" name="junk_items_value" value={hasValueItems} />
           </Field>
 
           <Field label="Assembly / disassembly required?">
@@ -111,11 +110,6 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
               options={YES_NO_OPTIONS}
               value={assemblyDisassembly}
               onChange={setAssemblyDisassembly}
-            />
-            <input
-              type="hidden"
-              name="junk_assembly_disassembly"
-              value={assemblyDisassembly}
             />
           </Field>
         </Row>
@@ -128,11 +122,6 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
               value={wasteBagging}
               onChange={setWasteBagging}
             />
-            <input
-              type="hidden"
-              name="junk_waste_bagging"
-              value={wasteBagging}
-            />
           </Field>
 
           <Field label="Oversized item?">
@@ -141,11 +130,6 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
               options={YES_NO_OPTIONS}
               value={oversized}
               onChange={setOversized}
-            />
-            <input
-              type="hidden"
-              name="junk_oversized_item"
-              value={oversized}
             />
           </Field>
         </Row>

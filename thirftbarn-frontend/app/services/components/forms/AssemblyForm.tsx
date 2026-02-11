@@ -68,11 +68,6 @@ export default function AssemblyForm({ serviceId }: { serviceId: ServiceId }) {
               value={itemInPlace}
               onChange={setItemInPlace}
             />
-            <input
-              type="hidden"
-              name="assembly_item_in_place"
-              value={itemInPlace}
-            />
           </Field>
         </Row>
 

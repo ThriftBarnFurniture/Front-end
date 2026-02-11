@@ -140,11 +140,6 @@ export default function MarketplaceForm({ serviceId }: { serviceId: ServiceId })
             value={assemblyDisassembly}
             onChange={setAssemblyDisassembly}
           />
-          <input
-            type="hidden"
-            name="marketplace_assembly_disassembly"
-            value={assemblyDisassembly}
-          />
         </Field>
 
         <Field
