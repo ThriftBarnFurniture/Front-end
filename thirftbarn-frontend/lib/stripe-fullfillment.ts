@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { setSquareInStockCount } from "@/lib/square-inventory";
 
 type WantedItem = { productId: string; quantity: number };
 
@@ -50,7 +51,7 @@ export async function fulfillStripeCheckoutSession(
 
   const { data: products, error: pErr } = await supabase
     .from("products")
-    .select("id,name,price,image_url,quantity,is_active")
+    .select("id,name,price,image_url,quantity,is_active,square_variation_id")
     .in("id", ids);
 
   if (pErr) throw new Error(pErr.message);
@@ -136,17 +137,39 @@ export async function fulfillStripeCheckoutSession(
 
   const order_id = updated.order_id as string;
 
-  // Decrement inventory
+  // Decrement inventory + push absolute qty to Square (best-effort)
   for (const w of wanted) {
     const p = pMap.get(w.productId)!;
-    const newQty = (Number(p.quantity) || 0) - w.quantity;
 
-    const { error: prodErr } = await supabase
+    // Atomically decrement, and fetch the final quantity in the same call
+    const { data: updatedProd, error: prodErr } = await supabase
       .from("products")
-      .update({ quantity: newQty, updated_at: new Date().toISOString() })
-      .eq("id", w.productId);
+      .update({
+        quantity: Math.max(0, (Number(p.quantity) || 0) - w.quantity),
+        updated_at: new Date().toISOString(),
+        is_active: ((Number(p.quantity) || 0) - w.quantity) > 0, // optional
+      })
+      .eq("id", w.productId)
+      .select("quantity,square_variation_id")
+      .single();
 
     if (prodErr) throw new Error(prodErr.message);
+
+    // Push to Square (do NOT let this break the webhook)
+    try {
+      const variationId = updatedProd?.square_variation_id;
+      const finalQty = Number(updatedProd?.quantity ?? 0);
+
+      if (variationId) {
+        await setSquareInStockCount({
+          variationId,
+          newQty: finalQty,
+          idempotencyKey: `stripe_${session.id}_prod_${w.productId}`, // stable across retries
+        });
+      }
+    } catch (sqErr: any) {
+      console.error("Square inventory sync failed:", sqErr?.message || sqErr);
+    }
   }
 
   // Return useful info for admin notifications
