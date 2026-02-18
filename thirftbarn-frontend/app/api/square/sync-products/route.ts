@@ -65,7 +65,7 @@ async function squareFetch(path: string, init: RequestInit) {
  * If square IDs exist, we update existing objects. Otherwise we create new.
  */
 async function upsertSquareCatalogObject(p: ProductRow) {
-  const currency = process.env.SQUARE_CURRENCY || "CAD";
+  const currency = "CAD";
 
   if (!p.name || p.price == null) {
     return { skipped: true, reason: "missing name/price" as const };
