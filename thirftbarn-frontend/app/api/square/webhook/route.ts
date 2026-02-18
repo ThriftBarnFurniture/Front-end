@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+
+
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../utils/supabase/server";
 import crypto from "crypto";
@@ -43,11 +46,43 @@ type InventoryCount = {
 };
 
 export async function POST(req: Request) {
-  const rawBody = await req.text(); // IMPORTANT: verify using RAW body :contentReference[oaicite:1]{index=1}
+  const rawBody = await req.text();
   const signature = req.headers.get("x-square-hmacsha256-signature");
 
-  if (!verifySquareSignature(rawBody, signature)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  if (!signature) {
+    return NextResponse.json(
+      { error: "Missing x-square-hmacsha256-signature header" },
+      { status: 401 }
+    );
+  }
+
+  // temp: trim env values to remove hidden whitespace/newlines
+  const key = (process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "").trim();
+  const notificationUrl = (process.env.SQUARE_WEBHOOK_NOTIFICATION_URL || "").trim();
+
+  if (!key || !notificationUrl) {
+    return NextResponse.json(
+      { error: "Missing env", hasKey: !!key, hasUrl: !!notificationUrl },
+      { status: 500 }
+    );
+  }
+
+  const expected = crypto
+    .createHmac("sha256", key)
+    .update(notificationUrl + rawBody, "utf8")
+    .digest("base64");
+
+  if (!timingSafeEqual(expected, signature)) {
+    return NextResponse.json(
+      {
+        error: "Invalid signature",
+        bodyLen: rawBody.length,
+        urlUsed: notificationUrl,
+        sigPrefix: signature.slice(0, 8),
+        expPrefix: expected.slice(0, 8),
+      },
+      { status: 401 }
+    );
   }
 
   let event: any;
