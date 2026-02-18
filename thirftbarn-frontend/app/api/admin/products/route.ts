@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { uploadProductImageToR2 } from "@/lib/r2-upload";
 import { createClient } from "@/utils/supabase/server";
+import { upsertSquareCatalogObject, upsertSquareImageIfPossible } from "@/lib/square/catalog";
+import { setSquareInStockCount } from "@/lib/square/inventory";
 
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
@@ -356,6 +358,63 @@ export const POST = async (request: Request) => {
 
     const data = await supabaseRestInsert(tableName, accessToken, productPayload);
 
+    // AUTO-SYNC to Square (optional toggle)
+    const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
+
+    if (autoSquare) {
+      try {
+        const created = data as any; // returned row
+
+        const up = await upsertSquareCatalogObject({
+          id: created.id,
+          sku: created.sku ?? productPayload.sku ?? null,
+          barcode: created.barcode ?? null,
+          name: created.name ?? name,
+          description: created.description ?? description,
+          price: created.price ?? price,
+          image_url: created.image_url ?? (imageUrls[0] ?? null),
+          square_item_id: created.square_item_id ?? null,
+          square_variation_id: created.square_variation_id ?? null,
+          square_image_id: created.square_image_id ?? null,
+        });
+
+        if (!up.skipped) {
+          const img = await upsertSquareImageIfPossible(
+            {
+              id: created.id,
+              sku: created.sku ?? null,
+              barcode: created.barcode ?? null,
+              name: created.name ?? name,
+              description: created.description ?? description,
+              price: created.price ?? price,
+              image_url: created.image_url ?? (imageUrls[0] ?? null),
+              square_item_id: up.square_item_id,
+              square_variation_id: up.square_variation_id,
+              square_image_id: created.square_image_id ?? null,
+            },
+            up.square_item_id
+          );
+
+          // Save Square IDs back into Supabase (same admin user token)
+          await supabaseRestUpdate(tableName, accessToken, created.id, {
+            square_item_id: up.square_item_id,
+            square_variation_id: up.square_variation_id,
+            square_image_id: img.image_id ?? null,
+          });
+
+          // Set Square inventory to match Supabase quantity
+          await setSquareInStockCount({
+            variationId: up.square_variation_id,
+            newQty: Number(created.quantity ?? quantity),
+            idempotencyKey: `create_${created.id}`,
+          });
+        }
+      } catch (e: any) {
+        console.error("Auto Square sync (create) failed:", e?.message || e);
+        // don't fail product creation
+      }
+    }
+
     await sendToCloudflareDatabase({
       ...productPayload,
       supabase_id: data?.id,
@@ -489,6 +548,61 @@ export const PATCH = async (request: Request) => {
       productPayload.image_urls = imageUrls;
 
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+
+      const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
+
+      if (autoSquare) {
+        try {
+          const updatedRow = data as any;
+
+          const up = await upsertSquareCatalogObject({
+            id: productId,
+            sku: updatedRow?.sku ?? null,
+            barcode: updatedRow?.barcode ?? null,
+            name: updatedRow?.name ?? name,
+            description: updatedRow?.description ?? description,
+            price: updatedRow?.price ?? price,
+            image_url: updatedRow?.image_url ?? null,
+            square_item_id: updatedRow?.square_item_id ?? null,
+            square_variation_id: updatedRow?.square_variation_id ?? null,
+            square_image_id: updatedRow?.square_image_id ?? null,
+          });
+
+          if (!up.skipped) {
+            const img = await upsertSquareImageIfPossible(
+              {
+                id: productId,
+                sku: updatedRow?.sku ?? null,
+                barcode: updatedRow?.barcode ?? null,
+                name: updatedRow?.name ?? name,
+                description: updatedRow?.description ?? description,
+                price: updatedRow?.price ?? price,
+                image_url: updatedRow?.image_url ?? null,
+                square_item_id: up.square_item_id,
+                square_variation_id: up.square_variation_id,
+                square_image_id: updatedRow?.square_image_id ?? null,
+              },
+              up.square_item_id
+            );
+
+            // Ensure DB stores the final Square IDs
+            await supabaseRestUpdate(tableName, accessToken, productId, {
+              square_item_id: up.square_item_id,
+              square_variation_id: up.square_variation_id,
+              square_image_id: img.image_id ?? null,
+            });
+
+            await setSquareInStockCount({
+              variationId: up.square_variation_id,
+              newQty: quantity, // you computed quantity in PATCH
+              idempotencyKey: `update_${productId}_${nowIso}`,
+            });
+          }
+        } catch (e: any) {
+          console.error("Auto Square sync (update) failed:", e?.message || e);
+        }
+      }
+
       await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
 
       return NextResponse.json({ product: data, imageUrls }, { status: 200 });
