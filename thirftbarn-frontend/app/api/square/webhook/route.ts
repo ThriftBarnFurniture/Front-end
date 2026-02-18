@@ -1,5 +1,3 @@
-export const runtime = "nodejs";
-
 
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../utils/supabase/server";
@@ -44,142 +42,46 @@ type InventoryCount = {
   state?: string; // IN_STOCK, SOLD, etc.
   quantity?: string; // string in Square payload
 };
-
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-square-hmacsha256-signature");
 
+  // TEMP DEBUG — remove after it works
+  const key = (process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "").trim();
+  const url = (process.env.SQUARE_WEBHOOK_NOTIFICATION_URL || "").trim();
+
   if (!signature) {
     return NextResponse.json(
-      { error: "Missing x-square-hmacsha256-signature header" },
+      { error: "Missing signature header", bodyLen: rawBody.length },
       { status: 401 }
     );
   }
 
-  // temp: trim env values to remove hidden whitespace/newlines
-  const key = (process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "").trim();
-  const notificationUrl = (process.env.SQUARE_WEBHOOK_NOTIFICATION_URL || "").trim();
-
-  if (!key || !notificationUrl) {
+  if (!key || !url) {
     return NextResponse.json(
-      { error: "Missing env", hasKey: !!key, hasUrl: !!notificationUrl },
+      { error: "Missing env", hasKey: !!key, hasUrl: !!url },
       { status: 500 }
     );
   }
 
   const expected = crypto
     .createHmac("sha256", key)
-    .update(notificationUrl + rawBody, "utf8")
+    .update(url + rawBody, "utf8")
     .digest("base64");
 
   if (!timingSafeEqual(expected, signature)) {
     return NextResponse.json(
       {
         error: "Invalid signature",
+        urlUsed: url,
         bodyLen: rawBody.length,
-        urlUsed: notificationUrl,
-        sigPrefix: signature.slice(0, 8),
-        expPrefix: expected.slice(0, 8),
+        sigPrefix: signature.slice(0, 10),
+        expPrefix: expected.slice(0, 10),
       },
       { status: 401 }
     );
   }
 
-  let event: any;
-  try {
-    event = rawBody ? JSON.parse(rawBody) : null;
-  } catch {
-    return NextResponse.json({ error: "Bad JSON" }, { status: 400 });
-  }
-
-  // Example event type: "inventory.count.updated" :contentReference[oaicite:2]{index=2}
-  const eventType: string | undefined = event?.type;
-
-  // Always ACK quickly for non-inventory events (you can expand later)
-  if (eventType !== "inventory.count.updated") {
-    return NextResponse.json({ ok: true, ignored: true, type: eventType });
-  }
-
-  const locationId = process.env.SQUARE_LOCATION_ID || null;
-
-  const counts: InventoryCount[] =
-    event?.data?.object?.inventory_counts ||
-    event?.data?.object?.inventory_count ||
-    [];
-
-  if (!Array.isArray(counts) || counts.length === 0) {
-    return NextResponse.json({ ok: true, note: "No inventory counts in payload" });
-  }
-
-  const supabase = await createClient();
-
-  let updated = 0;
-  let skipped = 0;
-
-  for (const c of counts) {
-    const variationId = c.catalog_object_id;
-    const countLocation = c.location_id;
-    const state = c.state;
-    const qtyStr = c.quantity;
-
-    // Only process your location if provided
-    if (locationId && countLocation && countLocation !== locationId) {
-      skipped++;
-      continue;
-    }
-
-    // We treat IN_STOCK as the count that maps to your website "quantity"
-    if (!variationId || state !== "IN_STOCK" || !qtyStr) {
-      skipped++;
-      continue;
-    }
-
-    const newQty = Number.parseInt(qtyStr, 10);
-    if (!Number.isFinite(newQty) || newQty < 0) {
-      skipped++;
-      continue;
-    }
-
-    // Find product by square_variation_id
-    const { data: prod, error: findErr } = await supabase
-      .from("products")
-      .select("id, quantity")
-      .eq("square_variation_id", variationId)
-      .maybeSingle();
-
-    if (findErr || !prod) {
-      skipped++;
-      continue;
-    }
-
-    const oldQty = prod.quantity ?? 0;
-    const delta = newQty - oldQty;
-
-    // Update product quantity (and optionally auto-deactivate when 0)
-    const { error: upErr } = await supabase
-      .from("products")
-      .update({
-        quantity: newQty,
-        is_active: newQty > 0, // comment this out if you don’t want auto deactivation
-      })
-      .eq("id", prod.id);
-
-    if (upErr) {
-      skipped++;
-      continue;
-    }
-
-    // Log event
-    await supabase.from("inventory_events").insert({
-      product_id: prod.id,
-      delta,
-      reason: "square_inventory_webhook",
-      source: "square",
-      order_id: null,
-    });
-
-    updated++;
-  }
-
-  return NextResponse.json({ ok: true, updated, skipped });
+  // ✅ if we get here, signature is verified
+  return NextResponse.json({ ok: true, verified: true });
 }
