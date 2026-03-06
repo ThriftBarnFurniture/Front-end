@@ -1,17 +1,27 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import styles from "../page.module.css";
 import { ProductEditor } from "./product-editor";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 export default async function AdminProductsEditPage() {
   const cookieStore = await cookies();
+  const headerStore = await headers();
 
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const res = await fetch("https://thriftbarnfurniture.ca/api/admin/products", {
+  const envBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "";
+  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") ?? "http";
+  const base = envBase || (host ? `${proto}://${host}` : "");
+
+  if (!base) {
+    throw new Error("Could not determine site URL for admin product fetch.");
+  }
+
+  const res = await fetch(`${base}/api/admin/products`, {
     cache: "no-store",
     headers: { cookie: cookieHeader },
   });

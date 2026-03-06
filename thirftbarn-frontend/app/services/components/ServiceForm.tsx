@@ -71,7 +71,7 @@ export default function ServiceForm({
         const msg =
           payload?.error ||
           payload?.message ||
-          "Something went wrong sending your request. Please try again.";
+          "Something went wrong (most likely too many images or too big files). Please try again.";
         throw new Error(msg);
       }
 

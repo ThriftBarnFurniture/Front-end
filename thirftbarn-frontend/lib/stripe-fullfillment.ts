@@ -3,10 +3,77 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { setSquareInStockCount } from "@/lib/square-inventory";
 
 type WantedItem = { productId: string; quantity: number };
+type SupabaseAdminClient = ReturnType<typeof createSupabaseAdmin>;
+
+type OrderDbRow = {
+  order_id: string;
+  order_number: string | null;
+  status: string | null;
+  purchase_date: string | null;
+  subtotal: number | null;
+  tax: number | null;
+  shipping_cost: number | null;
+  promo_code: string | null;
+  promo_discount: number | null;
+  total: number | null;
+  currency: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  shipping_address: string | null;
+  shipping_method: string | null;
+  payment_id: string | null;
+  stripe_session_id: string | null;
+  stripe_email: string | null;
+  items: unknown;
+};
+
+type OrderDbItem = {
+  product_id?: string | null;
+  productId?: string | null;
+  name?: string | null;
+  quantity?: number | null;
+  qty?: number | null;
+  unit_price_cents?: number | null;
+  unitPriceCents?: number | null;
+  unitPrice?: number | null;
+};
+
+export type FulfilledOrderItem = {
+  productId: string | null;
+  name: string;
+  qty: number;
+  unitPrice: number | null;
+  lineTotal: number | null;
+};
+
+export type FulfilledOrderSummary = {
+  duplicate: boolean;
+  order_id: string;
+  order_number: string | null;
+  status: string | null;
+  purchase_date: string | null;
+  subtotal: number | null;
+  tax: number | null;
+  shipping_cost: number | null;
+  promo_code: string | null;
+  promo_discount: number | null;
+  total: number | null;
+  currency: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  shipping_address: string | null;
+  shipping_method: string | null;
+  payment_id: string | null;
+  stripe_session_id: string | null;
+  stripe_email: string | null;
+  items: FulfilledOrderItem[];
+};
 
 function parsePackedCart(packed: string): WantedItem[] {
-  // packed = "uuid:2,uuid:1"
   if (!packed) return [];
+
   return packed
     .split(",")
     .map((pair) => {
@@ -19,18 +86,165 @@ function parsePackedCart(packed: string): WantedItem[] {
     .filter((x) => x.productId);
 }
 
+function toFiniteNumber(v: unknown): number | null {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  return v;
+}
+
+function normalizeOrderItems(raw: unknown): FulfilledOrderItem[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item): FulfilledOrderItem | null => {
+      if (!item || typeof item !== "object") return null;
+
+      const src = item as OrderDbItem;
+      const qtyRaw = Number(src.quantity ?? src.qty ?? 1);
+      const qty = Math.max(1, Math.floor(Number.isFinite(qtyRaw) ? qtyRaw : 1));
+
+      const cents = toFiniteNumber(src.unit_price_cents ?? src.unitPriceCents ?? null);
+      const unitPriceRaw = toFiniteNumber(src.unitPrice ?? null);
+      const unitPrice = cents != null ? cents / 100 : unitPriceRaw;
+      const lineTotal = unitPrice == null ? null : Number((unitPrice * qty).toFixed(2));
+
+      const name = String(src.name ?? "").trim() || "Item";
+      const productId = String(src.product_id ?? src.productId ?? "").trim() || null;
+
+      return { productId, name, qty, unitPrice, lineTotal };
+    })
+    .filter((x): x is FulfilledOrderItem => Boolean(x));
+}
+
+function orderRowToSummary(row: OrderDbRow, duplicate: boolean): FulfilledOrderSummary {
+  return {
+    duplicate,
+    order_id: row.order_id,
+    order_number: row.order_number,
+    status: row.status,
+    purchase_date: row.purchase_date,
+    subtotal: toFiniteNumber(row.subtotal),
+    tax: toFiniteNumber(row.tax),
+    shipping_cost: toFiniteNumber(row.shipping_cost),
+    promo_code: row.promo_code,
+    promo_discount: toFiniteNumber(row.promo_discount),
+    total: toFiniteNumber(row.total),
+    currency: String(row.currency ?? "cad").toUpperCase(),
+    customer_name: row.customer_name,
+    customer_email: row.customer_email,
+    customer_phone: row.customer_phone,
+    shipping_address: row.shipping_address,
+    shipping_method: row.shipping_method,
+    payment_id: row.payment_id,
+    stripe_session_id: row.stripe_session_id,
+    stripe_email: row.stripe_email,
+    items: normalizeOrderItems(row.items),
+  };
+}
+
+function fallbackSummaryFromSession(args: {
+  session: Stripe.Checkout.Session;
+  duplicate: boolean;
+  orderId?: string | null;
+  items?: FulfilledOrderItem[];
+}): FulfilledOrderSummary {
+  const { session, duplicate } = args;
+
+  const shippingCents = Number(session.metadata?.shipping_cost_cents ?? 0);
+  const promoCents = Number(session.metadata?.promo_discount_cents ?? 0);
+  const paymentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
+
+  const stripeEmail =
+    session.customer_details?.email ?? (session.customer_email as string | null) ?? null;
+
+  const customerName = String(session.metadata?.customer_name ?? "").trim() || null;
+  const customerEmail = String(session.metadata?.customer_email ?? "").trim() || stripeEmail;
+  const customerPhone = String(session.metadata?.customer_phone ?? "").trim() || null;
+
+  return {
+    duplicate,
+    order_id: String(args.orderId ?? session.metadata?.order_id ?? "").trim() || session.id,
+    order_number: String(session.metadata?.order_number ?? "").trim() || null,
+    status: "paid",
+    purchase_date: new Date().toISOString(),
+    subtotal: null,
+    tax: null,
+    shipping_cost: Number.isFinite(shippingCents) ? Math.max(0, shippingCents / 100) : null,
+    promo_code: String(session.metadata?.promo_code ?? "").trim() || null,
+    promo_discount: Number.isFinite(promoCents) ? Math.max(0, promoCents / 100) : null,
+    total:
+      typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
+        ? session.amount_total / 100
+        : null,
+    currency: String(session.currency ?? "cad").toUpperCase(),
+    customer_name: customerName,
+    customer_email: customerEmail,
+    customer_phone: customerPhone,
+    shipping_address: String(session.metadata?.shipping_address ?? "").trim() || null,
+    shipping_method: String(session.metadata?.shipping_method ?? "").trim() || null,
+    payment_id: paymentId,
+    stripe_session_id: session.id,
+    stripe_email: stripeEmail,
+    items: args.items ?? [],
+  };
+}
+
+async function getOrderRow(
+  supabase: SupabaseAdminClient,
+  opts: { orderId?: string | null; sessionId: string }
+): Promise<OrderDbRow | null> {
+  const baseSelect = [
+    "order_id",
+    "order_number",
+    "status",
+    "purchase_date",
+    "subtotal",
+    "tax",
+    "shipping_cost",
+    "promo_code",
+    "promo_discount",
+    "total",
+    "currency",
+    "customer_name",
+    "customer_email",
+    "customer_phone",
+    "shipping_address",
+    "shipping_method",
+    "payment_id",
+    "stripe_session_id",
+    "stripe_email",
+    "items",
+  ].join(",");
+
+  if (opts.orderId) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(baseSelect)
+      .eq("order_id", opts.orderId)
+      .maybeSingle<OrderDbRow>();
+
+    if (error) throw new Error(error.message);
+    if (data) return data;
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select(baseSelect)
+    .eq("stripe_session_id", opts.sessionId)
+    .maybeSingle<OrderDbRow>();
+
+  if (error) throw new Error(error.message);
+  return data ?? null;
+}
+
 export async function fulfillStripeCheckoutSession(
   session: Stripe.Checkout.Session
-) {
+): Promise<FulfilledOrderSummary> {
   const supabase = createSupabaseAdmin();
 
-  // Prefer order_id from metadata (created at checkout)
   const metaOrderId = String(session.metadata?.order_id || "");
   const packed = session.metadata?.cart || "";
   const wanted = parsePackedCart(packed);
 
-  // Idempotency: if we already marked this session/order as paid, skip
-  // (your schema uses stripe_session_id + status)
   const { data: existing } = await supabase
     .from("orders")
     .select("order_id,status")
@@ -39,14 +253,24 @@ export async function fulfillStripeCheckoutSession(
 
   const st = String(existing?.status ?? "").toLowerCase();
   if (existing?.order_id && (st === "paid" || st === "fulfilled" || st === "refunded")) {
-    return { order_id: existing.order_id, duplicate: true };
+    const existingRow = await getOrderRow(supabase, {
+      orderId: existing.order_id,
+      sessionId: session.id,
+    });
+
+    if (existingRow) return orderRowToSummary(existingRow, true);
+
+    return fallbackSummaryFromSession({
+      session,
+      duplicate: true,
+      orderId: existing.order_id,
+    });
   }
 
   if (!wanted.length) {
     throw new Error("No cart metadata found on session.");
   }
 
-  // Load products again (server-trusted)
   const ids = wanted.map((w) => w.productId);
 
   const { data: products, error: pErr } = await supabase
@@ -59,7 +283,6 @@ export async function fulfillStripeCheckoutSession(
 
   const pMap = new Map(products.map((p) => [p.id, p]));
 
-  // Validate availability again (best effort)
   for (const w of wanted) {
     const p = pMap.get(w.productId);
     if (!p) throw new Error("Missing product in webhook validation.");
@@ -69,13 +292,15 @@ export async function fulfillStripeCheckoutSession(
     }
   }
 
-  const amount_total_cents = session.amount_total ?? 0;
+  const amountTotalCents = session.amount_total ?? 0;
   const currency = session.currency ?? "cad";
-  const stripe_email = session.customer_details?.email ?? (session.customer_email as string | null) ?? null;
-  const customer_email = typeof session.metadata?.customer_email === "string" ? session.metadata.customer_email : null;
-  const payment_id = typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-  // Rebuild items snapshot to store into orders.items (jsonb)
+  const stripeEmail =
+    session.customer_details?.email ?? (session.customer_email as string | null) ?? null;
+  const customerEmail =
+    typeof session.metadata?.customer_email === "string" ? session.metadata.customer_email : null;
+  const paymentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
+
   const items = wanted.map((w) => {
     const p = pMap.get(w.productId)!;
     return {
@@ -86,68 +311,85 @@ export async function fulfillStripeCheckoutSession(
     };
   });
 
-  const subtotal_cents = items.reduce(
+  const subtotalCents = items.reduce(
     (sum, it) => sum + it.unit_price_cents * it.quantity,
     0
   );
+
   const metaShippingCents = Number(session.metadata?.shipping_cost_cents ?? 0);
-  const shipping_cents = Number.isFinite(metaShippingCents) ? Math.max(0, metaShippingCents) : 0;
+  const shippingCents = Number.isFinite(metaShippingCents) ? Math.max(0, metaShippingCents) : 0;
 
   const metaPromoCents = Number(session.metadata?.promo_discount_cents ?? 0);
-  const promo_cents = Number.isFinite(metaPromoCents) ? Math.max(0, metaPromoCents) : 0;
+  const promoCents = Number.isFinite(metaPromoCents) ? Math.max(0, metaPromoCents) : 0;
 
-  const promo_code = typeof session.metadata?.promo_code === "string" ? session.metadata.promo_code : null;
+  const promoCode =
+    typeof session.metadata?.promo_code === "string" ? session.metadata.promo_code : null;
 
-  const tax_cents = Math.max(0, amount_total_cents - (subtotal_cents - promo_cents) - shipping_cents);
-  const shipping_cost = Math.max(0, (amount_total_cents - subtotal_cents - tax_cents) / 100);
+  const taxCents = Math.max(0, amountTotalCents - (subtotalCents - promoCents) - shippingCents);
 
-  // Common update payload (avoid duplicating)
-  const updatePayload: Record<string, any> = {
+  const updatePayload: Record<string, unknown> = {
     stripe_session_id: session.id,
-    stripe_email, // ✅ store Stripe email separately
+    stripe_email: stripeEmail,
     items,
-    subtotal: subtotal_cents / 100,
-    tax: tax_cents / 100,
-    total: amount_total_cents / 100,
-    amount_total_cents,
+    subtotal: subtotalCents / 100,
+    tax: taxCents / 100,
+    total: amountTotalCents / 100,
+    amount_total_cents: amountTotalCents,
     currency,
     payment_method: "stripe",
-    payment_id,
+    payment_id: paymentId,
     status: "paid",
     purchase_date: new Date().toISOString(),
-    shipping_cost: shipping_cents / 100,
-    promo_code,
-    promo_discount: promo_cents / 100,
+    shipping_cost: shippingCents / 100,
+    promo_code: promoCode,
+    promo_discount: promoCents / 100,
   };
 
-  // IMPORTANT: only set customer_email if it's present (prevents overwriting with null)
-  if (customer_email) {
-    updatePayload.customer_email = customer_email;
+  if (customerEmail) {
+    updatePayload.customer_email = customerEmail;
   }
 
-  // Decide which order row to update
-  // 1) if we have metaOrderId, update that
-  // 2) else fall back to stripe_session_id match
-  const orderMatch = metaOrderId
-    ? supabase.from("orders").update(updatePayload).eq("order_id", metaOrderId)
-    : supabase.from("orders").update(updatePayload).eq("stripe_session_id", session.id);
+  const updateQuery = metaOrderId
+    ? supabase
+        .from("orders")
+        .update(updatePayload)
+        .eq("order_id", metaOrderId)
+        .eq("status", "pending")
+    : supabase
+        .from("orders")
+        .update(updatePayload)
+        .eq("stripe_session_id", session.id)
+        .eq("status", "pending");
 
-  const { data: updated, error: updErr } = await orderMatch.select("order_id").single();
+  const { data: updated, error: updErr } = await updateQuery.select("order_id").maybeSingle();
   if (updErr) throw new Error(updErr.message);
 
-  const order_id = updated.order_id as string;
+  if (!updated?.order_id) {
+    const duplicateRow = await getOrderRow(supabase, {
+      orderId: metaOrderId || null,
+      sessionId: session.id,
+    });
 
-  // Decrement inventory + push absolute qty to Square (best-effort)
+    if (duplicateRow) return orderRowToSummary(duplicateRow, true);
+
+    return fallbackSummaryFromSession({
+      session,
+      duplicate: true,
+      orderId: metaOrderId || null,
+    });
+  }
+
+  const orderId = updated.order_id as string;
+
   for (const w of wanted) {
     const p = pMap.get(w.productId)!;
 
-    // Atomically decrement, and fetch the final quantity in the same call
     const { data: updatedProd, error: prodErr } = await supabase
       .from("products")
       .update({
         quantity: Math.max(0, (Number(p.quantity) || 0) - w.quantity),
         updated_at: new Date().toISOString(),
-        is_active: ((Number(p.quantity) || 0) - w.quantity) > 0, // optional
+        is_active: (Number(p.quantity) || 0) - w.quantity > 0,
       })
       .eq("id", w.productId)
       .select("quantity,square_variation_id")
@@ -155,7 +397,6 @@ export async function fulfillStripeCheckoutSession(
 
     if (prodErr) throw new Error(prodErr.message);
 
-    // Push to Square (do NOT let this break the webhook)
     try {
       const variationId = updatedProd?.square_variation_id;
       const finalQty = Number(updatedProd?.quantity ?? 0);
@@ -164,28 +405,35 @@ export async function fulfillStripeCheckoutSession(
         await setSquareInStockCount({
           variationId,
           newQty: finalQty,
-          idempotencyKey: `stripe_${session.id}_prod_${w.productId}`, // stable across retries
+          idempotencyKey: `stripe_${session.id}_prod_${w.productId}`,
         });
       }
-    } catch (sqErr: any) {
-      console.error("Square inventory sync failed:", sqErr?.message || sqErr);
+    } catch (sqErr: unknown) {
+      const message = sqErr instanceof Error ? sqErr.message : String(sqErr);
+      console.error("Square inventory sync failed:", message);
     }
   }
 
-  // Return useful info for admin notifications
-  return {
-    order_id,
-    order_number: null, // if you have this column, we can fetch/return it too
-    total: updatePayload.total as number,
-    currency: String(currency || "cad").toUpperCase(),
-    customer_email: (updatePayload.customer_email as string | undefined) ?? stripe_email,
-    stripe_email,
-    shipping_address: null, // if you store this in metadata or orders, return it here
-    items: items.map((it) => ({
-      name: it.name,
-      qty: it.quantity,
-      unitPrice: (it.unit_price_cents ?? 0) / 100,
-    })),
-    stripe_session_id: session.id,
-  };
+  const row = await getOrderRow(supabase, { orderId, sessionId: session.id });
+  if (row) return orderRowToSummary(row, false);
+
+  const fallbackItems: FulfilledOrderItem[] = items.map((it) => {
+    const qty = Math.max(1, Number(it.quantity ?? 1));
+    const unitPrice = Number(it.unit_price_cents ?? 0) / 100;
+
+    return {
+      productId: String(it.product_id ?? "").trim() || null,
+      name: String(it.name ?? "Item"),
+      qty,
+      unitPrice,
+      lineTotal: Number((unitPrice * qty).toFixed(2)),
+    };
+  });
+
+  return fallbackSummaryFromSession({
+    session,
+    duplicate: false,
+    orderId,
+    items: fallbackItems,
+  });
 }
