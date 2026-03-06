@@ -1,42 +1,41 @@
-import Link from "next/link";
 import styles from "./shop.module.css";
-import Image from "next/image";
+import ShopClient from "./shop-client";
+import { getShopProducts, getPrimaryImage, formatPrice } from "@/lib/products";
+import ScrollToTop from "@/components/ui/ScrollToTop";
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  const products = await getShopProducts();
+
+  const prepared = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    quantity: p.quantity,
+    category: p.category ?? [],
+    created_at: p.created_at,
+
+    room_tags: p.room_tags ?? [],
+    collections: p.collections ?? [],
+    subcategory: p.subcategory ?? [],
+
+    // ✅ NEW canonical comparison
+    initial_price: p.initial_price ?? null,
+
+    img: getPrimaryImage(p) ?? null,
+    priceLabel: formatPrice(p.price),
+    priceNumber: typeof p.price === "string" ? Number(p.price) : p.price,
+  }));
+
   return (
     <main className={styles.page}>
-      <section className={styles.wrap}>
-        <div className={styles.card}>
-          <div className={styles.construction}>
-            <span className={styles.hammer}>🔨</span>
-          </div>
-          <div className={styles.badge}>UNDER CONSTRUCTION.</div>
-          <p className={styles.subtitle}>
-            We’re working diligently to get the online store running for you. <br/>
-            In the meantime, you can browse all of our products on Facebook.
-          </p>
-
-          <div className={styles.actions}>
-            
-            <a
-              className={styles.primary}
-              href="https://www.facebook.com/groups/961935455087635/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Image src="./facebook-circle-fill.svg" alt="Facebook Logo" width={24} height={24} className={styles.icon}/>
-            </a>
-
-            <Link className={styles.secondary} href="/#contact">
-              Contact Us
-            </Link>
-          </div>
-
-          <p className={styles.note}>
-            Thank you for your patience
-          </p>
+      <ScrollToTop />
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>Shop</h1>
+          <p className={styles.subtitle}>All available items.</p>
         </div>
-      </section>
+      </header>
+
+      <ShopClient products={prepared} />
     </main>
   );
 }

@@ -29,6 +29,11 @@ export const Footer = () => {
                 </Link>
               </div>
             </div>
+            <div className={styles.copyright}>
+              Website by: <Link href="https://www.anthonydev.ca/" className={styles.footerLink} target="_blank" rel="noopener noreferrer">
+                AnthonyDev
+              </Link>
+            </div>
           </div>
 
           {/* COL 2: Links */}

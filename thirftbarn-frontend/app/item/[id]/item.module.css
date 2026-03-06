@@ -1,0 +1,222 @@
+/* =========================================================
+   Item page – clean "screenshot" look (white, simple borders)
+   ========================================================= */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2.25rem 1rem 5rem;
+
+  /* keep your existing spacing for fixed navbar */
+  margin-top: 150px;
+
+  color: #111;
+  background: transparent;
+}
+
+/* =========================================================
+   Layout
+   ========================================================= */
+
+.layout {
+  display: grid;
+  grid-template-columns: 560px 1fr;
+  gap: 3.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1050px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+/* Remove the dark "cards" */
+.left,
+.right {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  padding: 0;
+}
+
+/* =========================================================
+   Right side typography
+   ========================================================= */
+
+.title {
+  margin: 0 0 0.55rem;
+  font-size: clamp(1.9rem, 1.4rem + 1.2vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-family: var(--font-text);
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 1.35rem;
+}
+
+.price {
+  font-size: 1.65rem;
+  font-weight: 3400;
+}
+
+.oldPrice {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.dropBadge {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.desc {
+  margin: 0 0 1.15rem;
+  line-height: 1.7;
+  color: rgba(0, 0, 0, 0.72);
+  max-width: 62ch;
+}
+
+/* CTA wrapper: style the button rendered by AddToCartButton */
+.ctaWrap {
+  margin: 0.2rem 0 1.55rem;
+}
+
+/* Targets the <button> inside AddToCartButton */
+.ctaWrap :global(.addToCartCta) {
+  width: min(520px, 100%);
+  height: 54px;
+
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+
+  background: #c8102e;
+  color: #fff;
+
+  font-weight: 800;
+  font-size: 1rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.ctaWrap :global(.addToCartCta:hover) {
+  transform: translateY(-1px);
+  filter: brightness(0.98);
+}
+
+.ctaWrap :global(.addToCartCta:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Details list like screenshot ("- Details") */
+.details {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.details li {
+  margin: 0.35rem 0;
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.details li::before {
+  content: "-";
+  position: absolute;
+  left: 0;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* =========================================================
+   Gallery (left side)
+   ========================================================= */
+
+.gallery {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mainImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+
+  overflow: hidden;
+}
+
+.mainImage {
+  object-fit: contain;
+}
+
+.noImage {
+  height: 520px;
+  display: grid;
+  place-items: center;
+  opacity: 0.7;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.thumbs {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.thumbBtn {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 2px;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.thumbActive {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+
+.thumbImgWrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.thumbImg {
+  object-fit: cover;
+}

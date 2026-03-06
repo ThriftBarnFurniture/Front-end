@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import './storeLocationSection.css';
+import Reveal from '../ui/Reveal';
 
 const Map = dynamic(() => import('./map'), {
   ssr: false,
@@ -35,12 +36,16 @@ const StoreLocationSection: React.FC<StoreLocationSectionProps> = ({
     <section className="store-location-section" id="location">
       <div className="section-container">
         <div className="section-header">
+          <Reveal>
           <h2 className="section-title">Visit Our Store.</h2>
+          </Reveal>
+          <Reveal delayMs={80}>
           <p className="section-subtitle">
             Come see us in person! We&apos;d love to help you find exactly what you&apos;re looking for.
           </p>
+          </Reveal>
         </div>
-
+        <Reveal delayMs={160}>
         <div className="map-wrapper">
           <Map
             latitude={storeInfo.coordinates.lat}
@@ -55,6 +60,7 @@ const StoreLocationSection: React.FC<StoreLocationSectionProps> = ({
             hours={storeInfo.hours}
           />
         </div>
+        </Reveal>
       </div>
     </section>
   );

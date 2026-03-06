@@ -1,0 +1,92 @@
+.wrap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Qty field */
+.qtyWrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qtyLabel {
+  font-weight: 800;
+}
+
+.qtyInput {
+  width: 90px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.qtyInput:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+/* Existing add button */
+.btn {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 3, 3, 0.12);
+  color: black;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnAdded {
+  transform: translateY(-1px);
+  border-color: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* Helper row that holds "In cart" + tiny remove */
+.stockRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Helper text */
+.stockText {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* Tiny gray inline remove button */
+.removeTiny {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.removeTiny:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.85);
+}

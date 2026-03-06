@@ -1,0 +1,411 @@
+/* =========================================================
+   Account page – reworked to match screenshot (clean + red accents)
+   ========================================================= */
+
+.page {
+  min-height: calc(100vh - 1px);
+  background: #fff;
+  padding: 200px var(--gutter) 80px;
+
+}
+
+.container {
+  width: min(980px, calc(100% - 2 * var(--space-5)));
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.titleWrap {
+  display: grid;
+  gap: 10px;
+}
+
+.h1 {
+  font-family: var(--font-header);
+  font-size: clamp(2.1rem, 1.7rem + 1.2vw, 3rem);
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  margin: 0;
+  color: #111;
+}
+
+.sub {
+  font-family: var(--font-text);
+  color: rgba(0, 0, 0, 0.75);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Header buttons (red outline pills) */
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  background: #fff;
+  color: #b10012;
+  border: 2px solid #b10012;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.actionBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.06);
+}
+
+/* Section title */
+.sectionTitle {
+  margin: 34px 0 18px;
+  font-family: var(--font-text);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  color: #111;
+}
+
+/* Grid layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px;
+}
+
+/* Cards */
+.card {
+  border-radius: 18px;
+  padding: 22px 22px 20px;
+  background: #fff;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+}
+
+.cardTitle {
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--color-brand);
+}
+
+.cardText {
+  margin: 10px 0 0;
+  font-family: var(--font-text);
+  color: rgba(0, 0, 0, 0.68);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.cardLinkRow {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Card CTA pills (red outline, like screenshot) */
+.linkPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  background: #fff;
+  border: 2px solid #b10012;
+  color: #b10012;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.92rem;
+  text-decoration: none;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.linkPill:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.06);
+}
+
+/* Danger Zone should be a single grid cell (not full-width) */
+.dangerCard {
+  margin-top: 6px;
+}
+
+/* Force it into the right column on desktop (cell 0,1 style) */
+.rightCell {
+  grid-column: 2;
+}
+
+.dangerTitle {
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 1.05rem;
+  margin: 0;
+  color: #b10012;
+}
+
+/* Red filled/soft button like Delete */
+.dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  border: 2px solid #b10012;
+  background: rgba(177, 0, 18, 0.06);
+  color: #b10012;
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.dangerBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.1);
+}
+
+
+/* Delete button (used by DeleteAccountButton.tsx) */
+.deleteBtn {
+  margin-top: 18px;
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+
+  border: 2px solid #b10012;
+  background: rgba(177, 0, 18, 0.06);
+  color: #b10012;
+
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.deleteBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(177, 0, 18, 0.1);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* =========================================================
+   Profile page helpers (ProfileForm + ProfilePage buttons)
+   ========================================================= */
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  font-family: var(--font-text);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-decoration: none;
+
+  background: transparent;
+  color: #111;
+  border: 1.5px solid rgba(0, 0, 0, 0.16);
+
+  transition: transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+
+.ghostBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ProfileForm layout */
+
+.inlineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kv {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.kvRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  gap: 14px;
+}
+
+.k {
+  font-family: var(--font-text);
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.v {
+  min-width: 0;
+  font-family: var(--font-text);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  padding: 0 14px;
+
+  font-family: var(--font-text);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.rowActions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mutedNote {
+  font-family: var(--font-text);
+  opacity: 0.75;
+  font-weight: 700;
+}
+
+/* Dropdown for address autocomplete */
+.dropdown {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+
+.dropdownItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  font-family: var(--font-text);
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.dropdownItem:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actionBtn {
+    width: fit-content;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dangerCard {
+    grid-column: auto;
+  }
+
+  .v {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: stretch;
+  }
+
+  .kvRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 550px) {
+  .v {
+    grid-template-columns: repeat(1, 1fr);
+    align-items: stretch;
+  }
+}
+

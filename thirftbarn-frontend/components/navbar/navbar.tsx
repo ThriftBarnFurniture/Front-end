@@ -1,23 +1,114 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./navbar.module.css";
+import { createClient } from "@/utils/supabase/client";
+import { useCart } from "@/components/cart/CartProvider";
 
 export const Navbar = () => {
   const [compact, setCompact] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
+  const { totalItems } = useCart();
   const [googleReviewCount, setGoogleReviewCount] = useState<number | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  /**
-   * Scroll to a section on the homepage.
-   * - If we are NOT on "/", navigate to "/#section".
-   * - If we are already on "/", smooth scroll to the element.
-   */
+  // ---- NEW: auth state for the user icon ----
+  const supabase = useMemo(() => createClient(), []);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  // ---- dropdown menu state ----
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountWrapRef = useRef<HTMLDivElement | null>(null);
+
+  const [activeHomeSection, setActiveHomeSection] = useState<"" | "about" | "contact">("");
+
+  useEffect(() => {
+    if (pathname !== "/") {
+      setActiveHomeSection("");
+      return;
+    }
+
+    const ids: Array<"about" | "contact"> = ["about", "contact"];
+    const els = ids
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+
+    if (els.length === 0) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        // Candidates = sections that are currently intersecting
+        const candidates = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0));
+
+        if (candidates.length === 0) {
+          // ✅ You're not on About or Contact anymore -> clear highlight
+          setActiveHomeSection("");
+          return;
+        }
+
+        const top = candidates[0].target as HTMLElement;
+        const id = top.id as "about" | "contact";
+        setActiveHomeSection(id);
+      },
+      {
+        // This creates an "active zone" around the middle of the screen.
+        // When a section enters it, it becomes active; when it leaves, highlight clears.
+        root: null,
+        threshold: [0.15, 0.25, 0.35],
+        rootMargin: "-45% 0px -45% 0px",
+      }
+    );
+
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [pathname]);
+
+  const isActive = (target: "shop" | "services" | "about" | "contact") => {
+    if (target === "shop") return pathname.startsWith("/shop");
+    if (target === "services") return pathname.startsWith("/services");
+
+    // Only highlight the currently visible section on home
+    if (pathname === "/") return activeHomeSection === target;
+
+    return false;
+  };
+
+  const goToHeroTop = (e?: React.MouseEvent) => {
+    // stop <Link> from navigating on its own
+    e?.preventDefault();
+
+    // close menus if you want
+    setMobileOpen(false);
+    setAccountOpen(false);
+
+    // If not on home, navigate home first
+    if (pathname !== "/") {
+      router.push("/");
+
+      // Wait for navigation to finish, then scroll to absolute top
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        });
+      });
+
+      return;
+    }
+
+    // Already on home -> scroll to absolute top
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+
   const goToSection = (id: string) => {
     if (pathname !== "/") {
       router.push(`/#${id}`);
@@ -30,13 +121,13 @@ export const Navbar = () => {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-    //Google rating count
+  //Google rating count
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        const res = await fetch("/api/google/reviews-count");
+        const res = await fetch("/api/google/reviews-count", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as { count: number; rating: number };
         if (!cancelled) setGoogleReviewCount(Number(data.count) || 0);
@@ -50,13 +141,21 @@ export const Navbar = () => {
       cancelled = true;
     };
   }, []);
-  /**
-   * Compact navbar once the hero is out of view (home page).
-   * If there is no #hero on the page, do nothing.
-   */
+
+
   useEffect(() => {
+    // ✅ Force announcement bar on all non-home pages
+    if (pathname !== "/") {
+      setCompact(false);
+      return;
+    }
+
+    // Home page: allow it to collapse when hero leaves view
     const hero = document.getElementById("hero");
-    if (!hero) return;
+    if (!hero) {
+      setCompact(false);
+      return;
+    }
 
     const obs = new IntersectionObserver(
       ([entry]) => setCompact(!entry.isIntersecting),
@@ -67,10 +166,6 @@ export const Navbar = () => {
     return () => obs.disconnect();
   }, [pathname]);
 
-  /**
-   * Close mobile menu when resizing up to desktop.
-   * Prevents "menu stuck open" if user rotates / resizes.
-   */
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth > 400) setMobileOpen(false);
@@ -79,6 +174,156 @@ export const Navbar = () => {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // ---- close account menu on outside click / Escape ----
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!accountOpen) return;
+      const target = e.target as Node;
+      if (accountWrapRef.current && !accountWrapRef.current.contains(target)) {
+        setAccountOpen(false);
+      }
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccountOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
+
+
+  // ---- load user + react to login/logout ----
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+
+      const user = data.session?.user ?? null;
+      setIsSignedIn(!!user);
+
+      const name =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email ||
+        null;
+
+      setDisplayName(name);
+    };
+
+
+    load();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setIsSignedIn(!!user);
+
+      const name =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email ||
+        null;
+
+      setDisplayName(name);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+
+      const clickedMenu = mobileMenuRef.current?.contains(target);
+      const clickedButton = menuButtonRef.current?.contains(target);
+
+      // only close if click is outside BOTH the menu + the hamburger button
+      if (!clickedMenu && !clickedButton) {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const onScroll = () => setMobileOpen(false);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [mobileOpen]);
+
+  // ---- NEW: load admin flag from profiles.is_admin ----
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAdmin = async () => {
+      if (!isSignedIn) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (!cancelled) {
+        setIsAdmin(!error && !!profile?.is_admin);
+      }
+    };
+
+    loadAdmin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, supabase]);
+
+  const onAccountClick = () => {
+    setMobileOpen(false);
+    // pick ONE:
+    router.push("/account");
+  };
+
+  const onAdminOrdersClick = () => {
+    setMobileOpen(false);
+    setAccountOpen(false);
+    router.push("/admin/orders");
+  };
+
+
+  const onSignOutClick = async () => {
+    setMobileOpen(false);
+    setAccountOpen(false);
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
 
   return (
     <header className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
@@ -96,6 +341,7 @@ export const Navbar = () => {
       <nav className={styles.navbar} aria-label="Main navigation">
         {/* Mobile hamburger (only visible under 400px via CSS) */}
         <button
+          ref={menuButtonRef}
           type="button"
           className={styles.menuButton}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -109,36 +355,150 @@ export const Navbar = () => {
 
         {/* Logo */}
         <div className={styles.logoContainer}>
-          <Link href="/" className={styles.logo} aria-label="Go to home">
+          <Link href="/" className={styles.logo} aria-label="Go to top" onClick={(e) => goToHeroTop(e)}>
             <img src="/TBF_WideLogo.svg" alt="Thrift Barn Furniture" className={styles.logoImage} />
           </Link>
         </div>
 
         {/* Desktop links (hidden under 400px via CSS) */}
         <div className={styles.navLinks}>
-          <Link href="/shop" className={styles.navButton}>
+          <Link
+            href="/shop"
+            className={`${styles.navButton} ${isActive("shop") ? styles.navButtonActive : ""}`}
+          >
             Shop
           </Link>
 
-          <button type="button" className={styles.navButton} onClick={() => goToSection("about")}>
+          <button
+            type="button"
+            className={`${styles.navButton} ${isActive("about") ? styles.navButtonActive : ""}`}
+            onClick={() => goToSection("about")}
+          >
             About
           </button>
 
-          <button type="button" className={styles.navButton} onClick={() => goToSection("contact")}>
+          <button
+            type="button"
+            className={`${styles.navButton} ${isActive("contact") ? styles.navButtonActive : ""}`}
+            onClick={() => goToSection("contact")}
+          >
             Contact
           </button>
+
+          <Link
+            href="/services"
+            className={`${styles.navButton} ${isActive("services") ? styles.navButtonActive : ""}`}
+          >
+            Services
+          </Link>
         </div>
 
-        {/* Cart */}
-        <div className={styles.cartContainer}>
+        {/* Right side: Cart + User */}
+        <div className={styles.rightActions}>
+          {/* Cart */}
           <Link href="/cart" className={styles.cartButton} aria-label="Go to cart">
             <img src="/Icon-Cart.svg" alt="Cart" className={styles.cartIcon} />
+            {totalItems > 0 && (
+              <span className={styles.cartBadge} aria-label={`${totalItems} items in cart`}>
+                {totalItems > 99 ? "99+" : totalItems}
+              </span>
+            )}
           </Link>
+
+          {/* NEW: User logo / name + menu */}
+          <div className={styles.accountWrap} ref={accountWrapRef}>
+            <button
+              type="button"
+              className={styles.userButton}
+              aria-label={isSignedIn ? "Open account menu" : "Sign in"}
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              onClick={() => {
+                if (!isSignedIn) router.push("/login");
+                else setAccountOpen((v) => !v);
+              }}
+            >
+              {/* Signed out -> character image */}
+              {!isSignedIn ? (
+                <img src="/Icon-User.svg" alt="Guest" className={styles.userAvatar} />
+              ) : (
+                <span className={styles.userAvatarCircle} aria-hidden="true">
+                  {(displayName?.trim()?.[0] ?? "U").toUpperCase()}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown (signed in only) */}
+            {isSignedIn && accountOpen && (
+              <div className={styles.accountMenu} role="menu">
+                <button
+                  type="button"
+                  className={styles.accountMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountOpen(false);
+                    onAccountClick();
+                  }}
+                >
+                  My account
+                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        setMobileOpen(false);
+                        router.push("/admin/products");
+                      }}
+                    >
+                      Manage products
+                    </button>
+
+                    {/* NEW: Admin orders */}
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={onAdminOrdersClick}
+                    >
+                      Orders
+                    </button>
+                    {/* NEW: Admin promo codes */}
+                    <button
+                      type="button"
+                      className={styles.accountMenuItem}
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        setMobileOpen(false);
+                        router.push("/admin/promos");
+                      }}
+                    >
+                      Promo codes
+                    </button>
+                  </>
+                )}
+                <div className={styles.accountMenuDivider} />
+                <button
+                  type="button"
+                  className={`${styles.accountMenuItem} ${styles.accountMenuDanger}`}
+                  role="menuitem"
+                  onClick={onSignOutClick}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
       </nav>
 
       {/* Mobile dropdown (only visible under 400px via CSS) */}
-      <div className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
+      <div ref={mobileMenuRef} className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
         <Link href="/shop" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
           Shop
         </Link>
@@ -164,6 +524,10 @@ export const Navbar = () => {
         >
           Contact
         </button>
+
+        <Link href="/services" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
+          Services
+        </Link>
       </div>
     </header>
   );
