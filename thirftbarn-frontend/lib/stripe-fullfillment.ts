@@ -31,12 +31,22 @@ type OrderDbRow = {
 type OrderDbItem = {
   product_id?: string | null;
   productId?: string | null;
+  id?: string | null;
   name?: string | null;
+  product_name?: string | null;
+  title?: string | null;
+  description?: string | null;
   quantity?: number | null;
   qty?: number | null;
+  count?: number | null;
   unit_price_cents?: number | null;
   unitPriceCents?: number | null;
+  unit_amount_cents?: number | null;
+  amount_cents?: number | null;
   unitPrice?: number | null;
+  unit_price?: number | null;
+  price?: number | null;
+  amount?: number | null;
 };
 
 export type FulfilledOrderItem = {
@@ -87,28 +97,67 @@ function parsePackedCart(packed: string): WantedItem[] {
 }
 
 function toFiniteNumber(v: unknown): number | null {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  return v;
+  const n =
+    typeof v === "number"
+      ? v
+      : typeof v === "string" && v.trim()
+      ? Number(v)
+      : Number.NaN;
+
+  if (!Number.isFinite(n)) return null;
+  return n;
 }
 
 function normalizeOrderItems(raw: unknown): FulfilledOrderItem[] {
-  if (!Array.isArray(raw)) return [];
+  let source: unknown = raw;
 
-  return raw
-    .map((item): FulfilledOrderItem | null => {
+  if (typeof source === "string") {
+    try {
+      source = JSON.parse(source);
+    } catch {
+      return [];
+    }
+  }
+
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    const wrappedItems = (source as { items?: unknown }).items;
+    if (Array.isArray(wrappedItems)) source = wrappedItems;
+  }
+
+  if (!Array.isArray(source)) return [];
+
+  return source
+    .map((entry): FulfilledOrderItem | null => {
+      let item: unknown = entry;
+      if (typeof item === "string") {
+        try {
+          item = JSON.parse(item);
+        } catch {
+          return null;
+        }
+      }
       if (!item || typeof item !== "object") return null;
 
       const src = item as OrderDbItem;
-      const qtyRaw = Number(src.quantity ?? src.qty ?? 1);
+      const qtyRaw = Number(src.quantity ?? src.qty ?? src.count ?? 1);
       const qty = Math.max(1, Math.floor(Number.isFinite(qtyRaw) ? qtyRaw : 1));
 
-      const cents = toFiniteNumber(src.unit_price_cents ?? src.unitPriceCents ?? null);
-      const unitPriceRaw = toFiniteNumber(src.unitPrice ?? null);
+      const cents = toFiniteNumber(
+        src.unit_price_cents ??
+          src.unitPriceCents ??
+          src.unit_amount_cents ??
+          src.amount_cents ??
+          null
+      );
+      const unitPriceRaw = toFiniteNumber(
+        src.unitPrice ?? src.unit_price ?? src.price ?? src.amount ?? null
+      );
       const unitPrice = cents != null ? cents / 100 : unitPriceRaw;
       const lineTotal = unitPrice == null ? null : Number((unitPrice * qty).toFixed(2));
 
-      const name = String(src.name ?? "").trim() || "Item";
-      const productId = String(src.product_id ?? src.productId ?? "").trim() || null;
+      const name =
+        String(src.name ?? src.product_name ?? src.title ?? src.description ?? "").trim() || "Item";
+      const productId = String(src.product_id ?? src.productId ?? src.id ?? "").trim() || null;
 
       return { productId, name, qty, unitPrice, lineTotal };
     })

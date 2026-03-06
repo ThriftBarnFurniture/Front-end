@@ -650,7 +650,33 @@ export const GET = async (request: Request) => {
     }
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) {
+      const msg = error.message.toLowerCase();
+      const schemaMismatch = msg.includes("column") || msg.includes("does not exist");
+
+      if (!schemaMismatch) {
+        throw new Error(error.message);
+      }
+
+      let fallbackQuery = supabase
+        .from(tableName)
+        .select("id,name,price,category,colors,image_url,image_urls")
+        .limit(500);
+
+      if (qRaw) {
+        fallbackQuery = fallbackQuery.ilike("name", `%${qRaw}%`);
+      }
+
+      if (priceParam) {
+        const n = Number(priceParam);
+        if (!Number.isNaN(n)) fallbackQuery = fallbackQuery.eq("price", n);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) throw new Error(fallbackError.message);
+
+      return NextResponse.json(fallbackData ?? [], { status: 200 });
+    }
 
     return NextResponse.json(data ?? [], { status: 200 });
   } catch (error) {

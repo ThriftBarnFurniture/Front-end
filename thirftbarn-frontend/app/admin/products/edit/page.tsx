@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import styles from "../page.module.css";
 import { ProductEditor } from "./product-editor";
+import type { Product } from "./product-editor";
 import { cookies, headers } from "next/headers";
 
 export default async function AdminProductsEditPage() {
@@ -13,9 +14,12 @@ export default async function AdminProductsEditPage() {
     .join("; ");
 
   const envBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "";
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "http";
-  const base = envBase || (host ? `${proto}://${host}` : "");
+  const host = (headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "")
+    .split(",")[0]
+    .trim();
+  const proto = (headerStore.get("x-forwarded-proto") ?? "http").split(",")[0].trim();
+  const requestBase = host ? `${proto}://${host}` : "";
+  const base = requestBase || envBase;
 
   if (!base) {
     throw new Error("Could not determine site URL for admin product fetch.");
@@ -26,8 +30,18 @@ export default async function AdminProductsEditPage() {
     headers: { cookie: cookieHeader },
   });
 
-  const data = res.ok ? await res.json() : [];
-  const products = Array.isArray(data) ? data : [];
+  let products: Product[] = [];
+  let loadError: string | null = null;
+
+  if (res.ok) {
+    const data = await res.json();
+    products = Array.isArray(data) ? data : [];
+  } else {
+    const body = await res.text().catch(() => "");
+    loadError = `Failed to load products (${res.status} ${res.statusText})${
+      body ? `: ${body}` : "."
+    }`;
+  }
 
   return (
     <main className={styles.page}>
@@ -46,7 +60,11 @@ export default async function AdminProductsEditPage() {
             </div>
           </header>
 
-          <ProductEditor initialProducts={products} />
+          {loadError ? (
+            <p style={{ color: "#b42318", fontWeight: 700 }}>{loadError}</p>
+          ) : (
+            <ProductEditor initialProducts={products} />
+          )}
         </section>
       </div>
     </main>

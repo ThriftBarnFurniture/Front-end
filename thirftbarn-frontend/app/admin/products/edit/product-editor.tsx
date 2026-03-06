@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./product-editor.module.css";
 
-type Product = {
+export type Product = {
   id: string;
   name: string;
   price: number;

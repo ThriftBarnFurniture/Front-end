@@ -22,9 +22,12 @@ export default async function EditProductPage({
     .join("; ");
 
   const envBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "";
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "http";
-  const base = envBase || (host ? `${proto}://${host}` : "");
+  const host = (headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "")
+    .split(",")[0]
+    .trim();
+  const proto = (headerStore.get("x-forwarded-proto") ?? "http").split(",")[0].trim();
+  const requestBase = host ? `${proto}://${host}` : "";
+  const base = requestBase || envBase;
 
   if (!base) {
     throw new Error("Could not determine site URL for admin product fetch.");
