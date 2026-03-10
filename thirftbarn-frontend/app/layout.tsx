@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   applicationName: "Thrift Barn Furniture",
 
   icons: {
-    icon: "/favicon.ico",
+    icon: "/TBF_Crest-OnDark.png",
   },
 
   keywords: [
