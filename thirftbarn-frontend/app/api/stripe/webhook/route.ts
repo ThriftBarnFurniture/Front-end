@@ -20,27 +20,21 @@ export async function POST(req: Request) {
     const rawBody = await req.text();
     const sig = req.headers.get("stripe-signature");
     if (!sig) return new NextResponse("Missing stripe-signature", { status: 400 });
-
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return new NextResponse(`Webhook Error: ${message}`, { status: 400 });
   }
 
-  const res = NextResponse.json({ received: true });
-
-  Promise.resolve().then(async () => {
+  // Only process what we care about, but always return 200 for known events
+  if (event.type === "checkout.session.completed") {
     try {
-      if (event.type !== "checkout.session.completed") return;
-
       const session = event.data.object as Stripe.Checkout.Session;
       const order = await fulfillStripeCheckoutSession(session);
 
-      if (order.duplicate) return;
-
-      try {
-        await sendAdminOrderEmail({
-          orderId: order.order_id,
+      if (!order.duplicate) {
+        // Don't let email failure cause a webhook retry
+        await sendAdminOrderEmail({orderId: order.order_id,
           orderNumber: order.order_number,
           status: order.status,
           purchaseDate: order.purchase_date,
@@ -58,17 +52,67 @@ export async function POST(req: Request) {
           shippingAddress: order.shipping_address,
           paymentId: order.payment_id,
           stripeSessionId: order.stripe_session_id ?? session.id,
-          items: order.items,
-        });
-      } catch (emailErr: unknown) {
-        const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
-        console.error("Admin email failed:", message);
+          items: order.items,}).catch((e) =>
+          console.error("Admin email failed:", e)
+        );
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("Webhook fulfillment failed:", message);
+      // Return 500 so Stripe retries — your idempotency check handles duplicates
+      return new NextResponse("Fulfillment error", { status: 500 });
     }
-  });
+  }
 
-  return res;
+  return NextResponse.json({ received: true });
 }
+
+// export async function POST(req: Request) {
+//   const stripe = getStripe();
+//   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+//   if (!webhookSecret) {
+//     return new NextResponse("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
+//   }
+
+//   let event: Stripe.Event;
+
+//   try {
+//     const rawBody = await req.text();
+//     const sig = req.headers.get("stripe-signature");
+//     if (!sig) return new NextResponse("Missing stripe-signature", { status: 400 });
+
+//     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+//   } catch (err: unknown) {
+//     const message = err instanceof Error ? err.message : String(err);
+//     return new NextResponse(`Webhook Error: ${message}`, { status: 400 });
+//   }
+
+//   const res = NextResponse.json({ received: true });
+
+//   Promise.resolve().then(async () => {
+//     try {
+//       if (event.type !== "checkout.session.completed") return;
+
+//       const session = event.data.object as Stripe.Checkout.Session;
+//       const order = await fulfillStripeCheckoutSession(session);
+
+//       if (order.duplicate) return;
+
+//       try {
+//         await sendAdminOrderEmail({
+          
+//         });
+//       } catch (emailErr: unknown) {
+//         const message = emailErr instanceof Error ? emailErr.message : String(emailErr);
+//         console.error("Admin email failed:", message);
+//       }
+//     } catch (err: unknown) {
+//       const message = err instanceof Error ? err.message : String(err);
+//       console.error("Webhook fulfillment failed:", message);
+//     }
+//   });
+
+//   return res;
+// }
+
