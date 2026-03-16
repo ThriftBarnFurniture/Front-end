@@ -59,8 +59,9 @@
 }
 
 .empty {
-  font-family: var(--font-text);
-  color: var(--color-muted);
+  font-family: var(--font-header);
+  font-size: x-large;
+  color: white;
 }
 
 .track {

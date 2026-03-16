@@ -116,7 +116,7 @@ export default function NewToBarnCarousel({
   };
 
   if (clean.length === 0) {
-    return <div className={styles.empty}>No new items yet.</div>;
+    return <div className={styles.empty}>Products coming soon!</div>;
   }
 
   return (

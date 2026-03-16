@@ -285,10 +285,158 @@
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
+    .comingSoonWrapper {
+    padding: var(--space-6) var(--space-3) var(--space-9);
+    min-height: 380px;
+  }
+
+  .signRopes { height: 44px; }
+  .signRopes::before,
+  .signRopes::after { height: 100px; }
+  .signRopes::before { transform: rotate(-60deg); }
+  .signRopes::after  { transform: rotate(60deg); }
+
+  .comingSoonSign {
+    padding: var(--space-6) var(--space-5) var(--space-5);
+    max-width: calc(100vw - 32px);
+  }
 }
 
 @media (max-width: 400px) {
   .filterList {
     grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+/* =========================================================
+   Coming Soon Sign (shown when database has 0 products)
+   ========================================================= */
+
+.comingSoonWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--space-8) var(--space-4) var(--space-10);
+  min-height: 480px;
+}
+
+/* -------- The pin / nail head — stays fixed -------- */
+.signHook {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(circle at 35% 30%, #6b6b6b, #1f1f1f 70%);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 3;
+}
+
+/* -------- Swinging assembly (ropes + board pivot here) -------- */
+.signSwing {
+  transform-origin: top center;
+  margin-top: -9px; /* tuck rope origin behind the hook */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: signSwing 2.8s cubic-bezier(0.37, 0, 0.63, 1) forwards;
+  will-change: transform;
+}
+
+/* -------- Ropes — two angled strands drawn with pseudo-elements -------- */
+.signRopes {
+  position: relative;
+  width: 0;
+  height: 54px; /* vertical gap between hook and board */
+  z-index: 1;
+}
+
+.signRopes::before,
+.signRopes::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1.5px; /* center the 3px strand on the pivot */
+  width: 3px;
+  height: 124px;
+  background: linear-gradient(
+    to right,
+    var(--color-brand-dark),
+    var(--color-brand) 50%,
+    var(--color-brand-dark)
+  );
+  border-radius: 3px;
+  transform-origin: top center;
+}
+
+.signRopes::before { transform: rotate(-63deg); }
+.signRopes::after  { transform: rotate(63deg); }
+
+/* -------- The sign board -------- */
+.comingSoonSign {
+  position: relative;
+  z-index: 2; /* covers the rope tails */
+  background: var(--color-surface);
+  border: 4px solid var(--color-brand);
+  border-radius: var(--radius-md);
+  padding: var(--space-7) var(--space-8) var(--space-6);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-align: center;
+  max-width: 460px;
+}
+
+/* Tiny rope-hole rivets in the top corners */
+.comingSoonSign::before,
+.comingSoonSign::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-dark);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.comingSoonSign::before { left: 16px; }
+.comingSoonSign::after  { right: 16px; }
+
+.signTitle {
+  font-family: var(--font-header);
+  font-size: clamp(1.6rem, 5vw, 2.25rem);
+  font-weight: 400; /* Permanent Marker only ships 400 */
+  color: var(--color-brand);
+  margin: 0 0 var(--space-2);
+  line-height: 1.05;
+  letter-spacing: 0.5px;
+}
+
+.signSubtitle {
+  margin: 0;
+  color: var(--color-muted);
+  font-weight: var(--fw-bold);
+  font-size: 0.95rem;
+}
+
+/* -------- Pendulum motion — left → right → decay to rest -------- */
+@keyframes signSwing {
+  0%   { transform: rotate(-14deg); }
+  18%  { transform: rotate(10deg); }
+  36%  { transform: rotate(-6.5deg); }
+  54%  { transform: rotate(4deg); }
+  70%  { transform: rotate(-2.2deg); }
+  84%  { transform: rotate(1.1deg); }
+  95%  { transform: rotate(-0.4deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* -------- Reduced motion -------- */
+@media (prefers-reduced-motion: reduce) {
+  .signSwing {
+    animation: none;
+    transform: none;
   }
 }

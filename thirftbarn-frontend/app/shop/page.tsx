@@ -25,17 +25,39 @@ export default async function ShopPage() {
     priceNumber: typeof p.price === "string" ? Number(p.price) : p.price,
   }));
 
+  const hasProducts = prepared.length > 0;
+
   return (
     <main className={styles.page}>
       <ScrollToTop />
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Shop</h1>
-          <p className={styles.subtitle}>All available items.</p>
+          <p className={styles.subtitle}>
+            {hasProducts ? "All available items." : "Good things take time."}
+          </p>
         </div>
       </header>
 
-      <ShopClient products={prepared} />
+      {hasProducts ? (
+        <ShopClient products={prepared} />
+      ) : (
+        <div className={styles.comingSoonWrapper}>
+          {/* Fixed pin — everything below swings from this point */}
+          <div className={styles.signHook} aria-hidden="true" />
+
+          {/* Swinging assembly */}
+          <div className={styles.signSwing}>
+            <div className={styles.signRopes} aria-hidden="true" />
+            <div className={styles.comingSoonSign}>
+              <h2 className={styles.signTitle}>Products Coming Soon!</h2>
+              <p className={styles.signSubtitle}>
+                We&rsquo;re stocking the shelves &mdash; check back soon.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
