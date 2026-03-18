@@ -109,6 +109,60 @@ export const Footer = () => {
                 Find us on Facebook
               </a>
             </div>
+
+            <div className={styles.followRow}>
+              <a
+                href="https://www.instagram.com/thriftbarnfurniture/"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Instagram"
+                className={styles.iconButton}
+              >
+                <Image
+                  src="/instagram-fill.svg"
+                  alt=""
+                  width={22}
+                  height={22}
+                  className={styles.icon}
+                />
+              </a>
+
+              <a
+                href="https://www.instagram.com/thriftbarnfurniture/"
+                target="_blank"
+                rel="noreferrer"
+                className={styles.footerLink}
+              >
+                Find us on Instagram
+              </a>
+            </div>
+
+            <div className={styles.followRow}>
+              <a
+                href="https://www.tiktok.com/@thriftbarn.furniture?_r=1&_t=ZS-94iodwOO7JI"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="TikTok"
+                className={styles.iconButton}
+              >
+                <Image
+                  src="/tiktok-fill.svg"
+                  alt=""
+                  width={22}
+                  height={22}
+                  className={styles.icon}
+                />
+              </a>
+
+              <a
+                href="https://www.tiktok.com/@thriftbarn.furniture?_r=1&_t=ZS-94iodwOO7JI"
+                target="_blank"
+                rel="noreferrer"
+                className={styles.footerLink}
+              >
+                Find us on TikTok
+              </a>
+            </div>
           </div>
           <div className={styles.colPolicy}>
             <div className={styles.policyList}>
