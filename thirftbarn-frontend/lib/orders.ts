@@ -1,5 +1,6 @@
 // lib/orders.ts
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { normalizeQuantity } from "@/lib/inventory";
 
 export type CartItemInput = { productId: string; quantity: number };
 
@@ -51,7 +52,10 @@ export async function buildValidatedOrderItems(items: CartItemInput[]) {
     const p = productById.get(w.productId);
     if (!p) throw new Error(`Invalid product in cart: ${w.productId}`);
     if (!p.is_active) throw new Error(`Product is not active: ${p.name}`);
-    if (p.quantity < w.quantity) throw new Error(`Not enough stock for: ${p.name}`);
+    const quantity = normalizeQuantity(p.quantity);
+    if (typeof quantity === "number" && quantity < w.quantity) {
+      throw new Error(`Not enough stock for: ${p.name}`);
+    }
 
     orderItems.push({
       product_id: p.id,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { normalizeQuantity } from "@/lib/inventory";
 
 type Body = { productIds: string[] };
 
@@ -23,9 +24,9 @@ export async function POST(req: Request) {
 
     if (error) throw new Error(error.message);
 
-    // If quantity is null, treat as "no cap" (infinite) on the client.
+    // Normalize stored sentinel values back to "no cap" (null) on the client.
     const stock: Record<string, number | null> = {};
-    for (const p of data || []) stock[p.id] = p.quantity;
+    for (const p of data || []) stock[p.id] = normalizeQuantity(p.quantity);
 
     return NextResponse.json({ stock });
   } catch (e: any) {

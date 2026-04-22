@@ -7,6 +7,7 @@ export type ProductForSquare = {
   name: string | null;
   description: string | null;
   price: number | null;
+  track_inventory?: boolean;
   image_url: string | null;
   square_item_id: string | null;
   square_variation_id: string | null;
@@ -76,7 +77,7 @@ export async function upsertSquareCatalogObject(p: ProductForSquare) {
               sku: p.sku || undefined,
               upc: p.barcode || undefined,
               price_money: { amount: toCents(Number(p.price)), currency },
-              track_inventory: true,
+              track_inventory: p.track_inventory ?? true,
             },
           },
         ],

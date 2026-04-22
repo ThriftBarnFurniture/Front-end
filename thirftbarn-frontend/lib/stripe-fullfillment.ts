@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { setSquareInStockCount } from "@/lib/square-inventory";
+import { normalizeQuantity } from "@/lib/inventory";
 
 type WantedItem = { productId: string; quantity: number };
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdmin>;
@@ -336,7 +337,8 @@ export async function fulfillStripeCheckoutSession(
     const p = pMap.get(w.productId);
     if (!p) throw new Error("Missing product in webhook validation.");
     if (!p.is_active) throw new Error(`Inactive product purchased: ${p.name}`);
-    if (typeof p.quantity === "number" && p.quantity < w.quantity) {
+    const quantity = normalizeQuantity(p.quantity);
+    if (typeof quantity === "number" && quantity < w.quantity) {
       throw new Error(`Oversell detected for: ${p.name}`);
     }
   }
@@ -432,13 +434,18 @@ export async function fulfillStripeCheckoutSession(
 
   for (const w of wanted) {
     const p = pMap.get(w.productId)!;
+    const quantity = normalizeQuantity(p.quantity);
+
+    if (typeof quantity !== "number") {
+      continue;
+    }
 
     const { data: updatedProd, error: prodErr } = await supabase
       .from("products")
       .update({
-        quantity: Math.max(0, (Number(p.quantity) || 0) - w.quantity),
+        quantity: Math.max(0, quantity - w.quantity),
         updated_at: new Date().toISOString(),
-        is_active: (Number(p.quantity) || 0) - w.quantity > 0,
+        is_active: quantity - w.quantity > 0,
       })
       .eq("id", w.productId)
       .select("quantity,square_variation_id")

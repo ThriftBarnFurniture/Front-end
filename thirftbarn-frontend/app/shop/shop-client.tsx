@@ -270,7 +270,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
         ) : (
           <div className={styles.grid}>
             {sorted.map((p) => {
-              if ((p.quantity ?? 0) <= 0) return null;
+              if (typeof p.quantity === "number" && p.quantity <= 0) return null;
 
               const initial =
                 typeof p.initial_price === "string" ? Number(p.initial_price) : p.initial_price;
@@ -293,7 +293,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                       <div className={styles.noImage}>No image</div>
                     )}
 
-                    {p.quantity !== null && p.quantity <= 0 && <div className={styles.badge}>Sold</div>}
+                    {typeof p.quantity === "number" && p.quantity <= 0 && <div className={styles.badge}>Sold</div>}
                   </div>
 
                   <div className={styles.meta}>

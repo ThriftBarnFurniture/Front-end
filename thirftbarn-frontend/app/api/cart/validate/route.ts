@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { isOutOfStock } from "@/lib/inventory";
 
 type Body = { productIds: string[] };
 
@@ -23,10 +24,10 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // Only treat as out of stock if quantity is NOT null and <= 0 (matches your Shop badge logic)
+    // Treat unlimited sentinel values as in stock.
     const outOfStock =
       (data || [])
-        .filter((p) => p.quantity !== null && Number(p.quantity) <= 0)
+        .filter((p) => isOutOfStock(p.quantity))
         .map((p) => ({ id: p.id, name: p.name })) ?? [];
 
     return NextResponse.json({ ok: outOfStock.length === 0, outOfStock });

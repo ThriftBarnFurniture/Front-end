@@ -2,6 +2,7 @@ import Link from "next/link";
 import styles from "@/app/page.module.css";
 import { createClient } from "@/utils/supabase/server";
 import Reveal from "../ui/Reveal";
+import { isOutOfStock } from "@/lib/inventory";
 
 type DayBucket = {
   day: number;      // 1..7
@@ -15,10 +16,9 @@ async function getBarnBurnerDayCounts(): Promise<Record<number, number>> {
   // Pull day values for active barn-burner items and count in JS
   const { data, error } = await supabase
     .from("products")
-    .select("barn_burner_day")
+    .select("barn_burner_day,quantity")
     .contains("category", ["barn-burner"])
-    .eq("is_active", true)
-    .gt("quantity", 0);
+    .eq("is_active", true);
 
   if (error) {
     console.error("getBarnBurnerDayCounts error:", error.message);
@@ -27,6 +27,8 @@ async function getBarnBurnerDayCounts(): Promise<Record<number, number>> {
 
   const counts: Record<number, number> = {};
   for (const row of data ?? []) {
+    if (isOutOfStock(row.quantity)) continue;
+
     const d = typeof row.barn_burner_day === "number" ? row.barn_burner_day : 1;
     if (d >= 1 && d <= 7) counts[d] = (counts[d] ?? 0) + 1;
   }

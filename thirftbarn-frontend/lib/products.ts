@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { normalizeQuantity } from "@/lib/inventory";
 
 export type Product = {
   id: string;
@@ -53,7 +54,10 @@ export async function getShopProducts() {
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as Product[];
+  return ((data ?? []) as Product[]).map((product) => ({
+    ...product,
+    quantity: normalizeQuantity(product.quantity),
+  }));
 }
 
 // Helpers
@@ -82,7 +86,12 @@ export async function getProductById(id: string) {
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data as Product | null;
+  if (!data) return null;
+
+  return {
+    ...(data as Product),
+    quantity: normalizeQuantity(data.quantity),
+  };
 }
 
 export function getAllImages(p: Pick<Product, "image_urls" | "image_url">) {

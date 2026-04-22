@@ -179,6 +179,7 @@ export const ProductForm = ({
   const [barnDay, setBarnDay] = useState<BarnDay>((Number(init.barn_burner_day ?? 1) || 1) as BarnDay);
 
   const [price, setPrice] = useState<string>(() => (init.price != null ? String(init.price) : ""));
+  const [hasUnlimitedQuantity, setHasUnlimitedQuantity] = useState<boolean>(init.quantity == null);
   const [isOversized, setIsOversized] = useState<boolean>(!!init.is_oversized);
   const [isMonthlyPriceDrop, setIsMonthlyPriceDrop] = useState<boolean>(!!init.is_monthly_price_drop);
 
@@ -244,6 +245,7 @@ export const ProductForm = ({
       const formData = new FormData(form);
 
       // booleans
+      formData.set("unlimited_quantity", hasUnlimitedQuantity ? "true" : "false");
       formData.set("is_oversized", isOversized ? "true" : "false");
       formData.set("is_monthly_price_drop", isMonthlyPriceDrop ? "true" : "false");
 
@@ -301,6 +303,7 @@ export const ProductForm = ({
         setIsBarnBurner(false);
         setIsMonthlyPriceDrop(false);
         setIsOversized(false);
+        setHasUnlimitedQuantity(false);
         setBarnDay(1);
         setPrice("");
         setProductId("");
@@ -425,7 +428,15 @@ export const ProductForm = ({
 
       <div className={styles.fieldGroup}>
         <label className={styles.label} htmlFor="quantity">
-          Quantity *
+          Quantity{hasUnlimitedQuantity ? "" : " *"}
+        </label>
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={hasUnlimitedQuantity}
+            onChange={(e) => setHasUnlimitedQuantity(e.target.checked)}
+          />
+          <span className={styles.checkboxLabel}>Unlimited quantity?</span>
         </label>
         <input
           className={styles.input}
@@ -434,9 +445,13 @@ export const ProductForm = ({
           type="number"
           step="1"
           min="0"
-          required
-          defaultValue={init.quantity ?? 0}
+          required={!hasUnlimitedQuantity}
+          disabled={hasUnlimitedQuantity}
+          defaultValue={init.quantity ?? ""}
         />
+        <p className={styles.status}>
+          {hasUnlimitedQuantity ? "This item will stay purchasable with no stock cap." : "Use a whole number."}
+        </p>
       </div>
 
       <div className={styles.fieldGroup}>

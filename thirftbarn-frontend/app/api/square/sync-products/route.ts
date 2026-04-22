@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { normalizeQuantity } from "@/lib/inventory";
 
 type ProductRow = {
   id: string;
@@ -102,7 +103,7 @@ async function upsertSquareCatalogObject(p: ProductRow) {
                 amount: toCents(Number(p.price)),
                 currency,
               },
-              track_inventory: true,
+              track_inventory: normalizeQuantity(p.quantity) !== null,
             },
           },
         ],

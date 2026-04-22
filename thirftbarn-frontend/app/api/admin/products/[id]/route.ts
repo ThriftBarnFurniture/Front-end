@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/require-admin";
+import { normalizeQuantity } from "@/lib/inventory";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -18,5 +19,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(data);
+  return NextResponse.json({
+    ...data,
+    quantity: normalizeQuantity(data.quantity),
+  });
 }

@@ -3,6 +3,7 @@ import { uploadProductImageToR2 } from "@/lib/r2-upload";
 import { createClient } from "@/utils/supabase/server";
 import { upsertSquareCatalogObject, upsertSquareImageIfPossible } from "@/lib/square/catalog";
 import { setSquareInStockCount } from "@/lib/square/inventory";
+import { normalizeQuantity, toStoredQuantity } from "@/lib/inventory";
 
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
@@ -84,6 +85,7 @@ const validateProductInputs = ({
   description,
   categories,
   quantityValue,
+  unlimitedQuantity,
   condition,
   colors,
   images,
@@ -96,14 +98,15 @@ const validateProductInputs = ({
   categories: string[];
   subcategories: string[];
   quantityValue: string;
+  unlimitedQuantity: boolean;
   condition: string;
   colors: string[];
   images: File[];
   price: number | null;
   isBarnBurner: boolean;
 }) => {
-  if (!name || !description || !quantityValue || !condition) {
-    return "Name, description, quantity, and condition are required.";
+  if (!name || !description || !condition) {
+    return "Name, description, and condition are required.";
   }
 
   if (!categories || categories.length === 0) {
@@ -122,9 +125,15 @@ const validateProductInputs = ({
     return "At least one product image is required.";
   }
 
-  const quantity = Number(quantityValue);
-  if (!Number.isInteger(quantity) || quantity < 0) {
-    return "Quantity must be a whole number.";
+  if (!unlimitedQuantity) {
+    if (!quantityValue) {
+      return "Quantity is required unless the item has unlimited quantity.";
+    }
+
+    const quantity = Number(quantityValue);
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return "Quantity must be a whole number.";
+    }
   }
 
   // ✅ price is required for ALL items now (including barn burner)
@@ -133,6 +142,17 @@ const validateProductInputs = ({
   }
 
   return null;
+};
+
+const parseQuantity = (quantityValue: string, unlimitedQuantity: boolean): number | null => {
+  if (unlimitedQuantity) return null;
+
+  const quantity = Number(quantityValue);
+  if (!Number.isInteger(quantity) || quantity < 0) {
+    throw new Error("Quantity must be a whole number.");
+  }
+
+  return quantity;
 };
 
 const uploadImagesToR2 = async (images: File[]) => {
@@ -251,6 +271,7 @@ export const POST = async (request: Request) => {
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const quantityValue = String(formData.get("quantity") ?? "").trim();
+    const unlimitedQuantity = getBoolean(formData, "unlimited_quantity");
     const condition = String(formData.get("condition") ?? "").trim();
 
     const categories = getMultiTextArray(formData, "category", "categories");
@@ -292,6 +313,7 @@ export const POST = async (request: Request) => {
       categories: enforcedCategories,
       subcategories: enforcedSubcategories,
       quantityValue,
+      unlimitedQuantity,
       condition,
       colors,
       images,
@@ -303,7 +325,8 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const quantity = Number(quantityValue);
+    const quantity = parseQuantity(quantityValue, unlimitedQuantity);
+    const storedQuantity = toStoredQuantity(quantity);
     const imageUrls = await uploadImagesToR2(images);
     const tableName = getProductsTableName();
 
@@ -332,7 +355,8 @@ export const POST = async (request: Request) => {
       height,
       width,
       depth,
-      quantity,
+      quantity: storedQuantity,
+      is_active: quantity === null ? true : quantity > 0,
 
       // ✅ two price columns: initial_price never changes; price is current and will be ticked by DB
       initial_price: price,
@@ -376,6 +400,7 @@ export const POST = async (request: Request) => {
           square_item_id: created.square_item_id ?? null,
           square_variation_id: created.square_variation_id ?? null,
           square_image_id: created.square_image_id ?? null,
+          track_inventory: quantity !== null,
         });
 
         if (!up.skipped) {
@@ -402,12 +427,13 @@ export const POST = async (request: Request) => {
             square_image_id: img.image_id ?? null,
           });
 
-          // Set Square inventory to match Supabase quantity
-          await setSquareInStockCount({
-            variationId: up.square_variation_id,
-            newQty: Number(created.quantity ?? quantity),
-            idempotencyKey: `create_${created.id}`,
-          });
+          if (quantity !== null) {
+            await setSquareInStockCount({
+              variationId: up.square_variation_id,
+              newQty: quantity,
+              idempotencyKey: `create_${created.id}`,
+            });
+          }
         }
       } catch (e: any) {
         console.error("Auto Square sync (create) failed:", e?.message || e);
@@ -441,6 +467,7 @@ export const PATCH = async (request: Request) => {
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const quantityValue = String(formData.get("quantity") ?? "").trim();
+    const unlimitedQuantity = getBoolean(formData, "unlimited_quantity");
     const condition = String(formData.get("condition") ?? "").trim();
 
     const categories = getMultiTextArray(formData, "category", "categories");
@@ -477,9 +504,9 @@ export const PATCH = async (request: Request) => {
     const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
 
     // PATCH validation (images optional)
-    if (!name || !description || !quantityValue || !condition) {
+    if (!name || !description || !condition) {
       return NextResponse.json(
-        { error: "Name, description, quantity, and condition are required." },
+        { error: "Name, description, and condition are required." },
         { status: 400 }
       );
     }
@@ -489,13 +516,24 @@ export const PATCH = async (request: Request) => {
     if (!colors || colors.length === 0) {
       return NextResponse.json({ error: "At least one color is required." }, { status: 400 });
     }
-    const quantity = Number(quantityValue);
-    if (!Number.isInteger(quantity) || quantity < 0) {
-      return NextResponse.json({ error: "Quantity must be a whole number." }, { status: 400 });
+    if (!unlimitedQuantity) {
+      if (!quantityValue) {
+        return NextResponse.json(
+          { error: "Quantity is required unless the item has unlimited quantity." },
+          { status: 400 }
+        );
+      }
+
+      const parsedQuantity = Number(quantityValue);
+      if (!Number.isInteger(parsedQuantity) || parsedQuantity < 0) {
+        return NextResponse.json({ error: "Quantity must be a whole number." }, { status: 400 });
+      }
     }
     if (price === null || price < 0) {
       return NextResponse.json({ error: "Price is required." }, { status: 400 });
     }
+    const quantity = parseQuantity(quantityValue, unlimitedQuantity);
+    const storedQuantity = toStoredQuantity(quantity);
 
     const nowIso = new Date().toISOString();
 
@@ -522,7 +560,8 @@ export const PATCH = async (request: Request) => {
       height,
       width,
       depth,
-      quantity,
+      quantity: storedQuantity,
+      is_active: quantity === null ? true : quantity > 0,
 
       // ✅ price can be edited manually; initial_price is NOT touched on edits
       price,
@@ -566,6 +605,7 @@ export const PATCH = async (request: Request) => {
             square_item_id: updatedRow?.square_item_id ?? null,
             square_variation_id: updatedRow?.square_variation_id ?? null,
             square_image_id: updatedRow?.square_image_id ?? null,
+            track_inventory: quantity !== null,
           });
 
           if (!up.skipped) {
@@ -592,11 +632,13 @@ export const PATCH = async (request: Request) => {
               square_image_id: img.image_id ?? null,
             });
 
-            await setSquareInStockCount({
-              variationId: up.square_variation_id,
-              newQty: quantity, // you computed quantity in PATCH
-              idempotencyKey: `update_${productId}_${nowIso}`,
-            });
+            if (quantity !== null) {
+              await setSquareInStockCount({
+                variationId: up.square_variation_id,
+                newQty: quantity,
+                idempotencyKey: `update_${productId}_${nowIso}`,
+              });
+            }
           }
         } catch (e: any) {
           console.error("Auto Square sync (update) failed:", e?.message || e);
@@ -608,6 +650,62 @@ export const PATCH = async (request: Request) => {
       return NextResponse.json({ product: data, imageUrls }, { status: 200 });
     } else {
       const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+      const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
+
+      if (autoSquare) {
+        try {
+          const updatedRow = data as any;
+
+          const up = await upsertSquareCatalogObject({
+            id: productId,
+            sku: updatedRow?.sku ?? null,
+            barcode: updatedRow?.barcode ?? null,
+            name: updatedRow?.name ?? name,
+            description: updatedRow?.description ?? description,
+            price: updatedRow?.price ?? price,
+            image_url: updatedRow?.image_url ?? null,
+            square_item_id: updatedRow?.square_item_id ?? null,
+            square_variation_id: updatedRow?.square_variation_id ?? null,
+            square_image_id: updatedRow?.square_image_id ?? null,
+            track_inventory: quantity !== null,
+          });
+
+          if (!up.skipped) {
+            const img = await upsertSquareImageIfPossible(
+              {
+                id: productId,
+                sku: updatedRow?.sku ?? null,
+                barcode: updatedRow?.barcode ?? null,
+                name: updatedRow?.name ?? name,
+                description: updatedRow?.description ?? description,
+                price: updatedRow?.price ?? price,
+                image_url: updatedRow?.image_url ?? null,
+                square_item_id: up.square_item_id,
+                square_variation_id: up.square_variation_id,
+                square_image_id: updatedRow?.square_image_id ?? null,
+              },
+              up.square_item_id
+            );
+
+            await supabaseRestUpdate(tableName, accessToken, productId, {
+              square_item_id: up.square_item_id,
+              square_variation_id: up.square_variation_id,
+              square_image_id: img.image_id ?? null,
+            });
+
+            if (quantity !== null) {
+              await setSquareInStockCount({
+                variationId: up.square_variation_id,
+                newQty: quantity,
+                idempotencyKey: `update_${productId}_${nowIso}`,
+              });
+            }
+          }
+        } catch (e: any) {
+          console.error("Auto Square sync (update) failed:", e?.message || e);
+        }
+      }
+
       await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
 
       return NextResponse.json({ product: data, imageUrls: [] }, { status: 200 });
@@ -678,7 +776,13 @@ export const GET = async (request: Request) => {
       return NextResponse.json(fallbackData ?? [], { status: 200 });
     }
 
-    return NextResponse.json(data ?? [], { status: 200 });
+    return NextResponse.json(
+      (data ?? []).map((product: any) => ({
+        ...product,
+        quantity: normalizeQuantity(product.quantity),
+      })),
+      { status: 200 }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     const status = message.includes("Not signed in") ? 401 : message.includes("Admins only") ? 403 : 500;

@@ -3,6 +3,7 @@ import { getStripe } from "@/lib/stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 // OPTIONAL (recommended): attach logged-in user_id to orders
 import { createClient } from "@/utils/supabase/server";
+import { normalizeQuantity } from "@/lib/inventory";
 
 type Body = {
   items: { productId: string; quantity: number }[];
@@ -186,14 +187,16 @@ export async function POST(req: Request) {
       if (!p) return new NextResponse("One or more products not found.", { status: 404 });
       if (!p.is_active) return new NextResponse(`Item unavailable: ${p.name}`, { status: 400 });
 
-      if (typeof p.quantity === "number" && p.quantity <= 0) {
+      const quantity = normalizeQuantity(p.quantity);
+
+      if (typeof quantity === "number" && quantity <= 0) {
         return new NextResponse(
           "An item in your cart is out of stock, please remove to continue with purchase.",
           { status: 400 }
         );
       }
 
-      if (typeof p.quantity === "number" && p.quantity < w.quantity) {
+      if (typeof quantity === "number" && quantity < w.quantity) {
         return new NextResponse(`Not enough stock for: ${p.name}`, { status: 400 });
       }
     }
