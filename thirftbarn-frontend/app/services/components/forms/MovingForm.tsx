@@ -279,7 +279,7 @@ export default function MovingForm({ serviceId }: { serviceId: ServiceId }) {
 
         <Field
           label="Upload photos (optional)"
-          hint="Helps us understand the scope of the move."
+          hint="Helps us understand the scope of the move. Max 10 photos."
         >
           <Input
             type="file"

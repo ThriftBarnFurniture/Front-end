@@ -144,7 +144,7 @@ export default function MarketplaceForm({ serviceId }: { serviceId: ServiceId })
 
         <Field
           label="Upload item photos (optional)"
-          hint="Upload screenshots/listing photos so we know size/weight."
+          hint="Upload screenshots/listing photos so we know size/weight. Max 10 photos."
         >
           <Input type="file" name="photos" accept="image/*" multiple />
         </Field>

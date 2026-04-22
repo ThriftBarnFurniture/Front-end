@@ -88,7 +88,7 @@ export default function DonationForm({ serviceId }: { serviceId: ServiceId }) {
 
         <Field
           label="Upload item photos (optional)"
-          hint="Upload photos of items being donated."
+          hint="Upload photos of items being donated. Max 10 photos."
         >
           <Input type="file" name="photos" accept="image/*" multiple />
         </Field>

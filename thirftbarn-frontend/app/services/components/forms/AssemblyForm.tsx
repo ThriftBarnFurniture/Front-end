@@ -96,7 +96,7 @@ export default function AssemblyForm({ serviceId }: { serviceId: ServiceId }) {
 
         <Field
           label="Upload photos (optional)"
-          hint="Photos can help us confirm parts, space, and complexity."
+          hint="Photos can help us confirm parts, space, and complexity. Max 10 photos."
         >
           <Input type="file" name="photos" accept="image/*" multiple />
         </Field>

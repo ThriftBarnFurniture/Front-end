@@ -162,7 +162,7 @@ export default function JunkForm({ serviceId }: { serviceId: ServiceId }) {
 
         <Field
           label="Upload photos (optional)"
-          hint="Photos help us quote accurately and prepare the right vehicle."
+          hint="Photos help us quote accurately and prepare the right vehicle. Max 10 photos."
         >
           <Input type="file" name="photos" accept="image/*" multiple />
           <HelpPill>Tip: include overall area + close-ups of bulky items.</HelpPill>
