@@ -7,6 +7,13 @@ export const dynamic = "force-dynamic";
 
 const MAX_PHOTOS = 10;
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_TOTAL_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB total before email encoding
+
+class ValidationError extends Error {}
+
+function formatMegabytes(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(0)}MB`;
+}
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -117,15 +124,25 @@ function objectToHtml(obj: Record<string, string | string[]>) {
 async function readPhotos(fd: FormData) {
   const files = fd.getAll("photos").filter((v) => v instanceof File) as File[];
   if (!files.length) return [];
+  if (files.length > MAX_PHOTOS) {
+    throw new ValidationError(`Please upload no more than ${MAX_PHOTOS} photos.`);
+  }
 
-  const trimmed = files.slice(0, MAX_PHOTOS);
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalBytes > MAX_TOTAL_PHOTO_BYTES) {
+    throw new ValidationError(
+      `Photos are too large to email. Please keep the total under ${formatMegabytes(MAX_TOTAL_PHOTO_BYTES)}.`
+    );
+  }
+
   const attachments: { filename: string; content: Buffer; contentType?: string }[] =
     [];
 
-  for (const f of trimmed) {
+  for (const f of files) {
     if (f.size > MAX_PHOTO_BYTES) {
-      // Skip overly large files rather than failing the whole request
-      continue;
+      throw new ValidationError(
+        `Each photo must be smaller than ${formatMegabytes(MAX_PHOTO_BYTES)}.`
+      );
     }
     const arr = await f.arrayBuffer();
     attachments.push({
@@ -264,7 +281,7 @@ export async function POST(req: Request) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
       { ok: false, error: msg },
-      { status: 500 }
+      { status: err instanceof ValidationError ? 400 : 500 }
     );
   }
 }
