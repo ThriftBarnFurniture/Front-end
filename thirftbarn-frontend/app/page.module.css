@@ -420,6 +420,143 @@
 }
 
 /* =========================================================
+   ESTATE SALES
+   ========================================================= */
+
+.estateSaleSection {
+  padding: var(--space-9) var(--gutter) var(--space-9);
+  background:
+    radial-gradient(circle at 16% 8%, rgba(177, 15, 15, 0.13), transparent 32%),
+    linear-gradient(135deg, #fff8ef 0%, #f4eadc 55%, #efe0c8 100%);
+}
+
+.estateSaleHeader {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 6px;
+  margin-bottom: 34px;
+}
+
+.estateSaleKicker {
+  margin: 0;
+  color: var(--color-brand);
+  font-family: var(--font-text);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.estateSaleTitle {
+  margin: 0;
+  color: var(--color-brand-dark);
+  font-family: var(--font-header);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.estateSaleIntro {
+  margin: 0;
+  color: var(--color-muted);
+  font-family: var(--font-text);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.estateSaleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 240px));
+  justify-content: center;
+  gap: 26px;
+}
+
+.estateSalePhotoCard {
+  display: grid;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.estateSalePhotoWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(83, 42, 21, 0.12);
+}
+
+.estateSalePhotoBadge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 7px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: var(--font-text);
+  font-size: 0.82rem;
+  font-weight: 900;
+  box-shadow: var(--shadow-sm);
+}
+
+.estateSalePhotoMeta {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  text-align: center;
+}
+
+.estateSaleName {
+  margin: 0;
+  color: var(--color-brand-dark);
+  font-family: var(--font-header);
+  font-size: clamp(1.45rem, 1.2rem + 0.8vw, 2rem);
+  font-weight: var(--fw-black);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.estateSaleProductRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.estateSaleCta {
+  width: max-content;
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: var(--font-text);
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.estateSaleSection .productName {
+  color: var(--color-brand-dark);
+}
+
+.estateSaleSection .productPrice {
+  color: var(--color-brand);
+}
+
+.estateSaleSection .productImgWrap {
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(83, 42, 21, 0.12);
+}
+
+/* =========================================================
    BARN BURNER
    ========================================================= */
 
@@ -717,6 +854,7 @@
 
 @media (max-width: 1200px) {
   .productRow { grid-template-columns: repeat(4, 1fr); }
+  .estateSaleProductRow { grid-template-columns: repeat(4, 1fr); }
   .roomCircle { width: 200px; height: 200px; }
   .contactGrid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -729,6 +867,7 @@
 
 @media (max-width: 992px) {
   .productRow { grid-template-columns: repeat(3, 1fr); }
+  .estateSaleProductRow { grid-template-columns: repeat(3, 1fr); }
   .roomGrid { grid-template-columns: repeat(3, 1fr); }
   .roomCircle { width: 200px; height: 200px; }
 
@@ -828,7 +967,15 @@
 
 @media (max-width: 768px) {
   .productRow { grid-template-columns: repeat(2, 1fr); }
+  .estateSaleProductRow { grid-template-columns: repeat(2, 1fr); }
   .sectionHeading { text-align: center; }
+  .estateSaleHeader { text-align: center; justify-items: center; }
+  .estateSaleGrid { grid-template-columns: 1fr; }
+  .estateSaleGroupHeader {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
   .contactMapWrap { height: var(--map-height-mobile); padding-bottom: 650px;}
   .roomGrid { grid-template-columns: repeat(2, 1fr); }
   .contactGrid { grid-template-columns: repeat(2, 1fr); }
@@ -856,6 +1003,7 @@
   }
 
   .productRow { grid-template-columns: 1fr; }
+  .estateSaleProductRow { grid-template-columns: 1fr; }
   .roomGrid { grid-template-columns: 1fr; }
   .roomCircle { width: 240px; height: 240px; }
 

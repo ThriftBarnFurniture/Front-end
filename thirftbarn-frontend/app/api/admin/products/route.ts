@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { uploadProductImageToR2 } from "@/lib/r2-upload";
 import { createClient } from "@/utils/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { upsertSquareCatalogObject, upsertSquareImageIfPossible } from "@/lib/square/catalog";
 import { setSquareInStockCount } from "@/lib/square/inventory";
 import { normalizeQuantity, toStoredQuantity } from "@/lib/inventory";
+import {
+  formatEstateSaleName,
+  getEstateSaleSlug,
+  isEstateSaleCollection,
+  isEstateSalePhotoCollection,
+} from "@/lib/estate-sales";
 
 const sendToCloudflareDatabase = async (payload: Record<string, unknown>) => {
   const endpoint = process.env.CLOUDFLARE_PRODUCTS_ENDPOINT;
@@ -31,6 +38,12 @@ const parseImages = (formData: FormData) =>
     .filter((entry) => entry instanceof File)
     .map((entry) => entry as File)
     .filter((entry) => entry.size > 0);
+
+const parseOptionalImage = (formData: FormData, key: string) => {
+  const entry = formData.get(key);
+  if (!(entry instanceof File) || entry.size <= 0) return null;
+  return entry;
+};
 
 const getTextArray = (formData: FormData, key: string) =>
   formData
@@ -160,6 +173,45 @@ const uploadImagesToR2 = async (images: File[]) => {
   return uploads.map((u) => u.publicUrl);
 };
 
+const upsertEstateSaleMetadata = async (collections: string[], formData: FormData) => {
+  const cleanedCollections = collections.filter((collection) => !isEstateSalePhotoCollection(collection));
+  const estateCollection = cleanedCollections.find(isEstateSaleCollection);
+  if (!estateCollection) return cleanedCollections;
+
+  const estatePhoto = parseOptionalImage(formData, "estate_sale_image");
+  const existingEstatePhoto = String(formData.get("existing_estate_sale_photo") ?? "").trim();
+  const estateSlug = getEstateSaleSlug(estateCollection);
+  const estateName = formatEstateSaleName(estateCollection);
+
+  const estatePhotoUrl = estatePhoto
+    ? (await uploadProductImageToR2(estatePhoto)).publicUrl
+    : existingEstatePhoto;
+
+  try {
+    const supabaseAdmin = createSupabaseAdmin();
+    const payload: Record<string, unknown> = {
+      slug: estateSlug,
+      name: estateName,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (estatePhotoUrl) payload.photo_url = estatePhotoUrl;
+
+    const { error } = await supabaseAdmin
+      .from("estate_sales")
+      .upsert(payload, { onConflict: "slug" });
+
+    if (error) {
+      console.error("upsertEstateSaleMetadata error:", error.message);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown estate sale metadata error";
+    console.error("upsertEstateSaleMetadata error:", message);
+  }
+
+  return cleanedCollections;
+};
+
 async function requireAdminAndToken() {
   const supabase = await createClient();
 
@@ -278,7 +330,7 @@ export const POST = async (request: Request) => {
     const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
     const room_tags = getTextArray(formData, "room_tags");
-    const collections = getTextArray(formData, "collections");
+    const collections = await upsertEstateSaleMetadata(getTextArray(formData, "collections"), formData);
     const colors = getTextArray(formData, "colors");
 
     const height = getOptionalNumber(formData, "height");
@@ -474,7 +526,7 @@ export const PATCH = async (request: Request) => {
     const subcategories = getMultiTextArray(formData, "subcategory", "subcategories");
 
     const room_tags = getTextArray(formData, "room_tags");
-    const collections = getTextArray(formData, "collections");
+    const collections = await upsertEstateSaleMetadata(getTextArray(formData, "collections"), formData);
     const colors = getTextArray(formData, "colors");
 
     const height = getOptionalNumber(formData, "height");
@@ -731,7 +783,7 @@ export const GET = async (request: Request) => {
     let query = supabase
       .from(tableName)
       .select(
-        "id,name,initial_price,price,category,subcategory,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active," +
+        "id,name,initial_price,price,category,subcategory,collections,colors,condition,image_url,image_urls,created_at,updated_at,quantity,is_active," +
           "is_barn_burner,barn_burner_started_at,barn_burner_day,barn_burner_last_tick," +
           "is_oversized,is_monthly_price_drop,monthly_drop_started_at,monthly_drop_last_tick"
       )
@@ -758,7 +810,7 @@ export const GET = async (request: Request) => {
 
       let fallbackQuery = supabase
         .from(tableName)
-        .select("id,name,price,category,colors,image_url,image_urls")
+        .select("id,name,price,category,collections,colors,image_url,image_urls")
         .limit(500);
 
       if (qRaw) {

@@ -258,6 +258,20 @@
   opacity: 0.9;
 }
 
+.estatePhotoPreview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.estatePhotoThumb {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
 
 /* Stack on mobile */
 @media (max-width: 768px) {

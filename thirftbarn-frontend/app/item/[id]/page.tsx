@@ -4,6 +4,7 @@ import ImageGallery from "./ImageGallery";
 import { formatPrice, getAllImages, getProductById } from "@/lib/products";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import ScrollToTop from "../../../components/ui/ScrollToTop";
+import { formatCollectionLabel, isEstateSaleCollection, isEstateSalePhotoCollection } from "@/lib/estate-sales";
 
 export default async function ItemPage({
   params,
@@ -24,8 +25,8 @@ export default async function ItemPage({
     product.price != null ? Number(product.price) : null;
     
   const initialPriceNum =
-    (product as any).initial_price != null
-      ? Number((product as any).initial_price)
+    product.initial_price != null
+      ? Number(product.initial_price)
       : null;
 
   const showDropped =
@@ -39,8 +40,13 @@ export default async function ItemPage({
   const soldOut = product.quantity !== null && product.quantity <= 0;
 
   // Optional: program badges (purely display)
-  const isBarnBurner = Boolean((product as any).is_barn_burner);
-  const isMonthlyDrop = Boolean((product as any).is_monthly_price_drop);
+  const isBarnBurner = Boolean(product.is_barn_burner);
+  const isMonthlyDrop = Boolean(product.is_monthly_price_drop);
+  const productCollections = Array.isArray(product.collections) ? product.collections : [];
+  const isEstateSale = productCollections.some(isEstateSaleCollection);
+  const formattedCollections = productCollections
+    .filter((collection) => !isEstateSalePhotoCollection(collection))
+    .map(formatCollectionLabel);
 
   return (
     <main className={styles.page}>
@@ -65,6 +71,7 @@ export default async function ItemPage({
 
             {/* Program badges (optional, remove if you don't want them) */}
             {isBarnBurner && <div className={styles.dropBadge}>Barn Burner</div>}
+            {isEstateSale && <div className={styles.dropBadge}>Estate Sale</div>}
             {!isBarnBurner && isMonthlyDrop && <div className={styles.dropBadge}>Monthly Drop</div>}
 
             {soldOut && <div className={styles.badge}>Sold</div>}
@@ -81,7 +88,7 @@ export default async function ItemPage({
                 name: product.name,
                 price: product.price,
                 image_url: product.image_url ?? null,
-                is_oversized: Boolean((product as any).is_oversized),
+                is_oversized: Boolean(product.is_oversized),
               }}
             />
           </div>
@@ -90,25 +97,16 @@ export default async function ItemPage({
             {product.category && <li>Category: {product.category.join(", ")}</li>}
             {product.subcategory && <li>Subcategory: {product.subcategory.join(", ")}</li>}
 
-            {Array.isArray((product as any).room_tags) && (product as any).room_tags.length > 0 && (
-              <li>Room Tags: {(product as any).room_tags.join(", ")}</li>
-            )}
-            {typeof (product as any).room_tags === "string" && (product as any).room_tags && (
-              <li>Room Tags: {(product as any).room_tags}</li>
+            {Array.isArray(product.room_tags) && product.room_tags.length > 0 && (
+              <li>Room Tags: {product.room_tags.join(", ")}</li>
             )}
 
-            {Array.isArray((product as any).collections) && (product as any).collections.length > 0 && (
-              <li>Collections: {(product as any).collections.join(", ")}</li>
-            )}
-            {typeof (product as any).collections === "string" && (product as any).collections && (
-              <li>Collections: {(product as any).collections}</li>
+            {formattedCollections.length > 0 && (
+              <li>Collections: {formattedCollections.join(", ")}</li>
             )}
 
-            {Array.isArray((product as any).colors) && (product as any).colors.length > 0 && (
-              <li>Colors: {(product as any).colors.join(", ")}</li>
-            )}
-            {typeof (product as any).colors === "string" && (product as any).colors && (
-              <li>Colors: {(product as any).colors}</li>
+            {Array.isArray(product.colors) && product.colors.length > 0 && (
+              <li>Colors: {product.colors.join(", ")}</li>
             )}
 
             {product.condition && <li>Condition: {product.condition}</li>}

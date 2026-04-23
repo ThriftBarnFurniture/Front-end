@@ -2,9 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import styles from "./shop.module.css";
 import { useSearchParams } from "next/navigation";
+import {
+  coerceEstateSaleCollectionValue,
+  formatCollectionLabel,
+  isEstateSaleCollection,
+  isEstateSalePhotoCollection,
+} from "@/lib/estate-sales";
 
 type ProductUI = {
   id: string;
@@ -33,24 +39,59 @@ function uniqueSorted(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
+type SearchParamsReader = {
+  getAll: (name: string) => string[];
+};
+
+function getInitialFilterSelections(searchParams: SearchParamsReader) {
+  const categories = searchParams.getAll("category");
+  const collections = searchParams.getAll("collection");
+  const estateSales = searchParams
+    .getAll("estate")
+    .map(coerceEstateSaleCollectionValue)
+    .filter(Boolean);
+
+  const regularCollections = collections.filter(
+    (collection) => !isEstateSaleCollection(collection) && !isEstateSalePhotoCollection(collection)
+  );
+  const estateCollections = collections.filter(isEstateSaleCollection);
+
+  return {
+    categories,
+    subcategories: categories.length > 0 ? searchParams.getAll("subcategory") : [],
+    rooms: searchParams.getAll("room"),
+    collections: regularCollections,
+    estateSales: Array.from(new Set([...estateCollections, ...estateSales])),
+  };
+}
+
 export default function ShopClient({ products }: { products: ProductUI[] }) {
+  const searchParams = useSearchParams();
+  const initialFilters = getInitialFilterSelections(searchParams);
+
   const [sort, setSort] = useState<SortKey>("newest");
 
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => initialFilters.categories);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(() => initialFilters.subcategories);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>(() => initialFilters.rooms);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>(() => initialFilters.collections);
+  const [selectedEstateSales, setSelectedEstateSales] = useState<string[]>(() => initialFilters.estateSales);
 
   const options = useMemo(() => {
     const cats: string[] = [];
     const subs: string[] = [];
     const rooms: string[] = [];
     const cols: string[] = [];
+    const estates: string[] = [];
 
     for (const p of products) {
       p.category.forEach((c) => cats.push(c));
       p.room_tags.forEach((r) => rooms.push(r));
-      p.collections.forEach((c) => cols.push(c));
+      p.collections.forEach((c) => {
+        if (isEstateSaleCollection(c)) estates.push(c);
+        else if (isEstateSalePhotoCollection(c)) return;
+        else cols.push(c);
+      });
 
       const matchesSelectedCats =
         selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
@@ -65,30 +106,9 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
       subcategories: uniqueSorted(subs),
       rooms: uniqueSorted(rooms),
       collections: uniqueSorted(cols),
+      estateSales: uniqueSorted(estates),
     };
   }, [products, selectedCategories]);
-
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const collection = searchParams.get("collection");
-    const room = searchParams.get("room");
-    const categories = searchParams.getAll("category");
-    const subcategories = searchParams.getAll("subcategory");
-
-    if (categories.length) setSelectedCategories(categories);
-    if (subcategories.length) setSelectedSubcategories(subcategories);
-    if (collection) setSelectedCollections([collection]);
-    if (room) setSelectedRooms([room]);
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (selectedCategories.length === 0) {
-      if (selectedSubcategories.length) setSelectedSubcategories([]);
-      return;
-    }
-    setSelectedSubcategories((prev) => prev.filter((s) => options.subcategories.includes(s)));
-  }, [selectedCategories, options.subcategories, selectedSubcategories.length]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -104,9 +124,12 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
       const colOk =
         selectedCollections.length === 0 || p.collections.some((c) => selectedCollections.includes(c));
 
-      return catOk && subOk && roomOk && colOk;
+      const estateOk =
+        selectedEstateSales.length === 0 || p.collections.some((c) => selectedEstateSales.includes(c));
+
+      return catOk && subOk && roomOk && colOk && estateOk;
     });
-  }, [products, selectedCategories, selectedSubcategories, selectedRooms, selectedCollections]);
+  }, [products, selectedCategories, selectedSubcategories, selectedRooms, selectedCollections, selectedEstateSales]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -133,11 +156,31 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
   const toggle = (list: string[], value: string) =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
+  const toggleCategory = (category: string) => {
+    const nextCategories = toggle(selectedCategories, category);
+    setSelectedCategories(nextCategories);
+
+    if (nextCategories.length === 0) {
+      setSelectedSubcategories([]);
+      return;
+    }
+
+    const allowedSubcategories = new Set<string>();
+    for (const product of products) {
+      if (product.category.some((c) => nextCategories.includes(c))) {
+        product.subcategory.forEach((subcategory) => allowedSubcategories.add(subcategory));
+      }
+    }
+
+    setSelectedSubcategories((prev) => prev.filter((subcategory) => allowedSubcategories.has(subcategory)));
+  };
+
   const clearAll = () => {
     setSelectedCategories([]);
     setSelectedSubcategories([]);
     setSelectedRooms([]);
     setSelectedCollections([]);
+    setSelectedEstateSales([]);
   };
 
   return (
@@ -153,7 +196,8 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
               selectedCategories.length === 0 &&
               selectedSubcategories.length === 0 &&
               selectedRooms.length === 0 &&
-              selectedCollections.length === 0
+              selectedCollections.length === 0 &&
+              selectedEstateSales.length === 0
             }
           >
             Clear
@@ -171,7 +215,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                   <input
                     type="checkbox"
                     checked={selectedCategories.includes(c)}
-                    onChange={() => setSelectedCategories((prev) => toggle(prev, c))}
+                    onChange={() => toggleCategory(c)}
                   />
                   <span>{c}</span>
                 </label>
@@ -235,12 +279,30 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                     checked={selectedCollections.includes(c)}
                     onChange={() => setSelectedCollections((prev) => toggle(prev, c))}
                   />
-                  <span>{c}</span>
+                  <span>{formatCollectionLabel(c)}</span>
                 </label>
               ))
             )}
           </div>
         </div>
+
+        {options.estateSales.length > 0 && (
+          <div className={styles.filterBlock}>
+            <div className={styles.filterTitle}>Estate Sales</div>
+            <div className={styles.filterList}>
+              {options.estateSales.map((c) => (
+                <label key={c} className={styles.checkRow}>
+                  <input
+                    type="checkbox"
+                    checked={selectedEstateSales.includes(c)}
+                    onChange={() => setSelectedEstateSales((prev) => toggle(prev, c))}
+                  />
+                  <span>{formatCollectionLabel(c)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </aside>
 
       <section className={styles.main}>

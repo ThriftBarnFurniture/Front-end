@@ -11,6 +11,39 @@ import {
   CONDITION_OPTIONS,
   COLOR_OPTIONS,
 } from "./productFormOptions";
+import {
+  createEstateSaleCollectionValue,
+  formatEstateSaleName,
+  getEstateSalePhotoUrl,
+  isEstateSaleCollection,
+  splitEstateSaleCollections,
+} from "@/lib/estate-sales";
+
+type ProductFormInitial = {
+  id?: string | number | null;
+  name?: string | null;
+  description?: string | null;
+  price?: number | string | null;
+  quantity?: number | null;
+  category?: string[] | string | null;
+  categories?: string[] | string | null;
+  subcategory?: string[] | string | null;
+  subcategories?: string[] | string | null;
+  room_tags?: string[] | null;
+  collections?: string[] | null;
+  colors?: string[] | null;
+  is_barn_burner?: boolean | null;
+  barn_burner_day?: number | string | null;
+  is_oversized?: boolean | null;
+  is_monthly_price_drop?: boolean | null;
+  image_urls?: string[] | null;
+  image_url?: string | null;
+  estate_sale_photo_url?: string | null;
+  height?: number | string | null;
+  width?: number | string | null;
+  depth?: number | string | null;
+  condition?: string | null;
+};
 
 // Day1=40, Day2=35 ... Day7=10
 const barnBurnerPriceForDay = (day: BarnDay) => Math.max(10, 40 - 5 * (day - 1));
@@ -127,9 +160,9 @@ function ColorChipGrid({
             disabled={disabled}
             style={
               {
-                ["--swatch" as any]: hex,
-                ["--tint" as any]: active && !isWhite ? `${hex}22` : "transparent",
-              } as React.CSSProperties
+                "--swatch": hex,
+                "--tint": active && !isWhite ? `${hex}22` : "transparent",
+              } as React.CSSProperties & Record<"--swatch" | "--tint", string>
             }
           >
             <span className={[styles.swatch, isWhite ? styles.swatchWhite : ""].join(" ")} aria-hidden />
@@ -146,9 +179,9 @@ export const ProductForm = ({
   initialProduct,
 }: {
   mode?: "create" | "edit";
-  initialProduct?: Record<string, any>;
+  initialProduct?: ProductFormInitial;
 }) => {
-  const init = initialProduct ?? {};
+  const init = useMemo<ProductFormInitial>(() => initialProduct ?? {}, [initialProduct]);
 
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -172,7 +205,21 @@ export const ProductForm = ({
   });
 
   const [roomTags, setRoomTags] = useState<string[]>(() => (Array.isArray(init.room_tags) ? init.room_tags : []));
-  const [collections, setCollections] = useState<string[]>(() => (Array.isArray(init.collections) ? init.collections : []));
+  const [collections, setCollections] = useState<string[]>(() => {
+    const initialCollections = Array.isArray(init.collections) ? init.collections.filter(Boolean) : [];
+    return splitEstateSaleCollections(initialCollections).regularCollections;
+  });
+  const [estateSaleName, setEstateSaleName] = useState<string>(() => {
+    const initialCollections = Array.isArray(init.collections) ? init.collections.filter(Boolean) : [];
+    const firstEstateSale = splitEstateSaleCollections(initialCollections).estateSaleCollections[0];
+    return firstEstateSale ? formatEstateSaleName(firstEstateSale) : "";
+  });
+  const [estateSalePhotoUrl, setEstateSalePhotoUrl] = useState<string>(() => {
+    const initialCollections = Array.isArray(init.collections) ? init.collections.filter(Boolean) : [];
+    const firstEstateSale = splitEstateSaleCollections(initialCollections).estateSaleCollections[0];
+    if (init.estate_sale_photo_url) return init.estate_sale_photo_url;
+    return firstEstateSale ? getEstateSalePhotoUrl(initialCollections, firstEstateSale) ?? "" : "";
+  });
   const [colors, setColors] = useState<string[]>(() => (Array.isArray(init.colors) ? init.colors : []));
 
   const [isBarnBurner, setIsBarnBurner] = useState<boolean>(!!init.is_barn_burner);
@@ -241,6 +288,23 @@ export const ProductForm = ({
 
       // Ensure subs are valid for selected categories (unless barn burner)
       const cleanedSubs = isBarnBurner ? subcategories : subcategories.filter((s) => validSubSet.has(s));
+      const trimmedEstateSaleName = estateSaleName.trim();
+      const estateSaleCollection = trimmedEstateSaleName
+        ? createEstateSaleCollectionValue(trimmedEstateSaleName)
+        : "";
+
+      if (trimmedEstateSaleName && !estateSaleCollection) {
+        throw new Error("Please use letters or numbers in the estate sale name.");
+      }
+
+      const cleanedCollections = collections.filter((collection) => !isEstateSaleCollection(collection));
+      const nextCollections = Array.from(
+        new Set(
+          estateSaleCollection
+            ? [...cleanedCollections, estateSaleCollection].filter(Boolean)
+            : cleanedCollections
+        )
+      );
 
       const formData = new FormData(form);
 
@@ -270,8 +334,13 @@ export const ProductForm = ({
       formData.delete("collections");
       formData.delete("colors");
       roomTags.forEach((v) => formData.append("room_tags", v));
-      collections.forEach((v) => formData.append("collections", v));
+      nextCollections.forEach((v) => formData.append("collections", v));
       colors.forEach((v) => formData.append("colors", v));
+      if (estateSaleCollection && estateSalePhotoUrl) {
+        formData.set("existing_estate_sale_photo", estateSalePhotoUrl);
+      } else {
+        formData.delete("existing_estate_sale_photo");
+      }
 
       // edit mode extras: productId + keep_image_urls
       if (mode === "edit") {
@@ -312,6 +381,8 @@ export const ProductForm = ({
         setSubcategories([]);
         setRoomTags([]);
         setCollections([]);
+        setEstateSaleName("");
+        setEstateSalePhotoUrl("");
         setColors([]);
       }
 
@@ -525,6 +596,42 @@ export const ProductForm = ({
         <label className={styles.label}>Collections</label>
         <ChipGrid options={collectionsAsOptions} selected={collections} onToggle={(v) => setCollections(toggleValue(collections, v))} />
       </div>
+
+      <div className={styles.fieldGroup}>
+        <label className={styles.label} htmlFor="estate_sale_name">
+          Estate sale category
+        </label>
+        <input
+          className={styles.input}
+          id="estate_sale_name"
+          type="text"
+          value={estateSaleName}
+          onChange={(event) => setEstateSaleName(event.target.value)}
+          placeholder="Example: Morrison Moving Sale"
+        />
+        <p className={styles.status}>
+          Optional. Products with the same estate sale name are grouped together on the home page and shop filters.
+        </p>
+      </div>
+
+      {estateSaleName.trim() && (
+        <div className={styles.fieldGroup}>
+          <label className={styles.label} htmlFor="estate_sale_image">
+            Estate sale photo
+          </label>
+          {estateSalePhotoUrl && (
+            <div className={styles.estatePhotoPreview}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={estateSalePhotoUrl} alt="" className={styles.estatePhotoThumb} />
+              <span className={styles.status}>Current estate photo. Upload a new photo to replace it.</span>
+            </div>
+          )}
+          <input className={styles.input} id="estate_sale_image" name="estate_sale_image" type="file" accept="image/*" />
+          <p className={styles.status}>
+            Optional. This is the image shown for the estate sale on the home page.
+          </p>
+        </div>
+      )}
 
       <div className={styles.fieldGroup}>
         <label className={styles.label}>Colors *</label>

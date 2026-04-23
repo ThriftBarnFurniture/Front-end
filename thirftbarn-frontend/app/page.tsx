@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import NewToBarnCarousel from "@/components/home/NewToBarnCarousel";
 import BarnBurnerSection from "@/components/home/BarnBurnerSection";
+import EstateSaleSection from "@/components/home/EstateSaleSection";
 import Reveal from "@/components/ui/Reveal";
 
 
@@ -205,6 +206,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* ===== ESTATE SALES ===== */}
+      <EstateSaleSection />
 
       {/* ===== BARN BURNER (LIQUIDATION) ===== */}
       <BarnBurnerSection />
