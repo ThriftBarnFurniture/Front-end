@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import styles from "./forms.module.css";
+import { optimizeImageFieldInFormData } from "@/lib/image-upload-optimization";
 import type { BarnDay, CategoryValue, Option } from "./productFormOptions";
 import {
   CATEGORY_OPTIONS,
@@ -18,6 +19,8 @@ import {
   isEstateSaleCollection,
   splitEstateSaleCollections,
 } from "@/lib/estate-sales";
+
+const MAX_PRODUCT_IMAGE_BYTES = 10 * 1024 * 1024;
 
 type ProductFormInitial = {
   id?: string | number | null;
@@ -184,7 +187,7 @@ export const ProductForm = ({
   const init = useMemo<ProductFormInitial>(() => initialProduct ?? {}, [initialProduct]);
 
   const [status, setStatus] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitState, setSubmitState] = useState<"idle" | "compressing" | "sending">("idle");
 
   // supported (PATCH), hidden input
   const [productId, setProductId] = useState<string>(mode === "edit" ? String(init.id ?? "") : "");
@@ -278,7 +281,7 @@ export const ProductForm = ({
     const form = event.currentTarget;
 
     setStatus(null);
-    setIsSubmitting(true);
+    setSubmitState("compressing");
 
     try {
       // Client guards
@@ -350,19 +353,36 @@ export const ProductForm = ({
         keptImages.forEach((u) => formData.append("keep_image_urls", u));
       }
 
+      const optimizedImages = await optimizeImageFieldInFormData(formData, {
+        fieldName: "images",
+        maxPerFileBytes: MAX_PRODUCT_IMAGE_BYTES,
+        tooLargeAfterCompressionMessage: "One of the product photos is still too large after compression. Please keep each photo under 10MB.",
+      });
+
+      const uploadPayload = await optimizeImageFieldInFormData(optimizedImages, {
+        fieldName: "estate_sale_image",
+        maxFiles: 1,
+        maxPerFileBytes: MAX_PRODUCT_IMAGE_BYTES,
+        tooManyFilesMessage: "Please upload only one estate sale photo.",
+        tooLargeAfterCompressionMessage: "The estate sale photo is still too large after compression. Please keep it under 10MB.",
+      });
+
       const method = mode === "edit" ? "PATCH" : "POST";
+      setSubmitState("sending");
 
       const response = await fetch("/api/admin/products", {
         method,
-        body: formData,
+        body: uploadPayload,
       });
 
       const contentType = response.headers.get("content-type") || "";
-      const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+      const responsePayload = contentType.includes("application/json") ? await response.json() : await response.text();
 
       if (!response.ok) {
         const errorMessage =
-          typeof payload === "string" ? payload || "Unable to save product." : payload?.error ?? "Unable to save product.";
+          typeof responsePayload === "string"
+            ? responsePayload || "Unable to save product."
+            : responsePayload?.error ?? "Unable to save product.";
         throw new Error(errorMessage);
       }
 
@@ -391,7 +411,7 @@ export const ProductForm = ({
       const message = error instanceof Error ? error.message : "Something went wrong.";
       setStatus(message);
     } finally {
-      setIsSubmitting(false);
+      setSubmitState("idle");
     }
   };
 
@@ -743,8 +763,14 @@ export const ProductForm = ({
         />
       </div>
 
-      <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving..." : mode === "edit" ? "Save changes" : "Upload product"}
+      <button className={styles.submitButton} type="submit" disabled={submitState !== "idle"}>
+        {submitState === "compressing"
+          ? "Compressing photos..."
+          : submitState === "sending"
+            ? "Saving..."
+            : mode === "edit"
+              ? "Save changes"
+              : "Upload product"}
       </button>
 
       {status && <p className={styles.status}>{status}</p>}
