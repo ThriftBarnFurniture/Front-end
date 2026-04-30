@@ -20,7 +20,7 @@ import {
   splitEstateSaleCollections,
 } from "@/lib/estate-sales";
 
-const MAX_PRODUCT_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_PRODUCT_IMAGE_BYTES = 700 * 1024;
 
 type ProductFormInitial = {
   id?: string | number | null;
@@ -356,7 +356,7 @@ export const ProductForm = ({
       const optimizedImages = await optimizeImageFieldInFormData(formData, {
         fieldName: "images",
         maxPerFileBytes: MAX_PRODUCT_IMAGE_BYTES,
-        tooLargeAfterCompressionMessage: "One of the product photos is still too large after compression. Please keep each photo under 10MB.",
+        tooLargeAfterCompressionMessage: "One of the product photos is still too large after compression. Please keep each photo under 700KB.",
       });
 
       const uploadPayload = await optimizeImageFieldInFormData(optimizedImages, {
@@ -364,7 +364,7 @@ export const ProductForm = ({
         maxFiles: 1,
         maxPerFileBytes: MAX_PRODUCT_IMAGE_BYTES,
         tooManyFilesMessage: "Please upload only one estate sale photo.",
-        tooLargeAfterCompressionMessage: "The estate sale photo is still too large after compression. Please keep it under 10MB.",
+        tooLargeAfterCompressionMessage: "The estate sale photo is still too large after compression. Please keep it under 700KB.",
       });
 
       const method = mode === "edit" ? "PATCH" : "POST";
