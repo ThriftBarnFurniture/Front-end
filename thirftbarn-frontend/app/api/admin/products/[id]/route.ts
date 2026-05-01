@@ -40,3 +40,18 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     quantity: normalizeQuantity(data.quantity),
   });
 }
+
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
+
+  const { id } = await ctx.params;
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase.from("products").delete().eq("id", id).select("id").maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({ ok: true, id });
+}

@@ -22,17 +22,20 @@ function toTextList(value: string | string[] | null | undefined) {
 }
 
 export function ProductEditor({ initialProducts }: { initialProducts: Product[] }) {
+  const [products, setProducts] = useState(initialProducts);
   const [q, setQ] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    if (!query) return initialProducts;
+    if (!query) return products;
 
     const queryNum = Number(query);
     const hasNum = !Number.isNaN(queryNum);
 
-    return initialProducts.filter((p) => {
+    return products.filter((p) => {
       const name = (p.name ?? "").toLowerCase();
       const category = toTextList(p.category).join(" ").toLowerCase();
       const collections = (p.collections ?? [])
@@ -49,7 +52,46 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
 
       return matchText || matchPrice;
     });
-  }, [q, initialProducts]);
+  }, [q, products]);
+
+  const handleDelete = async (product: Product) => {
+    if (deletingId) return;
+
+    setDeleteError(null);
+    const confirmed = window.confirm(`Delete "${product.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(product.id);
+
+      const response = await fetch(`/api/admin/products/${product.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        let message = `Failed to delete product (${response.status} ${response.statusText})`;
+
+        if (body) {
+          try {
+            const parsed = JSON.parse(body) as { error?: string };
+            message = parsed.error || body;
+          } catch {
+            message = body;
+          }
+        }
+
+        throw new Error(message);
+      }
+
+      setProducts((prev) => prev.filter((item) => item.id !== product.id));
+      router.refresh();
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Failed to delete product.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className={styles.wrap}>
@@ -65,6 +107,8 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
       <div className={styles.meta}>
         <span>{filtered.length} result(s)</span>
       </div>
+
+      {deleteError ? <p className={styles.statusError}>{deleteError}</p> : null}
 
       <div className={styles.list}>
         {filtered.map((p) => {
@@ -120,16 +164,30 @@ export function ProductEditor({ initialProducts }: { initialProducts: Product[] 
                 </div>
               </div>
 
-              <button
-                className={styles.copyBtn}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation(); // IMPORTANT: don't open editor when copying
-                  navigator.clipboard.writeText(p.id);
-                }}
-              >
-                Copy ID
-              </button>
+              <div className={styles.rowActions}>
+                <button
+                  className={styles.copyBtn}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(p.id);
+                  }}
+                >
+                  Copy ID
+                </button>
+
+                <button
+                  className={styles.deleteBtn}
+                  type="button"
+                  disabled={deletingId === p.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDelete(p);
+                  }}
+                >
+                  {deletingId === p.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </div>
           );
         })}
