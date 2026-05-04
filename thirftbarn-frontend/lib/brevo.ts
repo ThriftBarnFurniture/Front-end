@@ -55,6 +55,10 @@ function requiredEnv(name: string) {
   return value;
 }
 
+function toMailAddress(entry: { email: string; name?: string }) {
+  return entry.name ? { name: entry.name, address: entry.email } : entry.email;
+}
+
 function money(n: number | null | undefined, currency: string | null | undefined) {
   if (n == null || !Number.isFinite(n)) return "--";
   const c = (currency || "CAD").toUpperCase();
@@ -301,8 +305,8 @@ async function sendBrevoEmail(message: BrevoMessage & { textContent?: string }) 
 
   await transporter.sendMail({
     from: { name: fromName, address: fromEmail },
-    to: message.to.map((entry) => ({ name: entry.name, address: entry.email })),
-    replyTo: message.replyTo ? { name: message.replyTo.name, address: message.replyTo.email } : undefined,
+    to: message.to.map(toMailAddress),
+    replyTo: message.replyTo ? toMailAddress(message.replyTo) : undefined,
     subject: message.subject,
     text: message.textContent,
     html: message.htmlContent,
