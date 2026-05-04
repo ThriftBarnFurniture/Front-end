@@ -43,8 +43,7 @@ const STORE_SUPPORT_EMAIL =
   process.env.ORDER_SUPPORT_EMAIL ||
   process.env.BREVO_OWNER_EMAIL ||
   process.env.BREVO_FROM_EMAIL ||
-  "thriftbarnfurniture@gmail.com";
-const STORE_SUPPORT_PHONE = process.env.ORDER_SUPPORT_PHONE || "613-915-3889";
+  "noreply@thriftbarnfurniture.ca";
 const STORE_SUPPORT_NAME = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
 const STORE_ADDRESS = "2786 ON-34, Hawkesbury, ON K6A 2R2";
 
@@ -201,7 +200,6 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
   const subject = `Order confirmation ${orderLabel} - ${STORE_SUPPORT_NAME}`;
   const itemsHtml = buildItemsHtml(payload);
   const helpEmail = esc(STORE_SUPPORT_EMAIL);
-  const helpPhone = esc(STORE_SUPPORT_PHONE);
   const helpName = esc(STORE_SUPPORT_NAME);
 
   const htmlContent = buildEmailShell(
@@ -239,8 +237,7 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
 
       <h3 style="margin:16px 0 6px">Need help?</h3>
       <p style="margin:0 0 10px">
-        Contact ${helpName} at <a href="mailto:${helpEmail}">${helpEmail}</a> or
-        <a href="tel:${STORE_SUPPORT_PHONE.replace(/\D/g, "")}">${helpPhone}</a>.<br/>
+        Contact ${helpName} at <a href="mailto:${helpEmail}">${helpEmail}</a>
         Store address: ${esc(STORE_ADDRESS)}
       </p>
     `
@@ -273,7 +270,6 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
     "",
     "Need help?",
     `Email: ${STORE_SUPPORT_EMAIL}`,
-    `Phone: ${STORE_SUPPORT_PHONE}`,
     `Address: ${STORE_ADDRESS}`,
   ].join("\n");
 
