@@ -48,6 +48,7 @@ const STORE_SUPPORT_EMAIL =
   "noreply@thriftbarnfurniture.ca";
 const STORE_SUPPORT_NAME = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
 const STORE_ADDRESS = "2786 ON-34, Hawkesbury, ON K6A 2R2";
+const ORDER_EMAIL_TIMEZONE = process.env.ORDER_EMAIL_TIMEZONE || "America/Toronto";
 
 function requiredEnv(name: string) {
   const value = process.env[name];
@@ -93,7 +94,21 @@ function formatDateTime(iso: string | null | undefined) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: ORDER_EMAIL_TIMEZONE,
   });
+}
+
+function formatShippingMethod(method: string | null | undefined) {
+  const value = String(method ?? "").trim();
+  if (value === "pickup") return "Pick Up";
+  if (value === "delivery_drop") return "Door Drop";
+  if (value === "inhouse_drop") return "In-House Drop";
+  if (value === "quote") return "Custom Quote";
+  return value || "--";
+}
+
+function isDeliveryOrder(method: string | null | undefined) {
+  return method === "delivery_drop" || method === "inhouse_drop";
 }
 
 function buildItemsHtml(payload: OrderEmailPayload) {
@@ -103,7 +118,6 @@ function buildItemsHtml(payload: OrderEmailPayload) {
   const rows = items
     .map((item) => {
       const name = esc(text(item.name));
-      const productId = esc(text(item.productId));
       const qty = Math.max(1, Math.floor(Number(item.qty ?? 1)));
       const unit = money(item.unitPrice ?? null, payload.currency);
       const lineTotal = money(item.lineTotal ?? (item.unitPrice ?? 0) * qty, payload.currency);
@@ -111,7 +125,6 @@ function buildItemsHtml(payload: OrderEmailPayload) {
       return `
         <tr>
           <td style="padding:8px;border:1px solid #ddd">${name}</td>
-          <td style="padding:8px;border:1px solid #ddd">${productId}</td>
           <td style="padding:8px;border:1px solid #ddd;text-align:right">${qty}</td>
           <td style="padding:8px;border:1px solid #ddd;text-align:right">${esc(unit)}</td>
           <td style="padding:8px;border:1px solid #ddd;text-align:right">${esc(lineTotal)}</td>
@@ -125,7 +138,6 @@ function buildItemsHtml(payload: OrderEmailPayload) {
       <thead>
         <tr>
           <th style="padding:8px;border:1px solid #ddd;text-align:left">Item</th>
-          <th style="padding:8px;border:1px solid #ddd;text-align:left">Product ID</th>
           <th style="padding:8px;border:1px solid #ddd;text-align:right">Qty</th>
           <th style="padding:8px;border:1px solid #ddd;text-align:right">Unit</th>
           <th style="padding:8px;border:1px solid #ddd;text-align:right">Line Total</th>
@@ -143,11 +155,10 @@ function buildItemsText(payload: OrderEmailPayload) {
   return items
     .map((item) => {
       const name = text(item.name);
-      const productId = text(item.productId);
       const qty = Math.max(1, Math.floor(Number(item.qty ?? 1)));
       const unit = money(item.unitPrice ?? null, payload.currency);
       const lineTotal = money(item.lineTotal ?? (item.unitPrice ?? 0) * qty, payload.currency);
-      return `- ${name} | Product ID: ${productId} | Qty: ${qty} | Unit: ${unit} | Line Total: ${lineTotal}`;
+      return `- ${name} | Qty: ${qty} | Unit: ${unit} | Line Total: ${lineTotal}`;
     })
     .join("\n");
 }
@@ -186,7 +197,7 @@ function buildAdminOrderEmail(payload: OrderEmailPayload) {
         <b>Name:</b> ${esc(text(payload.customerName))}<br/>
         <b>Email:</b> ${esc(text(payload.customerEmail))}<br/>
         <b>Phone:</b> ${esc(text(payload.customerPhone))}<br/>
-        <b>Shipping method:</b> ${esc(text(payload.shippingMethod))}<br/>
+        <b>Shipping method:</b> ${esc(formatShippingMethod(payload.shippingMethod))}<br/>
         <b>Shipping address:</b> ${esc(text(payload.shippingAddress))}
       </p>
 
@@ -213,18 +224,22 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
   const itemsHtml = buildItemsHtml(payload);
   const helpEmail = esc(STORE_SUPPORT_EMAIL);
   const helpName = esc(STORE_SUPPORT_NAME);
+  const deliveryFollowUp = isDeliveryOrder(payload.shippingMethod)
+    ? `<p style="margin:0 0 18px;opacity:0.9;">We will reach out shortly to confirm a delivery day.</p>`
+    : "";
 
   const htmlContent = buildEmailShell(
     `Thanks for your order, ${esc(text(payload.customerName))}`,
     `We’ve received your order and your payment has been processed. Keep this email for your records.`,
     `
+      ${deliveryFollowUp}
       <h3 style="margin:16px 0 6px">Order summary</h3>
       <p style="margin:0 0 10px">
         <b>Order number:</b> ${esc(text(payload.orderNumber))}<br/>
         <b>Order ID:</b> ${esc(text(payload.orderId))}<br/>
         <b>Purchase date:</b> ${esc(formatDateTime(payload.purchaseDate))}<br/>
         <b>Payment status:</b> ${esc(text(payload.status))}<br/>
-        <b>Shipping method:</b> ${esc(text(payload.shippingMethod))}<br/>
+        <b>Shipping method:</b> ${esc(formatShippingMethod(payload.shippingMethod))}<br/>
         <b>Shipping address:</b> ${esc(text(payload.shippingAddress))}
       </p>
 
@@ -258,11 +273,14 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
   const textContent = [
     `Thanks for your order, ${text(payload.customerName)}.`,
     "",
+    ...(isDeliveryOrder(payload.shippingMethod)
+      ? ["We will reach out shortly to confirm a delivery day.", ""]
+      : []),
     `Order number: ${text(payload.orderNumber)}`,
     `Order ID: ${text(payload.orderId)}`,
     `Purchase date: ${formatDateTime(payload.purchaseDate)}`,
     `Payment status: ${text(payload.status)}`,
-    `Shipping method: ${text(payload.shippingMethod)}`,
+    `Shipping method: ${formatShippingMethod(payload.shippingMethod)}`,
     `Shipping address: ${text(payload.shippingAddress)}`,
     "",
     "Your details",
