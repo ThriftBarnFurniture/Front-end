@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 export type OrderEmailItem = {
   productId?: string | null;
   name?: string | null;
@@ -46,6 +48,12 @@ const STORE_SUPPORT_EMAIL =
   "noreply@thriftbarnfurniture.ca";
 const STORE_SUPPORT_NAME = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
 const STORE_ADDRESS = "2786 ON-34, Hawkesbury, ON K6A 2R2";
+
+function requiredEnv(name: string) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing ${name}`);
+  return value;
+}
 
 function money(n: number | null | undefined, currency: string | null | undefined) {
   if (n == null || !Number.isFinite(n)) return "--";
@@ -277,34 +285,28 @@ function buildCustomerOrderEmail(payload: OrderEmailPayload) {
 }
 
 async function sendBrevoEmail(message: BrevoMessage & { textContent?: string }) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const fromEmail = process.env.BREVO_FROM_EMAIL;
+  const smtpHost = process.env.BREVO_SMTP_HOST ?? "smtp-relay.brevo.com";
+  const smtpPort = Number(process.env.BREVO_SMTP_PORT ?? "587");
+  const smtpUser = requiredEnv("BREVO_SMTP_USER");
+  const smtpPass = requiredEnv("BREVO_SMTP_PASS");
+  const fromEmail = requiredEnv("BREVO_FROM_EMAIL");
   const fromName = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
 
-  if (!apiKey) throw new Error("Missing BREVO_API_KEY");
-  if (!fromEmail) throw new Error("Missing BREVO_FROM_EMAIL");
-
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "api-key": apiKey,
-      "content-type": "application/json",
-      accept: "application/json",
-    },
-    body: JSON.stringify({
-      sender: { email: fromEmail, name: fromName },
-      to: message.to,
-      subject: message.subject,
-      htmlContent: message.htmlContent,
-      textContent: message.textContent,
-      replyTo: message.replyTo,
-    }),
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass },
   });
 
-  if (!res.ok) {
-    const textBody = await res.text().catch(() => "");
-    throw new Error(`Brevo send failed: ${res.status} ${res.statusText} ${textBody}`);
-  }
+  await transporter.sendMail({
+    from: { name: fromName, address: fromEmail },
+    to: message.to.map((entry) => ({ name: entry.name, address: entry.email })),
+    replyTo: message.replyTo ? { name: message.replyTo.name, address: message.replyTo.email } : undefined,
+    subject: message.subject,
+    text: message.textContent,
+    html: message.htmlContent,
+  });
 }
 
 export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
