@@ -131,10 +131,10 @@ async function createOrUpdateSquareImage(args: {
 
   const path = args.imageId ? `/catalog/images/${args.imageId}` : "/catalog/images";
   const method = args.imageId ? "PUT" : "POST";
-  const result = await squareMultipartFetch(path, {
+  const result = (await squareMultipartFetch(path, {
     method,
     body: form,
-  });
+  })) as { image?: { id?: string | null } };
 
   return { image_id: result?.image?.id || args.imageId || null, didTry: true };
 }
@@ -173,13 +173,13 @@ export async function upsertSquareCatalogObject(p: ProductForSquare) {
     },
   ];
 
-  const result = await squareFetch("/catalog/batch-upsert", {
+  const result = (await squareFetch("/catalog/batch-upsert", {
     method: "POST",
     body: JSON.stringify({
       idempotency_key: `tbf_upsert_${p.id}_${Date.now()}`,
       batches: [{ objects }],
     }),
-  });
+  })) as { id_mappings?: Array<{ client_object_id: string; object_id: string }> };
 
   let newItemId = p.square_item_id;
   let newVarId = p.square_variation_id;

@@ -40,12 +40,12 @@ export async function deleteSquareCatalogObjects(objectIds: Array<string | null 
     return { deleted_object_ids: [] as string[] };
   }
 
-  const result = await squareFetch("/catalog/batch-delete", {
+  const result = (await squareFetch("/catalog/batch-delete", {
     method: "POST",
     body: JSON.stringify({
       object_ids: ids,
     }),
-  });
+  })) as { deleted_object_ids?: unknown };
 
   return {
     deleted_object_ids: Array.isArray(result?.deleted_object_ids)
