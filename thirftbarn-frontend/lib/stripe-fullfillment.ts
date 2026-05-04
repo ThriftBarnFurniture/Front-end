@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { setSquareInStockCount } from "@/lib/square-inventory";
+import { setSquareInStockCount } from "@/lib/square/inventory";
 import { normalizeQuantity } from "@/lib/inventory";
 
 type WantedItem = { productId: string; quantity: number };

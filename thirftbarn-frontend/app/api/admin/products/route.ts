@@ -315,6 +315,84 @@ async function supabaseRestUpdate(
   return data[0] ?? null;
 }
 
+function toOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function toOptionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+async function syncProductToSquare(args: {
+  accessToken: string;
+  tableName: string;
+  row: Record<string, unknown> | null;
+  productId: string;
+  name: string;
+  description: string;
+  price: number;
+  quantity: number | null;
+  fallbackImageUrl?: string | null;
+}) {
+  if (!args.row) return;
+
+  const row = args.row;
+  const up = await upsertSquareCatalogObject({
+    id: args.productId,
+    sku: toOptionalString(row.sku),
+    barcode: toOptionalString(row.barcode),
+    name: toOptionalString(row.name) ?? args.name,
+    description: toOptionalString(row.description) ?? args.description,
+    price: toOptionalNumber(row.price) ?? args.price,
+    image_url: toOptionalString(row.image_url) ?? args.fallbackImageUrl ?? null,
+    square_item_id: toOptionalString(row.square_item_id),
+    square_variation_id: toOptionalString(row.square_variation_id),
+    square_image_id: toOptionalString(row.square_image_id),
+    track_inventory: args.quantity !== null,
+  });
+
+  if (up.skipped) return;
+
+  let squareImageId = toOptionalString(row.square_image_id);
+
+  try {
+    const img = await upsertSquareImageIfPossible(
+      {
+        id: args.productId,
+        sku: toOptionalString(row.sku),
+        barcode: toOptionalString(row.barcode),
+        name: toOptionalString(row.name) ?? args.name,
+        description: toOptionalString(row.description) ?? args.description,
+        price: toOptionalNumber(row.price) ?? args.price,
+        image_url: toOptionalString(row.image_url) ?? args.fallbackImageUrl ?? null,
+        square_item_id: up.square_item_id,
+        square_variation_id: up.square_variation_id,
+        square_image_id: squareImageId,
+      },
+      up.square_item_id
+    );
+
+    squareImageId = img.image_id ?? squareImageId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Auto Square image sync failed:", message);
+  }
+
+  await supabaseRestUpdate(args.tableName, args.accessToken, args.productId, {
+    square_item_id: up.square_item_id,
+    square_variation_id: up.square_variation_id,
+    square_image_id: squareImageId,
+  });
+
+  if (args.quantity !== null) {
+    await setSquareInStockCount({
+      variationId: up.square_variation_id,
+      newQty: args.quantity,
+      idempotencyKey: `sync_${args.productId}_${Date.now()}`,
+    });
+  }
+}
+
 export const POST = async (request: Request) => {
   try {
     const { accessToken, userId } = await requireAdminAndToken();
@@ -439,56 +517,20 @@ export const POST = async (request: Request) => {
 
     if (autoSquare) {
       try {
-        const created = data as any; // returned row
-
-        const up = await upsertSquareCatalogObject({
-          id: created.id,
-          sku: created.sku ?? productPayload.sku ?? null,
-          barcode: created.barcode ?? null,
-          name: created.name ?? name,
-          description: created.description ?? description,
-          price: created.price ?? price,
-          image_url: created.image_url ?? (imageUrls[0] ?? null),
-          square_item_id: created.square_item_id ?? null,
-          square_variation_id: created.square_variation_id ?? null,
-          square_image_id: created.square_image_id ?? null,
-          track_inventory: quantity !== null,
+        await syncProductToSquare({
+          accessToken,
+          tableName,
+          row: data as Record<string, unknown> | null,
+          productId: String((data as Record<string, unknown> | null)?.id ?? ""),
+          name,
+          description,
+          price: price ?? 0,
+          quantity,
+          fallbackImageUrl: imageUrls[0] ?? null,
         });
-
-        if (!up.skipped) {
-          const img = await upsertSquareImageIfPossible(
-            {
-              id: created.id,
-              sku: created.sku ?? null,
-              barcode: created.barcode ?? null,
-              name: created.name ?? name,
-              description: created.description ?? description,
-              price: created.price ?? price,
-              image_url: created.image_url ?? (imageUrls[0] ?? null),
-              square_item_id: up.square_item_id,
-              square_variation_id: up.square_variation_id,
-              square_image_id: created.square_image_id ?? null,
-            },
-            up.square_item_id
-          );
-
-          // Save Square IDs back into Supabase (same admin user token)
-          await supabaseRestUpdate(tableName, accessToken, created.id, {
-            square_item_id: up.square_item_id,
-            square_variation_id: up.square_variation_id,
-            square_image_id: img.image_id ?? null,
-          });
-
-          if (quantity !== null) {
-            await setSquareInStockCount({
-              variationId: up.square_variation_id,
-              newQty: quantity,
-              idempotencyKey: `create_${created.id}`,
-            });
-          }
-        }
-      } catch (e: any) {
-        console.error("Auto Square sync (create) failed:", e?.message || e);
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.error("Auto Square sync (create) failed:", message);
         // don't fail product creation
       }
     }
@@ -644,56 +686,20 @@ export const PATCH = async (request: Request) => {
 
       if (autoSquare) {
         try {
-          const updatedRow = data as any;
-
-          const up = await upsertSquareCatalogObject({
-            id: productId,
-            sku: updatedRow?.sku ?? null,
-            barcode: updatedRow?.barcode ?? null,
-            name: updatedRow?.name ?? name,
-            description: updatedRow?.description ?? description,
-            price: updatedRow?.price ?? price,
-            image_url: updatedRow?.image_url ?? null,
-            square_item_id: updatedRow?.square_item_id ?? null,
-            square_variation_id: updatedRow?.square_variation_id ?? null,
-            square_image_id: updatedRow?.square_image_id ?? null,
-            track_inventory: quantity !== null,
+          await syncProductToSquare({
+            accessToken,
+            tableName,
+            row: data as Record<string, unknown> | null,
+            productId,
+            name,
+            description,
+            price: price ?? 0,
+            quantity,
+            fallbackImageUrl: productPayload.image_url as string | null | undefined,
           });
-
-          if (!up.skipped) {
-            const img = await upsertSquareImageIfPossible(
-              {
-                id: productId,
-                sku: updatedRow?.sku ?? null,
-                barcode: updatedRow?.barcode ?? null,
-                name: updatedRow?.name ?? name,
-                description: updatedRow?.description ?? description,
-                price: updatedRow?.price ?? price,
-                image_url: updatedRow?.image_url ?? null,
-                square_item_id: up.square_item_id,
-                square_variation_id: up.square_variation_id,
-                square_image_id: updatedRow?.square_image_id ?? null,
-              },
-              up.square_item_id
-            );
-
-            // Ensure DB stores the final Square IDs
-            await supabaseRestUpdate(tableName, accessToken, productId, {
-              square_item_id: up.square_item_id,
-              square_variation_id: up.square_variation_id,
-              square_image_id: img.image_id ?? null,
-            });
-
-            if (quantity !== null) {
-              await setSquareInStockCount({
-                variationId: up.square_variation_id,
-                newQty: quantity,
-                idempotencyKey: `update_${productId}_${nowIso}`,
-              });
-            }
-          }
-        } catch (e: any) {
-          console.error("Auto Square sync (update) failed:", e?.message || e);
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : String(e);
+          console.error("Auto Square sync (update) failed:", message);
         }
       }
 
@@ -706,55 +712,20 @@ export const PATCH = async (request: Request) => {
 
       if (autoSquare) {
         try {
-          const updatedRow = data as any;
-
-          const up = await upsertSquareCatalogObject({
-            id: productId,
-            sku: updatedRow?.sku ?? null,
-            barcode: updatedRow?.barcode ?? null,
-            name: updatedRow?.name ?? name,
-            description: updatedRow?.description ?? description,
-            price: updatedRow?.price ?? price,
-            image_url: updatedRow?.image_url ?? null,
-            square_item_id: updatedRow?.square_item_id ?? null,
-            square_variation_id: updatedRow?.square_variation_id ?? null,
-            square_image_id: updatedRow?.square_image_id ?? null,
-            track_inventory: quantity !== null,
+          await syncProductToSquare({
+            accessToken,
+            tableName,
+            row: data as Record<string, unknown> | null,
+            productId,
+            name,
+            description,
+            price: price ?? 0,
+            quantity,
+            fallbackImageUrl: productPayload.image_url as string | null | undefined,
           });
-
-          if (!up.skipped) {
-            const img = await upsertSquareImageIfPossible(
-              {
-                id: productId,
-                sku: updatedRow?.sku ?? null,
-                barcode: updatedRow?.barcode ?? null,
-                name: updatedRow?.name ?? name,
-                description: updatedRow?.description ?? description,
-                price: updatedRow?.price ?? price,
-                image_url: updatedRow?.image_url ?? null,
-                square_item_id: up.square_item_id,
-                square_variation_id: up.square_variation_id,
-                square_image_id: updatedRow?.square_image_id ?? null,
-              },
-              up.square_item_id
-            );
-
-            await supabaseRestUpdate(tableName, accessToken, productId, {
-              square_item_id: up.square_item_id,
-              square_variation_id: up.square_variation_id,
-              square_image_id: img.image_id ?? null,
-            });
-
-            if (quantity !== null) {
-              await setSquareInStockCount({
-                variationId: up.square_variation_id,
-                newQty: quantity,
-                idempotencyKey: `update_${productId}_${nowIso}`,
-              });
-            }
-          }
-        } catch (e: any) {
-          console.error("Auto Square sync (update) failed:", e?.message || e);
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : String(e);
+          console.error("Auto Square sync (update) failed:", message);
         }
       }
 

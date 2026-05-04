@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
-import { sendAdminOrderEmail } from "@/lib/brevo";
+import { sendAdminOrderEmail, sendCustomerOrderEmail } from "@/lib/brevo";
 
 export const runtime = "nodejs";
 
@@ -33,8 +33,8 @@ export async function POST(req: Request) {
       const order = await fulfillStripeCheckoutSession(session);
 
       if (!order.duplicate) {
-        // Don't let email failure cause a webhook retry
-        await sendAdminOrderEmail({orderId: order.order_id,
+        const emailPayload = {
+          orderId: order.order_id,
           orderNumber: order.order_number,
           status: order.status,
           purchaseDate: order.purchase_date,
@@ -52,8 +52,15 @@ export async function POST(req: Request) {
           shippingAddress: order.shipping_address,
           paymentId: order.payment_id,
           stripeSessionId: order.stripe_session_id ?? session.id,
-          items: order.items,}).catch((e) =>
+          items: order.items,
+        };
+
+        // Don't let email failure cause a webhook retry
+        await sendAdminOrderEmail(emailPayload).catch((e) =>
           console.error("Admin email failed:", e)
+        );
+        await sendCustomerOrderEmail(emailPayload).catch((e) =>
+          console.error("Customer order confirmation failed:", e)
         );
       }
     } catch (err: unknown) {

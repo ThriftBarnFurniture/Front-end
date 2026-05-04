@@ -19,7 +19,7 @@ export async function squareFetch(path: string, init: RequestInit) {
   });
 
   const text = await res.text();
-  let json: any = null;
+  let json: { errors?: Array<{ detail?: string; code?: string }>; raw?: string } | null = null;
   try {
     json = text ? JSON.parse(text) : null;
   } catch {
@@ -32,4 +32,24 @@ export async function squareFetch(path: string, init: RequestInit) {
   }
 
   return json;
+}
+
+export async function deleteSquareCatalogObjects(objectIds: Array<string | null | undefined>) {
+  const ids = Array.from(new Set(objectIds.filter((id): id is string => Boolean(id?.trim()))));
+  if (!ids.length) {
+    return { deleted_object_ids: [] as string[] };
+  }
+
+  const result = await squareFetch("/catalog/batch-delete", {
+    method: "POST",
+    body: JSON.stringify({
+      object_ids: ids,
+    }),
+  });
+
+  return {
+    deleted_object_ids: Array.isArray(result?.deleted_object_ids)
+      ? result.deleted_object_ids.filter((id): id is string => typeof id === "string")
+      : [],
+  };
 }

@@ -32,6 +32,22 @@ export type OrderEmailPayload = {
   items?: OrderEmailItem[];
 };
 
+type BrevoMessage = {
+  to: Array<{ email: string; name?: string }>;
+  subject: string;
+  htmlContent: string;
+  replyTo?: { email: string; name?: string };
+};
+
+const STORE_SUPPORT_EMAIL =
+  process.env.ORDER_SUPPORT_EMAIL ||
+  process.env.BREVO_OWNER_EMAIL ||
+  process.env.BREVO_FROM_EMAIL ||
+  "thriftbarnfurniture@gmail.com";
+const STORE_SUPPORT_PHONE = process.env.ORDER_SUPPORT_PHONE || "613-915-3889";
+const STORE_SUPPORT_NAME = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
+const STORE_ADDRESS = "2786 ON-34, Hawkesbury, ON K6A 2R2";
+
 function money(n: number | null | undefined, currency: string | null | undefined) {
   if (n == null || !Number.isFinite(n)) return "--";
   const c = (currency || "CAD").toUpperCase();
@@ -109,25 +125,41 @@ function buildItemsHtml(payload: OrderEmailPayload) {
   `;
 }
 
-export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const toEmail = process.env.BREVO_OWNER_EMAIL;
-  const fromEmail = process.env.BREVO_FROM_EMAIL;
-  const fromName = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
+function buildItemsText(payload: OrderEmailPayload) {
+  const items = payload.items ?? [];
+  if (!items.length) return "No item details available.";
 
-  if (!apiKey) throw new Error("Missing BREVO_API_KEY");
-  if (!toEmail) throw new Error("Missing BREVO_OWNER_EMAIL");
-  if (!fromEmail) throw new Error("Missing BREVO_FROM_EMAIL");
+  return items
+    .map((item) => {
+      const name = text(item.name);
+      const productId = text(item.productId);
+      const qty = Math.max(1, Math.floor(Number(item.qty ?? 1)));
+      const unit = money(item.unitPrice ?? null, payload.currency);
+      const lineTotal = money(item.lineTotal ?? (item.unitPrice ?? 0) * qty, payload.currency);
+      return `- ${name} | Product ID: ${productId} | Qty: ${qty} | Unit: ${unit} | Line Total: ${lineTotal}`;
+    })
+    .join("\n");
+}
 
+function buildEmailShell(title: string, intro: string, sectionsHtml: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:760px;margin:0 auto">
+      <h2 style="margin:0 0 12px">${esc(title)}</h2>
+      <p style="margin:0 0 18px">${intro}</p>
+      ${sectionsHtml}
+    </div>
+  `;
+}
+
+function buildAdminOrderEmail(payload: OrderEmailPayload) {
   const orderLabel = text(payload.orderNumber || payload.orderId);
   const subject = `New order ${orderLabel} - ${money(payload.total ?? null, payload.currency ?? "CAD")}`;
-
   const itemsHtml = buildItemsHtml(payload);
 
-  const htmlContent = `
-    <div style="font-family:Arial,sans-serif;line-height:1.4;color:#111">
-      <h2 style="margin:0 0 10px">New order received</h2>
-
+  const htmlContent = buildEmailShell(
+    "New order received",
+    "A new website order has been placed.",
+    `
       <h3 style="margin:16px 0 6px">Order</h3>
       <p style="margin:0 0 10px">
         <b>Order number:</b> ${esc(text(payload.orderNumber))}<br/>
@@ -158,8 +190,103 @@ export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
 
       <h3 style="margin:16px 0 6px">Items</h3>
       ${itemsHtml}
-    </div>
-  `;
+    `
+  );
+
+  return { subject, htmlContent };
+}
+
+function buildCustomerOrderEmail(payload: OrderEmailPayload) {
+  const orderLabel = text(payload.orderNumber || payload.orderId);
+  const subject = `Order confirmation ${orderLabel} - ${STORE_SUPPORT_NAME}`;
+  const itemsHtml = buildItemsHtml(payload);
+  const helpEmail = esc(STORE_SUPPORT_EMAIL);
+  const helpPhone = esc(STORE_SUPPORT_PHONE);
+  const helpName = esc(STORE_SUPPORT_NAME);
+
+  const htmlContent = buildEmailShell(
+    `Thanks for your order, ${esc(text(payload.customerName))}`,
+    `We’ve received your order and your payment has been processed. Keep this email for your records.`,
+    `
+      <h3 style="margin:16px 0 6px">Order summary</h3>
+      <p style="margin:0 0 10px">
+        <b>Order number:</b> ${esc(text(payload.orderNumber))}<br/>
+        <b>Order ID:</b> ${esc(text(payload.orderId))}<br/>
+        <b>Purchase date:</b> ${esc(formatDateTime(payload.purchaseDate))}<br/>
+        <b>Payment status:</b> ${esc(text(payload.status))}<br/>
+        <b>Shipping method:</b> ${esc(text(payload.shippingMethod))}<br/>
+        <b>Shipping address:</b> ${esc(text(payload.shippingAddress))}
+      </p>
+
+      <h3 style="margin:16px 0 6px">Your details</h3>
+      <p style="margin:0 0 10px">
+        <b>Name:</b> ${esc(text(payload.customerName))}<br/>
+        <b>Email:</b> ${esc(text(payload.customerEmail))}<br/>
+        <b>Phone:</b> ${esc(text(payload.customerPhone))}
+      </p>
+
+      <h3 style="margin:16px 0 6px">Items ordered</h3>
+      ${itemsHtml}
+
+      <h3 style="margin:16px 0 6px">Cost breakdown</h3>
+      <p style="margin:0 0 10px">
+        <b>Subtotal:</b> ${esc(money(payload.subtotal ?? null, payload.currency))}<br/>
+        <b>Shipping:</b> ${esc(money(payload.shippingCost ?? null, payload.currency))}<br/>
+        <b>Promo discount:</b> ${esc(money(payload.promoDiscount ?? null, payload.currency))}<br/>
+        <b>Tax:</b> ${esc(money(payload.tax ?? null, payload.currency))}<br/>
+        <b>Total charged:</b> ${esc(money(payload.total ?? null, payload.currency))}
+      </p>
+
+      <h3 style="margin:16px 0 6px">Need help?</h3>
+      <p style="margin:0 0 10px">
+        Contact ${helpName} at <a href="mailto:${helpEmail}">${helpEmail}</a> or
+        <a href="tel:${STORE_SUPPORT_PHONE.replace(/\D/g, "")}">${helpPhone}</a>.<br/>
+        Store address: ${esc(STORE_ADDRESS)}
+      </p>
+    `
+  );
+
+  const textContent = [
+    `Thanks for your order, ${text(payload.customerName)}.`,
+    "",
+    `Order number: ${text(payload.orderNumber)}`,
+    `Order ID: ${text(payload.orderId)}`,
+    `Purchase date: ${formatDateTime(payload.purchaseDate)}`,
+    `Payment status: ${text(payload.status)}`,
+    `Shipping method: ${text(payload.shippingMethod)}`,
+    `Shipping address: ${text(payload.shippingAddress)}`,
+    "",
+    "Your details",
+    `Name: ${text(payload.customerName)}`,
+    `Email: ${text(payload.customerEmail)}`,
+    `Phone: ${text(payload.customerPhone)}`,
+    "",
+    "Items ordered",
+    buildItemsText(payload),
+    "",
+    "Cost breakdown",
+    `Subtotal: ${money(payload.subtotal ?? null, payload.currency)}`,
+    `Shipping: ${money(payload.shippingCost ?? null, payload.currency)}`,
+    `Promo discount: ${money(payload.promoDiscount ?? null, payload.currency)}`,
+    `Tax: ${money(payload.tax ?? null, payload.currency)}`,
+    `Total charged: ${money(payload.total ?? null, payload.currency)}`,
+    "",
+    "Need help?",
+    `Email: ${STORE_SUPPORT_EMAIL}`,
+    `Phone: ${STORE_SUPPORT_PHONE}`,
+    `Address: ${STORE_ADDRESS}`,
+  ].join("\n");
+
+  return { subject, htmlContent, textContent };
+}
+
+async function sendBrevoEmail(message: BrevoMessage & { textContent?: string }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const fromEmail = process.env.BREVO_FROM_EMAIL;
+  const fromName = process.env.BREVO_FROM_NAME || "Thrift Barn Furniture";
+
+  if (!apiKey) throw new Error("Missing BREVO_API_KEY");
+  if (!fromEmail) throw new Error("Missing BREVO_FROM_EMAIL");
 
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -170,9 +297,11 @@ export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
     },
     body: JSON.stringify({
       sender: { email: fromEmail, name: fromName },
-      to: [{ email: toEmail }],
-      subject,
-      htmlContent,
+      to: message.to,
+      subject: message.subject,
+      htmlContent: message.htmlContent,
+      textContent: message.textContent,
+      replyTo: message.replyTo,
     }),
   });
 
@@ -180,4 +309,34 @@ export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
     const textBody = await res.text().catch(() => "");
     throw new Error(`Brevo send failed: ${res.status} ${res.statusText} ${textBody}`);
   }
+}
+
+export async function sendAdminOrderEmail(payload: OrderEmailPayload) {
+  const toEmail = process.env.BREVO_OWNER_EMAIL;
+  if (!toEmail) throw new Error("Missing BREVO_OWNER_EMAIL");
+  const message = buildAdminOrderEmail(payload);
+
+  await sendBrevoEmail({
+    to: [{ email: toEmail }],
+    subject: message.subject,
+    htmlContent: message.htmlContent,
+    replyTo: payload.customerEmail
+      ? { email: payload.customerEmail, name: payload.customerName ?? undefined }
+      : undefined,
+  });
+}
+
+export async function sendCustomerOrderEmail(payload: OrderEmailPayload) {
+  const customerEmail = String(payload.customerEmail ?? "").trim();
+  if (!customerEmail) throw new Error("Missing customer email for confirmation email.");
+
+  const message = buildCustomerOrderEmail(payload);
+
+  await sendBrevoEmail({
+    to: [{ email: customerEmail, name: payload.customerName ?? undefined }],
+    subject: message.subject,
+    htmlContent: message.htmlContent,
+    textContent: message.textContent,
+    replyTo: { email: STORE_SUPPORT_EMAIL, name: STORE_SUPPORT_NAME },
+  });
 }
