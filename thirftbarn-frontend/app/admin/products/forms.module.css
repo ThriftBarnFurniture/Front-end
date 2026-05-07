@@ -231,17 +231,23 @@
 }
 
 .imageTile {
+  position: relative;
+  display: grid;
   border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   overflow: hidden;
   background: #fff;
   padding: 0;
-  cursor: pointer;
   text-align: left;
 }
 
 .imageTileRemove {
   border: 2px solid #b00020;
+}
+
+.imageTileFeatured {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand) 22%, transparent);
 }
 
 .imageThumb {
@@ -252,10 +258,52 @@
 }
 
 .imageCaption {
-  padding: 10px;
+  padding: 10px 10px 0;
   font-weight: 900;
   font-size: 12px;
   opacity: 0.9;
+}
+
+.imageActions {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+}
+
+.imageActionButton {
+  flex: 1 1 0;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.imageActionButtonActive {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: #ffffff;
+}
+
+.imageActionButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.imageBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.88);
+  color: #ffffff;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .estatePhotoPreview {

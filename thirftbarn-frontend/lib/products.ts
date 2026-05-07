@@ -62,8 +62,8 @@ export async function getShopProducts() {
 
 // Helpers
 export function getPrimaryImage(p: Pick<Product, "image_urls" | "image_url">) {
-  if (p.image_urls && p.image_urls.length > 0) return p.image_urls[0];
   if (p.image_url) return p.image_url;
+  if (p.image_urls && p.image_urls.length > 0) return p.image_urls[0];
   return null;
 }
 
@@ -95,7 +95,6 @@ export async function getProductById(id: string) {
 }
 
 export function getAllImages(p: Pick<Product, "image_urls" | "image_url">) {
-  const arr = (p.image_urls ?? []).filter(Boolean);
-  if (arr.length > 0) return arr;
-  return p.image_url ? [p.image_url] : [];
+  const urls = [p.image_url, ...(p.image_urls ?? [])].filter(Boolean) as string[];
+  return Array.from(new Set(urls));
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { uploadProductImageToR2 } from "@/lib/r2-upload";
+import { deleteProductImagesFromR2, uploadProductImageToR2 } from "@/lib/r2-upload";
 import { createClient } from "@/utils/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { upsertSquareCatalogObject, upsertSquareImageIfPossible } from "@/lib/square/catalog";
@@ -171,6 +171,32 @@ const parseQuantity = (quantityValue: string, unlimitedQuantity: boolean): numbe
 const uploadImagesToR2 = async (images: File[]) => {
   const uploads = await Promise.all(images.map((img) => uploadProductImageToR2(img)));
   return uploads.map((u) => u.publicUrl);
+};
+
+const getProductImageUrls = (product: { image_url?: string | null; image_urls?: unknown }) => {
+  const urls = new Set<string>();
+
+  if (typeof product.image_url === "string" && product.image_url.trim()) {
+    urls.add(product.image_url);
+  }
+
+  if (Array.isArray(product.image_urls)) {
+    for (const value of product.image_urls) {
+      if (typeof value === "string" && value.trim()) {
+        urls.add(value);
+      }
+    }
+  }
+
+  return Array.from(urls);
+};
+
+const reorderImagesWithPrimaryFirst = (imageUrls: string[], primaryImageUrl: string | null) => {
+  const uniqueUrls = Array.from(new Set(imageUrls.filter(Boolean)));
+  if (!primaryImageUrl) return uniqueUrls;
+
+  const remaining = uniqueUrls.filter((url) => url !== primaryImageUrl);
+  return [primaryImageUrl, ...remaining];
 };
 
 const upsertEstateSaleMetadata = async (collections: string[], formData: FormData) => {
@@ -593,6 +619,9 @@ export const PATCH = async (request: Request) => {
 
     const price = getRequiredNumber(formData, "price");
     const images = parseImages(formData);
+    const keepImageUrls = getTextArray(formData, "keep_image_urls");
+    const manageExistingImages = getBoolean(formData, "manage_existing_images");
+    const requestedPrimaryImage = String(formData.get("primary_image") ?? "").trim();
 
     const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
     const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
@@ -675,64 +704,91 @@ export const PATCH = async (request: Request) => {
       monthly_drop_last_tick,
     };
 
-    if (images.length > 0) {
-      const imageUrls = await uploadImagesToR2(images);
-      productPayload.image_url = imageUrls[0];
-      productPayload.image_urls = imageUrls;
+    const supabaseAdmin = createSupabaseAdmin();
+    const { data: existingProduct, error: existingProductError } = await supabaseAdmin
+      .from(tableName)
+      .select("image_url,image_urls")
+      .eq("id", productId)
+      .maybeSingle();
 
-      const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
-
-      const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
-
-      if (autoSquare) {
-        try {
-          await syncProductToSquare({
-            accessToken,
-            tableName,
-            row: data as Record<string, unknown> | null,
-            productId,
-            name,
-            description,
-            price: price ?? 0,
-            quantity,
-            fallbackImageUrl: productPayload.image_url as string | null | undefined,
-          });
-        } catch (e: unknown) {
-          const message = e instanceof Error ? e.message : String(e);
-          console.error("Auto Square sync (update) failed:", message);
-        }
-      }
-
-      await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
-
-      return NextResponse.json({ product: data, imageUrls }, { status: 200 });
-    } else {
-      const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
-      const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
-
-      if (autoSquare) {
-        try {
-          await syncProductToSquare({
-            accessToken,
-            tableName,
-            row: data as Record<string, unknown> | null,
-            productId,
-            name,
-            description,
-            price: price ?? 0,
-            quantity,
-            fallbackImageUrl: productPayload.image_url as string | null | undefined,
-          });
-        } catch (e: unknown) {
-          const message = e instanceof Error ? e.message : String(e);
-          console.error("Auto Square sync (update) failed:", message);
-        }
-      }
-
-      await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
-
-      return NextResponse.json({ product: data, imageUrls: [] }, { status: 200 });
+    if (existingProductError) {
+      return NextResponse.json({ error: existingProductError.message }, { status: 500 });
     }
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    const existingImageUrls = getProductImageUrls(existingProduct);
+    const preservedExistingImages = manageExistingImages
+      ? keepImageUrls.filter((url) => existingImageUrls.includes(url))
+      : existingImageUrls;
+    const uploadedImageUrls = images.length > 0 ? await uploadImagesToR2(images) : [];
+    const combinedImageUrls = Array.from(new Set([...preservedExistingImages, ...uploadedImageUrls]));
+
+    if (combinedImageUrls.length === 0) {
+      return NextResponse.json({ error: "At least one product image is required." }, { status: 400 });
+    }
+
+    let primaryImageUrl: string | null = null;
+
+    if (requestedPrimaryImage.startsWith("existing:")) {
+      const candidate = requestedPrimaryImage.slice("existing:".length);
+      if (combinedImageUrls.includes(candidate)) {
+        primaryImageUrl = candidate;
+      }
+    } else if (requestedPrimaryImage.startsWith("new:")) {
+      const rawIndex = Number(requestedPrimaryImage.slice("new:".length));
+      if (Number.isInteger(rawIndex) && rawIndex >= 0 && rawIndex < uploadedImageUrls.length) {
+        primaryImageUrl = uploadedImageUrls[rawIndex] ?? null;
+      }
+    }
+
+    if (!primaryImageUrl && existingProduct.image_url && combinedImageUrls.includes(existingProduct.image_url)) {
+      primaryImageUrl = existingProduct.image_url;
+    }
+
+    primaryImageUrl = primaryImageUrl ?? combinedImageUrls[0] ?? null;
+    const orderedImageUrls = reorderImagesWithPrimaryFirst(combinedImageUrls, primaryImageUrl);
+
+    productPayload.image_url = primaryImageUrl;
+    productPayload.image_urls = orderedImageUrls;
+
+    const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+    const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
+
+    if (autoSquare) {
+      try {
+        await syncProductToSquare({
+          accessToken,
+          tableName,
+          row: data as Record<string, unknown> | null,
+          productId,
+          name,
+          description,
+          price: price ?? 0,
+          quantity,
+          fallbackImageUrl: productPayload.image_url as string | null | undefined,
+        });
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.error("Auto Square sync (update) failed:", message);
+      }
+    }
+
+    const removedImageUrls = existingImageUrls.filter((url) => !orderedImageUrls.includes(url));
+    if (removedImageUrls.length > 0) {
+      try {
+        await deleteProductImagesFromR2(removedImageUrls);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("Product image cleanup failed:", message);
+      }
+    }
+
+    await sendToCloudflareDatabase({ ...productPayload, supabase_id: productId });
+
+    return NextResponse.json({ product: data, imageUrls: orderedImageUrls }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     const status = message.includes("Not signed in") ? 401 : message.includes("Admins only") ? 403 : 500;

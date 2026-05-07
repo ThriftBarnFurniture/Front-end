@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./forms.module.css";
 import { optimizeImageFieldInFormData } from "@/lib/image-upload-optimization";
 import type { BarnDay, CategoryValue, Option } from "./productFormOptions";
@@ -46,6 +46,11 @@ type ProductFormInitial = {
   width?: number | string | null;
   depth?: number | string | null;
   condition?: string | null;
+};
+
+type PendingImagePreview = {
+  id: string;
+  previewUrl: string;
 };
 
 // Day1=40, Day2=35 ... Day7=10
@@ -189,6 +194,12 @@ export const ProductForm = ({
   const [status, setStatus] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "compressing" | "sending">("idle");
 
+  const initialImages = useMemo(() => {
+    const primary = init?.image_url ? [init.image_url] : [];
+    const gallery = Array.isArray(init?.image_urls) ? init.image_urls.filter(Boolean) : [];
+    return Array.from(new Set([...primary, ...gallery]));
+  }, [init]);
+
   // supported (PATCH), hidden input
   const [productId, setProductId] = useState<string>(mode === "edit" ? String(init.id ?? "") : "");
 
@@ -240,18 +251,61 @@ export const ProductForm = ({
 
   const [categoryWarning, setCategoryWarning] = useState<string | null>(null);
 
-  // Existing photos for edit mode
-  const initialImages = useMemo(() => {
-    const arr = Array.isArray(init?.image_urls) ? init.image_urls.filter(Boolean) : [];
-    const single = init?.image_url ? [init.image_url] : [];
-    return Array.from(new Set([...arr, ...single]));
-  }, [init]);
-
   const [keptImages, setKeptImages] = useState<string[]>(initialImages);
+  const [pendingImages, setPendingImages] = useState<PendingImagePreview[]>([]);
+  const [primaryImage, setPrimaryImage] = useState<string>(() => {
+    if (init.image_url) return `existing:${init.image_url}`;
+    return initialImages[0] ? `existing:${initialImages[0]}` : "";
+  });
+  const pendingPreviewUrlsRef = useRef<string[]>([]);
 
   const onToggleRemove = (url: string) => {
     setKeptImages((prev) => (prev.includes(url) ? prev.filter((x) => x !== url) : [...prev, url]));
   };
+
+  const onImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    pendingPreviewUrlsRef.current = [];
+
+    const nextPending = Array.from(event.target.files ?? []).map((file, index) => {
+      const previewUrl = URL.createObjectURL(file);
+      pendingPreviewUrlsRef.current.push(previewUrl);
+      return {
+        id: `new:${index}`,
+        previewUrl,
+      };
+    });
+
+    setPendingImages(nextPending);
+  };
+
+  useEffect(() => {
+    const selectablePrimaryImages = [
+      ...keptImages.map((url) => `existing:${url}`),
+      ...pendingImages.map((image) => image.id),
+    ];
+
+    if (selectablePrimaryImages.length === 0) {
+      if (primaryImage) setPrimaryImage("");
+      return;
+    }
+
+    if (selectablePrimaryImages.includes(primaryImage)) return;
+
+    const fallbackPrimary =
+      init.image_url && keptImages.includes(init.image_url)
+        ? `existing:${init.image_url}`
+        : selectablePrimaryImages[0];
+
+    setPrimaryImage(fallbackPrimary);
+  }, [init.image_url, keptImages, pendingImages, primaryImage]);
+
+  useEffect(() => {
+    return () => {
+      pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      pendingPreviewUrlsRef.current = [];
+    };
+  }, []);
 
   // Union subcategory options across selected categories
   const subcategoryOptions = useMemo<Option[]>(() => {
@@ -349,8 +403,14 @@ export const ProductForm = ({
       if (mode === "edit") {
         const id = String(init.id ?? productId).trim();
         formData.set("productId", id);
+        formData.set("manage_existing_images", "true");
         formData.delete("keep_image_urls");
         keptImages.forEach((u) => formData.append("keep_image_urls", u));
+        if (primaryImage) {
+          formData.set("primary_image", primaryImage);
+        } else {
+          formData.delete("primary_image");
+        }
       }
 
       const optimizedImages = await optimizeImageFieldInFormData(formData, {
@@ -404,6 +464,9 @@ export const ProductForm = ({
         setEstateSaleName("");
         setEstateSalePhotoUrl("");
         setColors([]);
+        pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        pendingPreviewUrlsRef.current = [];
+        setPendingImages([]);
       }
 
       setStatus(mode === "edit" ? "Saved ✅" : "Product saved successfully.");
@@ -725,25 +788,39 @@ export const ProductForm = ({
             <div className={styles.imageGrid}>
               {initialImages.map((url: string) => {
                 const kept = keptImages.includes(url);
+                const isFeatured = primaryImage === `existing:${url}`;
                 return (
-                  <button
+                  <div
                     key={url}
-                    type="button"
-                    className={[styles.imageTile, kept ? "" : styles.imageTileRemove].join(" ")}
-                    onClick={() => onToggleRemove(url)}
-                    title={kept ? "Click to remove" : "Click to keep"}
+                    className={[styles.imageTile, kept ? "" : styles.imageTileRemove, isFeatured ? styles.imageTileFeatured : ""].join(
+                      " "
+                    )}
                   >
+                    {isFeatured ? <span className={styles.imageBadge}>Feature photo</span> : null}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt="" className={styles.imageThumb} />
                     <div className={styles.imageCaption}>{kept ? "Keeping" : "Will remove"}</div>
-                  </button>
+                    <div className={styles.imageActions}>
+                      <button
+                        type="button"
+                        className={[styles.imageActionButton, isFeatured ? styles.imageActionButtonActive : ""].join(" ")}
+                        onClick={() => setPrimaryImage(`existing:${url}`)}
+                        disabled={!kept}
+                      >
+                        {isFeatured ? "Featured" : "Make feature"}
+                      </button>
+                      <button type="button" className={styles.imageActionButton} onClick={() => onToggleRemove(url)}>
+                        {kept ? "Remove" : "Keep"}
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
 
           <p className={styles.status}>
-            Click a photo to toggle <strong>remove/keep</strong>.
+            Choose which current photo to keep, and mark one kept photo as the feature photo.
           </p>
         </div>
       )}
@@ -760,8 +837,45 @@ export const ProductForm = ({
           accept="image/*"
           multiple
           required={mode !== "edit"}
+          onChange={onImagesChange}
         />
       </div>
+
+      {mode === "edit" && pendingImages.length > 0 && (
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>New photo previews</label>
+          <div className={styles.imageGrid}>
+            {pendingImages.map((image) => {
+              const isFeatured = primaryImage === image.id;
+              return (
+                <div
+                  key={image.id}
+                  className={[styles.imageTile, isFeatured ? styles.imageTileFeatured : ""].join(" ")}
+                >
+                  {isFeatured ? <span className={styles.imageBadge}>Feature photo</span> : null}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image.previewUrl} alt="" className={styles.imageThumb} />
+                  <div className={styles.imageCaption}>New upload</div>
+                  <div className={styles.imageActions}>
+                    <button
+                      type="button"
+                      className={[styles.imageActionButton, isFeatured ? styles.imageActionButtonActive : ""].join(" ")}
+                      onClick={() => setPrimaryImage(image.id)}
+                    >
+                      {isFeatured ? "Featured" : "Make feature"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className={styles.status}>New uploads can also become the feature photo before you save.</p>
+        </div>
+      )}
+
+      {mode === "edit" && (
+        <p className={styles.status}>The feature photo is used on product cards and becomes the first image in the gallery.</p>
+      )}
 
       <button className={styles.submitButton} type="submit" disabled={submitState !== "idle"}>
         {submitState === "compressing"

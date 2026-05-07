@@ -35,8 +35,9 @@ type EstateSaleGroup = {
 };
 
 function getPrimaryImage(product: Pick<EstateProductRow, "image_urls" | "image_url">) {
+  if (product.image_url) return product.image_url;
   if (product.image_urls && product.image_urls.length > 0) return product.image_urls[0];
-  return product.image_url;
+  return null;
 }
 
 async function getEstateSaleGroups(): Promise<EstateSaleGroup[]> {
