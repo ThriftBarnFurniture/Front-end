@@ -39,6 +39,17 @@ function uniqueSorted(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
+function normalizeFilterValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 type SearchParamsReader = {
   getAll: (name: string) => string[];
 };
@@ -71,11 +82,24 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
 
   const [sort, setSort] = useState<SortKey>("newest");
 
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => initialFilters.categories);
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(() => initialFilters.subcategories);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() =>
+    initialFilters.categories.map(normalizeFilterValue).filter(Boolean)
+  );
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(() =>
+    initialFilters.subcategories.map(normalizeFilterValue).filter(Boolean)
+  );
   const [selectedRooms, setSelectedRooms] = useState<string[]>(() => initialFilters.rooms);
   const [selectedCollections, setSelectedCollections] = useState<string[]>(() => initialFilters.collections);
   const [selectedEstateSales, setSelectedEstateSales] = useState<string[]>(() => initialFilters.estateSales);
+  const [filtersExpanded, setFiltersExpanded] = useState<boolean>(() =>
+    [
+      initialFilters.categories.length,
+      initialFilters.subcategories.length,
+      initialFilters.rooms.length,
+      initialFilters.collections.length,
+      initialFilters.estateSales.length,
+    ].some((count) => count > 0)
+  );
 
   const options = useMemo(() => {
     const cats: string[] = [];
@@ -85,7 +109,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
     const estates: string[] = [];
 
     for (const p of products) {
-      p.category.forEach((c) => cats.push(c));
+      p.category.map(normalizeFilterValue).filter(Boolean).forEach((c) => cats.push(c));
       p.room_tags.forEach((r) => rooms.push(r));
       p.collections.forEach((c) => {
         if (isEstateSaleCollection(c)) estates.push(c);
@@ -94,10 +118,11 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
       });
 
       const matchesSelectedCats =
-        selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
+        selectedCategories.length === 0 ||
+        p.category.map(normalizeFilterValue).some((c) => selectedCategories.includes(c));
 
       if (matchesSelectedCats) {
-        p.subcategory.forEach((s) => subs.push(s));
+        p.subcategory.map(normalizeFilterValue).filter(Boolean).forEach((s) => subs.push(s));
       }
     }
 
@@ -113,10 +138,12 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const catOk =
-        selectedCategories.length === 0 || p.category.some((c) => selectedCategories.includes(c));
+        selectedCategories.length === 0 ||
+        p.category.map(normalizeFilterValue).some((c) => selectedCategories.includes(c));
 
       const subOk =
-        selectedSubcategories.length === 0 || p.subcategory.some((s) => selectedSubcategories.includes(s));
+        selectedSubcategories.length === 0 ||
+        p.subcategory.map(normalizeFilterValue).some((s) => selectedSubcategories.includes(s));
 
       const roomOk =
         selectedRooms.length === 0 || p.room_tags.some((r) => selectedRooms.includes(r));
@@ -167,8 +194,11 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
 
     const allowedSubcategories = new Set<string>();
     for (const product of products) {
-      if (product.category.some((c) => nextCategories.includes(c))) {
-        product.subcategory.forEach((subcategory) => allowedSubcategories.add(subcategory));
+      if (product.category.map(normalizeFilterValue).some((c) => nextCategories.includes(c))) {
+        product.subcategory
+          .map(normalizeFilterValue)
+          .filter(Boolean)
+          .forEach((subcategory) => allowedSubcategories.add(subcategory));
       }
     }
 
@@ -183,126 +213,147 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
     setSelectedEstateSales([]);
   };
 
+  const activeFilterCount =
+    selectedCategories.length +
+    selectedSubcategories.length +
+    selectedRooms.length +
+    selectedCollections.length +
+    selectedEstateSales.length;
+
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <div className={styles.sidebarTitle}>Filters</div>
-          <button
-            type="button"
-            className={styles.clearBtn}
-            onClick={clearAll}
-            disabled={
-              selectedCategories.length === 0 &&
-              selectedSubcategories.length === 0 &&
-              selectedRooms.length === 0 &&
-              selectedCollections.length === 0 &&
-              selectedEstateSales.length === 0
-            }
-          >
-            Clear
-          </button>
-        </div>
-
-        <div className={styles.filterBlock}>
-          <div className={styles.filterTitle}>Category</div>
-          <div className={styles.filterList}>
-            {options.categories.length === 0 ? (
-              <div className={styles.muted}>No categories yet.</div>
-            ) : (
-              options.categories.map((c) => (
-                <label key={c} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(c)}
-                    onChange={() => toggleCategory(c)}
-                  />
-                  <span>{c}</span>
-                </label>
-              ))
-            )}
+          <div className={styles.sidebarActions}>
+            <button
+              type="button"
+              className={styles.filterToggle}
+              onClick={() => setFiltersExpanded((prev) => !prev)}
+              aria-expanded={filtersExpanded}
+              aria-controls="shop-filters-panel"
+            >
+              {filtersExpanded ? "Hide filters" : activeFilterCount > 0 ? `Show filters (${activeFilterCount})` : "Show filters"}
+            </button>
+            <button
+              type="button"
+              className={styles.clearBtn}
+              onClick={clearAll}
+              disabled={activeFilterCount === 0}
+            >
+              Clear
+            </button>
           </div>
         </div>
 
-        {selectedCategories.length > 0 && (
+        <div
+          id="shop-filters-panel"
+          className={[styles.filterPanel, filtersExpanded ? styles.filterPanelOpen : ""].join(" ")}
+        >
           <div className={styles.filterBlock}>
-            <div className={styles.filterTitle}>Subcategory</div>
+            <div className={styles.filterTitle}>Category</div>
             <div className={styles.filterList}>
-              {options.subcategories.length === 0 ? (
-                <div className={styles.muted}>No subcategories for selected categories.</div>
+              {options.categories.length === 0 ? (
+                <div className={styles.muted}>No categories yet.</div>
               ) : (
-                options.subcategories.map((s) => (
-                  <label key={s} className={styles.checkRow}>
+                options.categories.map((c) => (
+                  <label key={c} className={styles.checkRow}>
                     <input
                       type="checkbox"
-                      checked={selectedSubcategories.includes(s)}
-                      onChange={() => setSelectedSubcategories((prev) => toggle(prev, s))}
+                      checked={selectedCategories.includes(c)}
+                      onChange={() => toggleCategory(c)}
                     />
-                    <span>{s}</span>
+                    <span>{c}</span>
                   </label>
                 ))
               )}
             </div>
           </div>
-        )}
 
-        <div className={styles.filterBlock}>
-          <div className={styles.filterTitle}>Room</div>
-          <div className={styles.filterList}>
-            {options.rooms.length === 0 ? (
-              <div className={styles.muted}>No room tags yet.</div>
-            ) : (
-              options.rooms.map((r) => (
-                <label key={r} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    checked={selectedRooms.includes(r)}
-                    onChange={() => setSelectedRooms((prev) => toggle(prev, r))}
-                  />
-                  <span>{r}</span>
-                </label>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className={styles.filterBlock}>
-          <div className={styles.filterTitle}>Collections</div>
-          <div className={styles.filterList}>
-            {options.collections.length === 0 ? (
-              <div className={styles.muted}>No collections yet.</div>
-            ) : (
-              options.collections.map((c) => (
-                <label key={c} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    checked={selectedCollections.includes(c)}
-                    onChange={() => setSelectedCollections((prev) => toggle(prev, c))}
-                  />
-                  <span>{formatCollectionLabel(c)}</span>
-                </label>
-              ))
-            )}
-          </div>
-        </div>
-
-        {options.estateSales.length > 0 && (
           <div className={styles.filterBlock}>
-            <div className={styles.filterTitle}>Estate Sales</div>
+            {selectedCategories.length > 0 && (
+              <>
+                <div className={styles.filterTitle}>Subcategory</div>
+                <div className={styles.filterList}>
+                  {options.subcategories.length === 0 ? (
+                    <div className={styles.muted}>No subcategories for selected categories.</div>
+                  ) : (
+                    options.subcategories.map((s) => (
+                      <label key={s} className={styles.checkRow}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSubcategories.includes(s)}
+                          onChange={() => setSelectedSubcategories((prev) => toggle(prev, s))}
+                        />
+                        <span>{s}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className={styles.filterBlock}>
+            <div className={styles.filterTitle}>Room</div>
             <div className={styles.filterList}>
-              {options.estateSales.map((c) => (
-                <label key={c} className={styles.checkRow}>
-                  <input
-                    type="checkbox"
-                    checked={selectedEstateSales.includes(c)}
-                    onChange={() => setSelectedEstateSales((prev) => toggle(prev, c))}
-                  />
-                  <span>{formatCollectionLabel(c)}</span>
-                </label>
-              ))}
+              {options.rooms.length === 0 ? (
+                <div className={styles.muted}>No room tags yet.</div>
+              ) : (
+                options.rooms.map((r) => (
+                  <label key={r} className={styles.checkRow}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRooms.includes(r)}
+                      onChange={() => setSelectedRooms((prev) => toggle(prev, r))}
+                    />
+                    <span>{r}</span>
+                  </label>
+                ))
+              )}
             </div>
           </div>
-        )}
+
+          <div className={styles.filterBlock}>
+            <div className={styles.filterTitle}>Collections</div>
+            <div className={styles.filterList}>
+              {options.collections.length === 0 ? (
+                <div className={styles.muted}>No collections yet.</div>
+              ) : (
+                options.collections.map((c) => (
+                  <label key={c} className={styles.checkRow}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCollections.includes(c)}
+                      onChange={() => setSelectedCollections((prev) => toggle(prev, c))}
+                    />
+                    <span>{formatCollectionLabel(c)}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className={styles.filterBlock}>
+            {options.estateSales.length > 0 && (
+              <>
+                <div className={styles.filterTitle}>Estate Sales</div>
+                <div className={styles.filterList}>
+                  {options.estateSales.map((c) => (
+                    <label key={c} className={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={selectedEstateSales.includes(c)}
+                        onChange={() => setSelectedEstateSales((prev) => toggle(prev, c))}
+                      />
+                      <span>{formatCollectionLabel(c)}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </aside>
 
       <section className={styles.main}>

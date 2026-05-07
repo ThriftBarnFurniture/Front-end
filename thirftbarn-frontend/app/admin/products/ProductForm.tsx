@@ -64,6 +64,17 @@ function toggleValue(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+function slugifyFilterValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function isKnownCategoryValue(value: string): value is CategoryValue {
   return Object.prototype.hasOwnProperty.call(SUBCATEGORY_MAP, value);
 }
@@ -90,7 +101,7 @@ function resolveOptionValue(rawValue: string, options: Option[]) {
       option.value.trim().toLowerCase() === normalized || option.label.trim().toLowerCase() === normalized
   );
 
-  return match?.value ?? trimmed;
+  return match?.value ?? slugifyFilterValue(trimmed);
 }
 
 function ChipGrid({
@@ -405,13 +416,19 @@ export const ProductForm = ({
     setSubmitState("compressing");
 
     try {
+      const normalizedCategories = categories
+        .map((value) => resolveOptionValue(value, categoryAsOptions))
+        .filter(Boolean);
+
       // Client guards
-      if (!isBarnBurner && categories.length === 0) throw new Error("Please select at least one category.");
+      if (!isBarnBurner && normalizedCategories.length === 0) throw new Error("Please select at least one category.");
       if (colors.length === 0) throw new Error("Please select at least one color.");
       if (!price.trim()) throw new Error("Please enter a price.");
 
       // Ensure subs are valid for selected categories (unless barn burner)
-      const cleanedSubs = isBarnBurner ? subcategories : subcategories.filter((s) => validSubSet.has(s));
+      const cleanedSubs = (isBarnBurner ? subcategories : subcategories.filter((s) => validSubSet.has(s)))
+        .map((value) => resolveOptionValue(value, subcategoryOptions))
+        .filter(Boolean);
       const trimmedEstateSaleName = estateSaleName.trim();
       const estateSaleCollection = trimmedEstateSaleName
         ? createEstateSaleCollectionValue(trimmedEstateSaleName)
@@ -451,7 +468,7 @@ export const ProductForm = ({
       // arrays via repeated keys
       formData.delete("category");
       formData.delete("subcategory");
-      categories.forEach((v) => formData.append("category", v));
+      normalizedCategories.forEach((v) => formData.append("category", v));
       cleanedSubs.forEach((v) => formData.append("subcategory", v));
 
       formData.delete("room_tags");

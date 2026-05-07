@@ -66,6 +66,12 @@ export default async function EditProductPage({
 
           {/* ProductForm still uses its own internal form styles */}
           <ProductForm mode="edit" initialProduct={product} />
+
+          <div className={pageStyles.footerActions}>
+            <Link href="/admin/products" className={pageStyles.dangerBtn}>
+              ← Back
+            </Link>
+          </div>
         </section>
       </div>
     </main>

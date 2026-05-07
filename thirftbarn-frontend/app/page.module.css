@@ -533,6 +533,7 @@
 .estateSaleCta {
   width: max-content;
   flex: 0 0 auto;
+  margin-top: 10px;
   padding: 9px 14px;
   border-radius: var(--radius-pill);
   background: var(--color-brand);

@@ -157,7 +157,6 @@ export default async function EstateSaleSection() {
                 </div>
 
                 <div className={styles.estateSalePhotoMeta}>
-                  <h3 className={styles.estateSaleName}>{sale.name}</h3>
                   <span className={styles.estateSaleCta}>View estate</span>
                 </div>
               </Link>

@@ -139,6 +139,12 @@
   background: rgba(177, 0, 18, 0.1);
 }
 
+.footerActions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-start;
+}
+
 /* Section title */
 .sectionTitle {
   margin: 34px 0 18px;

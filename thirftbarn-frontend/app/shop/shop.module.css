@@ -61,6 +61,23 @@
   letter-spacing: -0.01em;
 }
 
+.sidebarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterToggle {
+  display: none;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
 .clearBtn {
   border: 1px solid rgba(0, 0, 0, 0.18);
   background: rgba(0, 0, 0, 0.04);
@@ -90,6 +107,10 @@
 .filterList {
   display: grid;
   gap: 8px;
+}
+
+.filterPanel {
+  display: block;
 }
 
 .checkRow {
@@ -254,7 +275,30 @@
     grid-template-columns: 1fr;
   }
 
-    .filterList {
+  .sidebarHeader {
+    align-items: flex-start;
+  }
+
+  .sidebarActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .filterToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .filterPanel {
+    display: none;
+  }
+
+  .filterPanelOpen {
+    display: block;
+  }
+
+  .filterList {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px 14px;
   }
@@ -276,6 +320,20 @@
 }
 
 @media (max-width: 640px) {
+  .sidebarHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sidebarActions {
+    justify-content: stretch;
+  }
+
+  .filterToggle,
+  .clearBtn {
+    width: 100%;
+  }
+
   .filterList {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

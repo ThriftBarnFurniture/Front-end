@@ -269,12 +269,6 @@ async function requireAdminAndToken() {
   return { accessToken: session.access_token, userId: user.id };
 }
 
-function getSupabaseUrlOrThrow() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  if (!url) throw new Error("Missing Supabase URL.");
-  return url;
-}
-
 function makeSku() {
   return `TB-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
@@ -283,62 +277,31 @@ function getProductsTableName() {
   return process.env.SUPABASE_PRODUCTS_TABLE ?? "products";
 }
 
-async function supabaseRestInsert(tableName: string, accessToken: string, payload: Record<string, unknown>) {
-  const supabaseUrl = getSupabaseUrlOrThrow();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+async function supabaseAdminInsert(tableName: string, payload: Record<string, unknown>) {
+  const supabaseAdmin = createSupabaseAdmin();
+  const { data, error } = await supabaseAdmin.from(tableName).insert(payload).select().single();
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${tableName}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-      Authorization: `Bearer ${accessToken}`,
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase insert failed: ${errorText}`);
+  if (error) {
+    throw new Error(`Supabase insert failed: ${error.message}`);
   }
 
-  const data = (await response.json()) as Record<string, unknown>[];
-  return data[0] ?? null;
+  return data as Record<string, unknown>;
 }
 
-async function supabaseRestUpdate(
-  tableName: string,
-  accessToken: string,
-  productId: string,
-  payload: Record<string, unknown>
-) {
-  const supabaseUrl = getSupabaseUrlOrThrow();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!anonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+async function supabaseAdminUpdate(tableName: string, productId: string, payload: Record<string, unknown>) {
+  const supabaseAdmin = createSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from(tableName)
+    .update(payload)
+    .eq("id", productId)
+    .select()
+    .single();
 
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/${tableName}?id=eq.${encodeURIComponent(productId)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: anonKey,
-        Authorization: `Bearer ${accessToken}`,
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Supabase update failed: ${errorText}`);
+  if (error) {
+    throw new Error(`Supabase update failed: ${error.message}`);
   }
 
-  const data = (await response.json()) as Record<string, unknown>[];
-  return data[0] ?? null;
+  return data as Record<string, unknown>;
 }
 
 function toOptionalString(value: unknown) {
@@ -350,7 +313,6 @@ function toOptionalNumber(value: unknown) {
 }
 
 async function syncProductToSquare(args: {
-  accessToken: string;
   tableName: string;
   row: Record<string, unknown> | null;
   productId: string;
@@ -404,7 +366,7 @@ async function syncProductToSquare(args: {
     console.error("Auto Square image sync failed:", message);
   }
 
-  await supabaseRestUpdate(args.tableName, args.accessToken, args.productId, {
+  await supabaseAdminUpdate(args.tableName, args.productId, {
     square_item_id: up.square_item_id,
     square_variation_id: up.square_variation_id,
     square_image_id: squareImageId,
@@ -421,7 +383,7 @@ async function syncProductToSquare(args: {
 
 export const POST = async (request: Request) => {
   try {
-    const { accessToken, userId } = await requireAdminAndToken();
+    const { userId } = await requireAdminAndToken();
     const formData = await request.formData();
 
     const name = String(formData.get("name") ?? "").trim();
@@ -548,7 +510,7 @@ export const POST = async (request: Request) => {
       monthly_drop_last_tick,
     };
 
-    const data = await supabaseRestInsert(tableName, accessToken, productPayload);
+    const data = await supabaseAdminInsert(tableName, productPayload);
 
     // AUTO-SYNC to Square (optional toggle)
     const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
@@ -556,7 +518,6 @@ export const POST = async (request: Request) => {
     if (autoSquare) {
       try {
         await syncProductToSquare({
-          accessToken,
           tableName,
           row: data as Record<string, unknown> | null,
           productId: String((data as Record<string, unknown> | null)?.id ?? ""),
@@ -588,7 +549,7 @@ export const POST = async (request: Request) => {
 
 export const PATCH = async (request: Request) => {
   try {
-    const { accessToken } = await requireAdminAndToken();
+    await requireAdminAndToken();
     const formData = await request.formData();
 
     const productId = String(formData.get("productId") ?? "").trim();
@@ -766,13 +727,12 @@ export const PATCH = async (request: Request) => {
     productPayload.image_url = primaryImageUrl;
     productPayload.image_urls = orderedImageUrls;
 
-    const data = await supabaseRestUpdate(tableName, accessToken, productId, productPayload);
+    const data = await supabaseAdminUpdate(tableName, productId, productPayload);
     const autoSquare = (process.env.AUTO_SQUARE_SYNC || "true").toLowerCase() !== "false";
 
     if (autoSquare) {
       try {
         await syncProductToSquare({
-          accessToken,
           tableName,
           row: data as Record<string, unknown> | null,
           productId,
