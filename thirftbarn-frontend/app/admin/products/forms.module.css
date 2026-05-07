@@ -224,6 +224,33 @@
   font-weight: 800;
 }
 
+.inlineActionRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.inlineActionInput {
+  flex: 1 1 auto;
+}
+
+.inlineActionButton {
+  flex: 0 0 auto;
+  min-height: 46px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 800;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+.inlineActionButton:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
 .imageGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -325,5 +352,10 @@
 @media (max-width: 768px) {
   .checkboxGrid {
     grid-template-columns: 1fr;
+  }
+
+  .inlineActionRow {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

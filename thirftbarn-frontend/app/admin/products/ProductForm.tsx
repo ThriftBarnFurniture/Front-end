@@ -21,6 +21,9 @@ import {
 } from "@/lib/estate-sales";
 
 const MAX_PRODUCT_IMAGE_BYTES = 700 * 1024;
+const KNOWN_SUBCATEGORY_VALUES = new Set(
+  Object.values(SUBCATEGORY_MAP).flatMap((options) => options.map((option) => option.value))
+);
 
 type ProductFormInitial = {
   id?: string | number | null;
@@ -61,8 +64,33 @@ function toggleValue(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+function isKnownCategoryValue(value: string): value is CategoryValue {
+  return Object.prototype.hasOwnProperty.call(SUBCATEGORY_MAP, value);
+}
+
 function asOptionList(arr: readonly string[]): Option[] {
   return arr.map((v) => ({ value: v, label: v }));
+}
+
+function mergeSelectedIntoOptions(options: Option[], selected: string[]) {
+  const seen = new Set(options.map((option) => option.value));
+  const customOptions = selected
+    .filter((value) => value && !seen.has(value))
+    .map((value) => ({ value, label: value }));
+  return [...options, ...customOptions];
+}
+
+function resolveOptionValue(rawValue: string, options: Option[]) {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return "";
+
+  const normalized = trimmed.toLowerCase();
+  const match = options.find(
+    (option) =>
+      option.value.trim().toLowerCase() === normalized || option.label.trim().toLowerCase() === normalized
+  );
+
+  return match?.value ?? trimmed;
 }
 
 function ChipGrid({
@@ -204,10 +232,10 @@ export const ProductForm = ({
   const [productId, setProductId] = useState<string>(mode === "edit" ? String(init.id ?? "") : "");
 
   // arrays (prefill in edit)
-  const [categories, setCategories] = useState<CategoryValue[]>(() => {
+  const [categories, setCategories] = useState<string[]>(() => {
     const v = init.category ?? init.categories;
-    if (Array.isArray(v)) return v as CategoryValue[];
-    if (typeof v === "string" && v.trim()) return [v as CategoryValue];
+    if (Array.isArray(v)) return v.filter(Boolean);
+    if (typeof v === "string" && v.trim()) return [v];
     return [];
   });
 
@@ -246,10 +274,13 @@ export const ProductForm = ({
 
   // for restoring when toggling barn burner off
   const prevPriceRef = useRef<string>("");
-  const prevCatsRef = useRef<CategoryValue[]>([]);
+  const prevCatsRef = useRef<string[]>([]);
   const prevSubsRef = useRef<string[]>([]);
 
   const [categoryWarning, setCategoryWarning] = useState<string | null>(null);
+  const [subcategoryWarning, setSubcategoryWarning] = useState<string | null>(null);
+  const [customCategory, setCustomCategory] = useState("");
+  const [customSubcategory, setCustomSubcategory] = useState("");
 
   const [keptImages, setKeptImages] = useState<string[]>(initialImages);
   const [pendingImages, setPendingImages] = useState<PendingImagePreview[]>([]);
@@ -308,11 +339,13 @@ export const ProductForm = ({
   }, []);
 
   // Union subcategory options across selected categories
-  const subcategoryOptions = useMemo<Option[]>(() => {
+  const baseSubcategoryOptions = useMemo<Option[]>(() => {
     const out: Option[] = [];
     const seen = new Set<string>();
 
     for (const cat of categories) {
+      if (!isKnownCategoryValue(cat)) continue;
+
       for (const s of SUBCATEGORY_MAP[cat] ?? []) {
         if (!seen.has(s.value)) {
           seen.add(s.value);
@@ -324,11 +357,45 @@ export const ProductForm = ({
     return out;
   }, [categories]);
 
+  const categoryAsOptions: Option[] = useMemo(
+    () => mergeSelectedIntoOptions(CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label })), categories),
+    [categories]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => mergeSelectedIntoOptions(baseSubcategoryOptions, subcategories),
+    [baseSubcategoryOptions, subcategories]
+  );
+
   // Prune subcategories if categories change (avoid sending invalid subs)
   const validSubSet = useMemo(() => {
     const allowed = new Set(subcategoryOptions.map((o) => o.value));
     return new Set([...allowed]);
   }, [subcategoryOptions]);
+
+  const addCustomCategory = () => {
+    const resolvedValue = resolveOptionValue(customCategory, categoryAsOptions);
+    if (!resolvedValue) {
+      setCategoryWarning("Enter a category name first.");
+      return;
+    }
+
+    setCategories((prev) => (prev.includes(resolvedValue) ? prev : [...prev, resolvedValue]));
+    setCustomCategory("");
+    setCategoryWarning(null);
+  };
+
+  const addCustomSubcategory = () => {
+    const resolvedValue = resolveOptionValue(customSubcategory, subcategoryOptions);
+    if (!resolvedValue) {
+      setSubcategoryWarning("Enter a subcategory name first.");
+      return;
+    }
+
+    setSubcategories((prev) => (prev.includes(resolvedValue) ? prev : [...prev, resolvedValue]));
+    setCustomSubcategory("");
+    setSubcategoryWarning(null);
+  };
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -399,6 +466,12 @@ export const ProductForm = ({
         formData.delete("existing_estate_sale_photo");
       }
 
+      if (primaryImage) {
+        formData.set("primary_image", primaryImage);
+      } else {
+        formData.delete("primary_image");
+      }
+
       // edit mode extras: productId + keep_image_urls
       if (mode === "edit") {
         const id = String(init.id ?? productId).trim();
@@ -406,11 +479,6 @@ export const ProductForm = ({
         formData.set("manage_existing_images", "true");
         formData.delete("keep_image_urls");
         keptImages.forEach((u) => formData.append("keep_image_urls", u));
-        if (primaryImage) {
-          formData.set("primary_image", primaryImage);
-        } else {
-          formData.delete("primary_image");
-        }
       }
 
       const optimizedImages = await optimizeImageFieldInFormData(formData, {
@@ -464,9 +532,14 @@ export const ProductForm = ({
         setEstateSaleName("");
         setEstateSalePhotoUrl("");
         setColors([]);
+        setCustomCategory("");
+        setCustomSubcategory("");
+        setCategoryWarning(null);
+        setSubcategoryWarning(null);
         pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
         pendingPreviewUrlsRef.current = [];
         setPendingImages([]);
+        setPrimaryImage("");
       }
 
       setStatus(mode === "edit" ? "Saved ✅" : "Product saved successfully.");
@@ -477,11 +550,6 @@ export const ProductForm = ({
       setSubmitState("idle");
     }
   };
-
-  const categoryAsOptions: Option[] = useMemo(
-    () => CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label })),
-    []
-  );
 
   const roomAsOptions: Option[] = useMemo(() => ROOM_TAGS.map((t) => ({ value: t.value, label: t.label })), []);
   const collectionsAsOptions: Option[] = useMemo(() => COLLECTIONS.map((c) => ({ value: c.value, label: c.label })), []);
@@ -639,16 +707,44 @@ export const ProductForm = ({
             }
 
             setCategoryWarning(null);
+            setSubcategoryWarning(null);
 
-            const next = toggleValue(categories as string[], v) as CategoryValue[];
+            const next = toggleValue(categories, v);
             setCategories(next);
 
             if (!isBarnBurner) {
-              const allowed = new Set(next.flatMap((cat) => (SUBCATEGORY_MAP[cat] ?? []).map((s) => s.value)));
-              setSubcategories((prev) => prev.filter((s) => allowed.has(s)));
+              if (next.length === 0) {
+                setSubcategories([]);
+                return;
+              }
+
+              const allowed = new Set(
+                next.flatMap((cat) => (isKnownCategoryValue(cat) ? (SUBCATEGORY_MAP[cat] ?? []).map((s) => s.value) : []))
+              );
+              setSubcategories((prev) => prev.filter((s) => !KNOWN_SUBCATEGORY_VALUES.has(s) || allowed.has(s)));
             }
           }}
         />
+        {!isBarnBurner && (
+          <div className={styles.inlineActionRow}>
+            <input
+              className={[styles.input, styles.inlineActionInput].join(" ")}
+              type="text"
+              value={customCategory}
+              onChange={(event) => setCustomCategory(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addCustomCategory();
+                }
+              }}
+              placeholder="Add a custom category"
+            />
+            <button type="button" className={styles.inlineActionButton} onClick={addCustomCategory}>
+              Add custom
+            </button>
+          </div>
+        )}
         {categoryWarning && (
           <p className={styles.status} role="alert">
             {categoryWarning}
@@ -664,8 +760,36 @@ export const ProductForm = ({
             options={subcategoryOptions}
             selected={subcategories}
             disabled={isBarnBurner}
-            onToggle={(v) => setSubcategories(toggleValue(subcategories, v))}
+            onToggle={(v) => {
+              setSubcategoryWarning(null);
+              setSubcategories(toggleValue(subcategories, v));
+            }}
           />
+          {!isBarnBurner && (
+            <div className={styles.inlineActionRow}>
+              <input
+                className={[styles.input, styles.inlineActionInput].join(" ")}
+                type="text"
+                value={customSubcategory}
+                onChange={(event) => setCustomSubcategory(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addCustomSubcategory();
+                  }
+                }}
+                placeholder="Add a custom subcategory"
+              />
+              <button type="button" className={styles.inlineActionButton} onClick={addCustomSubcategory}>
+                Add custom
+              </button>
+            </div>
+          )}
+          {subcategoryWarning && (
+            <p className={styles.status} role="alert">
+              {subcategoryWarning}
+            </p>
+          )}
           <p className={styles.status}>Optional. Select any that apply.</p>
         </div>
       )}
@@ -841,9 +965,9 @@ export const ProductForm = ({
         />
       </div>
 
-      {mode === "edit" && pendingImages.length > 0 && (
+      {pendingImages.length > 0 && (
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>New photo previews</label>
+          <label className={styles.label}>{mode === "edit" ? "New photo previews" : "Photo previews"}</label>
           <div className={styles.imageGrid}>
             {pendingImages.map((image) => {
               const isFeatured = primaryImage === image.id;
@@ -869,11 +993,15 @@ export const ProductForm = ({
               );
             })}
           </div>
-          <p className={styles.status}>New uploads can also become the feature photo before you save.</p>
+          <p className={styles.status}>
+            {mode === "edit"
+              ? "New uploads can also become the feature photo before you save."
+              : "Choose which uploaded photo should be the feature photo before you save."}
+          </p>
         </div>
       )}
 
-      {mode === "edit" && (
+      {(mode === "edit" || pendingImages.length > 0) && (
         <p className={styles.status}>The feature photo is used on product cards and becomes the first image in the gallery.</p>
       )}
 

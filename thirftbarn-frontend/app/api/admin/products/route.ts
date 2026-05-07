@@ -459,6 +459,7 @@ export const POST = async (request: Request) => {
 
     const price = getRequiredNumber(formData, "price");
     const images = parseImages(formData);
+    const requestedPrimaryImage = String(formData.get("primary_image") ?? "").trim();
 
     const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
     const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
@@ -483,7 +484,18 @@ export const POST = async (request: Request) => {
 
     const quantity = parseQuantity(quantityValue, unlimitedQuantity);
     const storedQuantity = toStoredQuantity(quantity);
-    const imageUrls = await uploadImagesToR2(images);
+    const uploadedImageUrls = await uploadImagesToR2(images);
+    let primaryImageUrl: string | null = null;
+
+    if (requestedPrimaryImage.startsWith("new:")) {
+      const rawIndex = Number(requestedPrimaryImage.slice("new:".length));
+      if (Number.isInteger(rawIndex) && rawIndex >= 0 && rawIndex < uploadedImageUrls.length) {
+        primaryImageUrl = uploadedImageUrls[rawIndex] ?? null;
+      }
+    }
+
+    primaryImageUrl = primaryImageUrl ?? uploadedImageUrls[0] ?? null;
+    const imageUrls = reorderImagesWithPrimaryFirst(uploadedImageUrls, primaryImageUrl);
     const tableName = getProductsTableName();
 
     const nowIso = new Date().toISOString();
@@ -518,7 +530,7 @@ export const POST = async (request: Request) => {
       initial_price: price,
       price,
 
-      image_url: imageUrls[0],
+      image_url: primaryImageUrl,
       image_urls: imageUrls,
 
       created_by: userId,
@@ -552,7 +564,7 @@ export const POST = async (request: Request) => {
           description,
           price: price ?? 0,
           quantity,
-          fallbackImageUrl: imageUrls[0] ?? null,
+          fallbackImageUrl: primaryImageUrl,
         });
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
@@ -619,9 +631,9 @@ export const PATCH = async (request: Request) => {
 
     const price = getRequiredNumber(formData, "price");
     const images = parseImages(formData);
+    const requestedPrimaryImage = String(formData.get("primary_image") ?? "").trim();
     const keepImageUrls = getTextArray(formData, "keep_image_urls");
     const manageExistingImages = getBoolean(formData, "manage_existing_images");
-    const requestedPrimaryImage = String(formData.get("primary_image") ?? "").trim();
 
     const enforcedCategories = isBarnBurner ? ["barn-burner"] : categories;
     const enforcedSubcategories = isBarnBurner ? [`day-${barnDay}`] : subcategories;
