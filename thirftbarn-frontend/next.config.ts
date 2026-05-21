@@ -10,6 +10,8 @@ const r2Hostname = new URL(r2PublicUrl).hostname;
 
 const nextConfig: NextConfig = {
   images: {
+    loader: "custom", 
+    loaderFile: "./lib/cf-image-loader.ts",
     remotePatterns: [
       {
         protocol: "https",

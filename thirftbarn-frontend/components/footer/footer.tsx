@@ -15,6 +15,7 @@ export const Footer = () => {
               width={230}
               height={70}
               className={styles.brandLogo}
+              unoptimized
             />
             <div className={styles.copyright}>
               © Thrift Barn Furniture, {new Date().getFullYear()}
@@ -97,6 +98,7 @@ export const Footer = () => {
                   width={22}
                   height={22}
                   className={styles.icon}
+                  unoptimized
                 />
               </a>
 
@@ -124,6 +126,7 @@ export const Footer = () => {
                   width={22}
                   height={22}
                   className={styles.icon}
+                  unoptimized
                 />
               </a>
 
@@ -151,6 +154,7 @@ export const Footer = () => {
                   width={22}
                   height={22}
                   className={styles.icon}
+                  unoptimized
                 />
               </a>
 

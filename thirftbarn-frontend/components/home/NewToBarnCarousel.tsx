@@ -172,6 +172,7 @@ export default function NewToBarnCarousel({
                     draggable={false}
                     sizes="(max-width: 480px) 85vw, (max-width: 768px) 55vw, 260px"
                     style={{ objectFit: "cover" }}
+                    unoptimized
                   />
                 </div>
 

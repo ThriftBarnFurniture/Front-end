@@ -401,6 +401,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                         fill
                         className={styles.image}
                         sizes="(max-width: 900px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                        unoptimized
                       />
                     ) : (
                       <div className={styles.noImage}>No image</div>

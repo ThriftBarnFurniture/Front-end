@@ -150,6 +150,7 @@ export default async function EstateSaleSection() {
                     fill
                     sizes="(max-width: 480px) 85vw, (max-width: 768px) 45vw, 320px"
                     style={{ objectFit: "cover" }}
+                    unoptimized
                   />
                   <span className={styles.estateSalePhotoBadge}>
                     {sale.count} item{sale.count === 1 ? "" : "s"}

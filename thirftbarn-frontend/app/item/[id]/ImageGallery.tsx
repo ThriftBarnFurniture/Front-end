@@ -30,6 +30,7 @@ export default function ImageGallery({
           className={styles.mainImage}
           sizes="(max-width: 900px) 100vw, 50vw"
           priority
+          unoptimized
         />
       </div>
 
@@ -50,6 +51,7 @@ export default function ImageGallery({
                   fill
                   className={styles.thumbImg}
                   sizes="120px"
+                  unoptimized
                 />
               </div>
             </button>
