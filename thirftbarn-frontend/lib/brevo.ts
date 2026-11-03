@@ -318,6 +318,9 @@ async function sendBrevoEmail(message: BrevoMessage & { textContent?: string }) 
     host: smtpHost,
     port: smtpPort,
     secure: smtpPort === 465,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: { user: smtpUser, pass: smtpPass },
   });
 

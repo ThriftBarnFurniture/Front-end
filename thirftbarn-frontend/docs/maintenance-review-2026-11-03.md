@@ -1,5 +1,7 @@
 # Website maintenance review — November 3, 2026
 
+Follow-up: the dependency updates are now installed and the production audit is clean. The atomic transaction implementation is prepared with 24 passing application tests, 15 PostgreSQL checks and 91 browser checks, but remains inactive pending production schema inspection/migration. See [atomic-checkout-rollout.md](atomic-checkout-rollout.md) for current status; the initial review below is retained as history.
+
 The checked source builds successfully, all 14 regression tests pass, ESLint reports no errors, and a local Chromium run passed 84 desktop/mobile checks. The application is healthier, but it cannot receive a clean production-readiness signoff while the dependency advisories and order/stock transaction risks below remain unresolved.
 
 This review preserved the substantial uncommitted October 29 changes already present in the workspace. Those included payment verification, receipt privacy, immutable checkout snapshots, request quotas, canonical/product metadata, sitemap/robots routes and the checkout dialog. They are not new changes from this maintenance pass. Nothing was deployed or committed, and no live purchase, refund, email, account deletion, inventory update or schema change was performed.

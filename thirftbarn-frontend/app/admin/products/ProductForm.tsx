@@ -321,26 +321,16 @@ export const ProductForm = ({
     setPendingImages(nextPending);
   };
 
-  useEffect(() => {
-    const selectablePrimaryImages = [
-      ...keptImages.map((url) => `existing:${url}`),
-      ...pendingImages.map((image) => image.id),
-    ];
-
-    if (selectablePrimaryImages.length === 0) {
-      if (primaryImage) setPrimaryImage("");
-      return;
-    }
-
-    if (selectablePrimaryImages.includes(primaryImage)) return;
-
-    const fallbackPrimary =
-      init.image_url && keptImages.includes(init.image_url)
-        ? `existing:${init.image_url}`
-        : selectablePrimaryImages[0];
-
-    setPrimaryImage(fallbackPrimary);
-  }, [init.image_url, keptImages, pendingImages, primaryImage]);
+  const selectablePrimaryImages = [
+    ...keptImages.map((url) => `existing:${url}`),
+    ...pendingImages.map((image) => image.id),
+  ];
+  if (!selectablePrimaryImages.includes(primaryImage)) {
+    const fallbackPrimary = init.image_url && keptImages.includes(init.image_url)
+      ? `existing:${init.image_url}` : selectablePrimaryImages[0] ?? "";
+    // Adjust before committing so a removed primary is never shown/submitted.
+    if (primaryImage !== fallbackPrimary) setPrimaryImage(fallbackPrimary);
+  }
 
   useEffect(() => {
     return () => {

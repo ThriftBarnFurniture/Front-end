@@ -8,6 +8,18 @@ import './map.css';
 
 type StoreHours = { days: string; time: string };
 
+function FitToMarkers({ points }: { points: [number, number][] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!points.length) return;
+    const bounds = L.latLngBounds(points.map(([lat, lng]) => L.latLng(lat, lng)));
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 11, animate: true });
+  }, [map, points]);
+
+  return null;
+}
+
 interface MapProps {
   latitude: number;
   longitude: number;
@@ -98,24 +110,6 @@ const Map: React.FC<MapProps> = ({
       icon: distPinIcon,
     },
   ];
-
-  function FitToMarkers({ points }: { points: [number, number][] }) {
-    const map = useMap();
-
-    useEffect(() => {
-      if (!points.length) return;
-
-      const bounds = L.latLngBounds(points.map(([lat, lng]) => L.latLng(lat, lng)));
-
-      map.fitBounds(bounds, {
-        padding: [60, 60],     // space around edges
-        maxZoom: 11,           // prevents zooming in too far
-        animate: true,
-      });
-    }, [map, points]);
-
-    return null;
-  }
 
   const allPoints: [number, number][] = [
     [latitude, longitude], // main store

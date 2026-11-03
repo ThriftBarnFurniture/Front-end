@@ -307,3 +307,215 @@ test('account deletion keeps authentication until server success and handles fai
       : ['loading:true', 'delete', 'alert', 'loading:false']);
   }
 });
+
+function atomicMode(t) {
+  const previous = process.env.STRIPE_ATOMIC_FULFILLMENT;
+  process.env.STRIPE_ATOMIC_FULFILLMENT = 'true';
+  t.after(() => { if (previous === undefined) delete process.env.STRIPE_ATOMIC_FULFILLMENT; else process.env.STRIPE_ATOMIC_FULFILLMENT = previous; });
+}
+
+test('atomic fulfillment delegates all order and stock writes to one database transaction', async (t) => {
+  atomicMode(t);
+  const db = database([{ data: snapshot }]);
+  const rpcCalls = [];
+  db.rpc = async (name, args) => {
+    rpcCalls.push({ name, args });
+    return { data: { duplicate: false, order: { ...snapshot, status: 'paid' } } };
+  };
+  let deliveries = 0;
+  const { fulfillStripeCheckoutSession } = loader({
+    '@/lib/supabase-admin': { createSupabaseAdmin: () => db },
+    '@/lib/stripe-order-effects': { deliverStripeOrderEffects: async () => { deliveries++; return false; } },
+  })('lib/stripe-fullfillment.ts');
+  const result = await fulfillStripeCheckoutSession(session);
+  assert.equal(result.effectsManaged, true);
+  assert.equal(result.effectsPending, false);
+  assert.equal(result.items[0].name, 'Original name');
+  assert.equal(deliveries, 1);
+  assert.equal(db.calls.some(call => call.payload), false);
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls[0].name, 'finalize_stripe_checkout_v1');
+  assert.equal(rpcCalls[0].args.p_amount_total_cents, 2500);
+  assert.equal(rpcCalls[0].args.p_order_id, id);
+});
+
+test('atomic duplicates retry durable effects; delivery failure does not undo payment confirmation', async (t) => {
+  atomicMode(t);
+  const db = database([{ data: { ...snapshot, status: 'paid' } }]);
+  db.rpc = async () => ({ data: { duplicate: true, order: { ...snapshot, status: 'paid' } } });
+  let deliveries = 0;
+  const { fulfillStripeCheckoutSession } = loader({
+    '@/lib/supabase-admin': { createSupabaseAdmin: () => db },
+    '@/lib/stripe-order-effects': { deliverStripeOrderEffects: async () => { deliveries++; throw new Error('Provider unavailable'); } },
+  })('lib/stripe-fullfillment.ts');
+  const result = await fulfillStripeCheckoutSession(session);
+  assert.equal(result.duplicate, true);
+  assert.equal(result.status, 'paid');
+  assert.equal(result.effectsPending, true);
+  assert.equal(deliveries, 1);
+});
+
+test('atomic failure never falls back to separate stock writes', async (t) => {
+  atomicMode(t);
+  const db = database([{ data: snapshot }]);
+  db.rpc = async () => ({ error: { message: 'Transaction rolled back' } });
+  const { fulfillStripeCheckoutSession } = loader({
+    '@/lib/supabase-admin': { createSupabaseAdmin: () => db },
+    '@/lib/stripe-order-effects': { deliverStripeOrderEffects: () => assert.fail('Delivery before commit') },
+  })('lib/stripe-fullfillment.ts');
+  await assert.rejects(fulfillStripeCheckoutSession(session), /Transaction rolled back/);
+  assert.equal(db.calls.some(call => call.payload), false);
+});
+
+test('durable effects retry only failed work without repeating acknowledged mail', async () => {
+  const work = { order_id: id, stripe_session_id: sessionId, square_updates: [{ productId: id, variationId: 'variation', quantity: 3, soldQuantity: 2 }], admin_email_sent_at: null, customer_email_sent_at: null, created_at: '2026-11-03T12:00:00Z' };
+  let first = true;
+  let adminEmails = 0, customerEmails = 0, squareAttempts = 0;
+  const db = {
+    rpc: async name => {
+      if (name === 'claim_stripe_order_effects_v1') return { data: structuredClone(work) };
+      assert.equal(name, 'apply_square_inventory_count_v1');
+      work.square_updates = [];
+      return { data: true };
+    },
+    from: table => {
+      assert.equal(table, 'stripe_order_effects');
+      const query = {
+        update(fields) { Object.assign(work, fields); return query; },
+        eq() { return query; }, select() { return query; },
+        maybeSingle: async () => ({ data: { order_id: id } }),
+      };
+      return query;
+    },
+  };
+  const { deliverStripeOrderEffects } = loader({
+    '@/lib/supabase-admin': { createSupabaseAdmin: () => db },
+    '@/lib/square/inventory': { recordSquareSale: async args => {
+      squareAttempts++;
+      assert.equal(args.quantity, 2);
+      assert.equal(args.occurredAt, work.created_at);
+      if (first) throw new Error('Square offline');
+      return { quantity: 3, calculatedAt: work.created_at };
+    } },
+    '@/lib/brevo': {
+      sendAdminOrderEmail: async () => { adminEmails++; },
+      sendCustomerOrderEmail: async () => { customerEmails++; if (first) throw new Error('SMTP offline'); },
+    },
+  })('lib/stripe-order-effects.ts');
+  const order = { ...snapshot, order_id: id, status: 'paid' };
+  assert.equal(await deliverStripeOrderEffects(order), true);
+  assert.equal(work.square_updates.length, 1);
+  assert.ok(work.admin_email_sent_at);
+  assert.equal(work.customer_email_sent_at, null);
+  assert.equal(work.lease_token, null);
+  first = false;
+  assert.equal(await deliverStripeOrderEffects(order), false);
+  assert.deepEqual([adminEmails, customerEmails, squareAttempts], [1, 2, 2]);
+  assert.equal(work.square_updates.length, 0);
+});
+
+test('Square sale retries preserve the delta, event time and idempotency key', async (t) => {
+  const previous = process.env.SQUARE_LOCATION_ID;
+  process.env.SQUARE_LOCATION_ID = 'location';
+  t.after(() => { if (previous === undefined) delete process.env.SQUARE_LOCATION_ID; else process.env.SQUARE_LOCATION_ID = previous; });
+  const calls = [];
+  const { recordSquareSale } = loader({
+    '@/lib/square': { squareFetch: async (path, options) => {
+      calls.push({ path, body: JSON.parse(options.body) });
+      return { counts: [{ catalog_object_id: 'variation', location_id: 'location', state: 'IN_STOCK', quantity: '3', calculated_at: '2026-11-03T12:00:01Z' }] };
+    } },
+  })('lib/square/inventory.ts');
+  const args = { variationId: 'variation', quantity: 2, sessionId, productId: id, occurredAt: '2026-11-03T12:00:00Z' };
+  await recordSquareSale(args); await recordSquareSale(args);
+  assert.equal(calls[0].body.idempotency_key, calls[2].body.idempotency_key);
+  assert.ok(calls[0].body.idempotency_key.length <= 128);
+  assert.equal(calls[0].body.changes[0].type, 'ADJUSTMENT');
+  assert.equal(calls[0].body.changes[0].adjustment.quantity, '2');
+  assert.equal(calls[0].body.changes[0].adjustment.occurred_at, args.occurredAt);
+  assert.equal(calls[1].path, '/inventory/counts/batch-retrieve');
+});
+
+test('Stripe webhook requests retries for pending durable work without resending email inline', async () => {
+  const previous = process.env.STRIPE_WEBHOOK_SECRET;
+  process.env.STRIPE_WEBHOOK_SECRET = 'test-only';
+  try {
+    for (const pending of [true, false]) {
+      const { POST } = loader({
+        '@/lib/stripe': { getStripe: () => ({ webhooks: { constructEvent: () => ({ type: 'checkout.session.completed', data: { object: session } }) } }) },
+        '@/lib/stripe-fullfillment': { fulfillStripeCheckoutSession: async () => ({ ...snapshot, duplicate: true, status: 'paid', effectsManaged: true, effectsPending: pending }) },
+        '@/lib/brevo': { sendAdminOrderEmail: () => assert.fail('Inline admin email'), sendCustomerOrderEmail: () => assert.fail('Inline customer email') },
+      })('app/api/stripe/webhook/route.ts');
+      const response = await POST(new Request('https://example.test/webhook', { method: 'POST', headers: { 'stripe-signature': 'fixture' }, body: '{}' }));
+      assert.equal(response.status, pending ? 500 : 200);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+    else process.env.STRIPE_WEBHOOK_SECRET = previous;
+  }
+});
+
+test('customer confirmation stays successful while durable notification delivery is pending', async () => {
+  const { POST } = loader({
+    '@/lib/stripe': { getStripe: () => ({ checkout: { sessions: { retrieve: async () => session } } }) },
+    '@/lib/stripe-fullfillment': { fulfillStripeCheckoutSession: async () => ({ ...snapshot, duplicate: false, status: 'paid', effectsManaged: true, effectsPending: true }) },
+    '@/lib/brevo': { sendAdminOrderEmail: () => assert.fail('Duplicate admin email'), sendCustomerOrderEmail: () => assert.fail('Duplicate customer email') },
+    '@/lib/request-limits': { rateLimitRequest: () => null },
+  })('app/api/stripe/complete/route.ts');
+  const response = await POST(new Request('https://example.test/complete', { method: 'POST', body: JSON.stringify({ sessionId }) }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { received: true, confirmed: true, status: 'paid' });
+});
+
+test('atomic Square webhooks use timestamp-aware reconciliation and retry database failures', async (t) => {
+  atomicMode(t);
+  const crypto = nodeRequire('node:crypto');
+  const body = JSON.stringify({ type: 'inventory.count.updated', data: { object: { inventory_counts: [{ catalog_object_id: 'variation', location_id: 'test-location', state: 'IN_STOCK', quantity: '2', calculated_at: '2026-11-03T12:00:00Z' }] } } });
+  // The earlier signed-webhook fixture sets this test-only key, URL and location.
+  const signature = crypto.createHmac('sha256', 'test-signature').update('https://example.test/square' + body).digest('base64');
+  for (const fail of [false, true]) {
+    const calls = [];
+    const { POST } = loader({ '../../../../utils/supabase/admin': { createAdminClient: () => ({
+      from: () => assert.fail('Separate inventory writes'),
+      rpc: async (name, args) => { calls.push({ name, args }); return fail ? { error: { message: 'DB unavailable' } } : { data: true }; },
+    }) } })('app/api/square/webhook/route.ts');
+    const response = await POST(new Request('https://example.test/square', { method: 'POST', body, headers: { 'x-square-hmacsha256-signature': signature } }));
+    assert.equal(response.status, fail ? 500 : 200);
+    assert.equal(calls[0].name, 'apply_square_inventory_count_v1');
+    assert.equal(calls[0].args.p_calculated_at, '2026-11-03T12:00:00Z');
+  }
+});
+
+test('delivery retry endpoint requires an administrator before dispatching work', async (t) => {
+  atomicMode(t);
+  const path = 'app/api/admin/orders/[orderId]/retry-delivery/route.ts';
+  const rejected = loader({
+    '@/lib/require-admin': { requireAdmin: async () => { throw new Error('Unauthorized'); } },
+    '@/lib/stripe-fullfillment': { retryStripeOrderDelivery: () => assert.fail('Unauthorized retry') },
+  })(path);
+  await assert.rejects(rejected.POST(new Request('https://example.test'), { params: Promise.resolve({ orderId: id }) }), /Unauthorized/);
+  const allowed = loader({
+    '@/lib/require-admin': { requireAdmin: async () => ({ user: { id: 'admin' } }) },
+    '@/lib/stripe-fullfillment': { retryStripeOrderDelivery: async orderId => { assert.equal(orderId, id); return false; } },
+  })(path);
+  const response = await allowed.POST(new Request('https://example.test'), { params: Promise.resolve({ orderId: id }) });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true, pending: false });
+});
+
+test('installed Nodemailer composes the existing message and photo attachment format without delivery', async () => {
+  const nodemailer = nodeRequire('nodemailer');
+  const transport = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'unix' });
+  const message = await transport.sendMail({
+    from: { name: 'Thrift Barn Furniture', address: 'store@example.test' },
+    to: [{ name: 'Test Customer', address: 'customer@example.test' }],
+    replyTo: { name: 'Test Customer', address: 'customer@example.test' },
+    subject: 'Service request fixture', text: 'Fixture details', html: '<p>Fixture details</p>',
+    attachments: [{ filename: 'fixture.jpg', content: Buffer.from('test photo'), contentType: 'image/jpeg' }],
+  });
+  assert.deepEqual(message.envelope.to, ['customer@example.test']);
+  const source = message.message.toString('utf8');
+  assert.match(source, /Subject: Service request fixture/);
+  assert.match(source, /Content-Type: multipart\/mixed/);
+  assert.match(source, /Content-Type: image\/jpeg/);
+  assert.match(source, /filename=fixture.jpg/);
+});

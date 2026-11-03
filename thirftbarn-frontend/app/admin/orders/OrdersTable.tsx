@@ -217,21 +217,19 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
 
   const closeModal = () => setOpenId(null);
 
-  const [productMap, setProductMap] = useState<Record<string, { image_url: string | null }>>({});
+  const [productImages, setProductImages] = useState<{
+    orderId: string;
+    products: Record<string, { image_url: string | null }>;
+  } | null>(null);
+  const productMap = productImages?.orderId === selected?.order_id ? productImages?.products ?? {} : {};
 
   useEffect(() => {
-    if (!selected) {
-      setProductMap({});
-      return;
-    }
+    if (!selected) return;
 
     const items = parseItems(selected.items);
     const ids = Array.from(new Set(items.map((i) => i.id).filter(Boolean))) as string[];
 
-    if (ids.length === 0) {
-      setProductMap({});
-      return;
-    }
+    if (ids.length === 0) return;
 
     let cancelled = false;
 
@@ -246,10 +244,10 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error || "Failed to load product images.");
 
-        if (!cancelled) setProductMap((json?.products ?? {}) as Record<string, { image_url: string | null }>);
+        if (!cancelled) setProductImages({ orderId: selected.order_id, products: (json?.products ?? {}) as Record<string, { image_url: string | null }> });
       } catch (e) {
         console.warn("Failed to load product images", e);
-        if (!cancelled) setProductMap({});
+        if (!cancelled) setProductImages({ orderId: selected.order_id, products: {} });
       }
     })();
 

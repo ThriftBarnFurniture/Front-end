@@ -203,21 +203,19 @@ export default function CheckoutPage() {
   // POST /api/shipping/distance
   // { origin: string, destination: string }
   // -> { distance_km: number }
-  useEffect(() => {
-    const shouldLookup =
-      (shippingMethod === "delivery_drop" || shippingMethod === "inhouse_drop" || shippingMethod === "quote") &&
-      street.trim() &&
-      city.trim() &&
-      region.trim() &&
-      postal.trim() &&
-      country.trim();
-
+  const shouldLookup = Boolean(needsAddress && street.trim() && city.trim() && region.trim() && postal.trim() && country.trim());
+  const [hadCompleteAddress, setHadCompleteAddress] = useState(shouldLookup);
+  if (hadCompleteAddress !== shouldLookup) {
+    setHadCompleteAddress(shouldLookup);
     if (!shouldLookup) {
       setDistanceKm(null);
       setDistanceError(null);
       setDistanceLoading(false);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!shouldLookup) return;
 
     let cancelled = false;
 
@@ -268,7 +266,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [shippingMethod, mergedShippingAddress, street, city, region, postal, country]);
+  }, [shouldLookup, shippingMethod, mergedShippingAddress, street, city, region, postal, country]);
 
   const quoteRequired = useMemo(() => {
     if (shippingMethod === "quote") return true;

@@ -6,6 +6,7 @@ import { sendAdminOrderEmail, sendCustomerOrderEmail } from "@/lib/brevo";
 import { isPaymentSettled } from "@/lib/checkout-validation";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
       }
       const order = await fulfillStripeCheckoutSession(session);
 
-      if (!order.duplicate) {
+      if (!order.duplicate && !order.effectsManaged) {
         const emailPayload = {
           orderId: order.order_id,
           orderNumber: order.order_number,
@@ -66,6 +67,9 @@ export async function POST(req: Request) {
         await sendCustomerOrderEmail(emailPayload).catch((e) =>
           console.error("Customer order confirmation failed:", e)
         );
+      }
+      if (order.effectsPending) {
+        return new NextResponse("Order confirmed; notification delivery pending. Please retry.", { status: 500 });
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

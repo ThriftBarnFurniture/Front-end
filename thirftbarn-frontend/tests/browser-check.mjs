@@ -34,6 +34,7 @@ try {
   let receiptRequests = 0;
   let stockRequests = 0;
   let soldOut = false;
+  let distanceFixture = 20;
   let session;
   function call(method, params = {}, sessionId) {
     const id = ++sequence;
@@ -67,6 +68,7 @@ try {
         response = reply(requestId, 200, { stock: Object.fromEntries(ids.map(id => [id, soldOut ? 0 : 2])) });
       }
       else if (path === '/api/google/reviews-count' && offline) response = reply(requestId, 200, { count: 0, rating: 0 });
+      else if (path === '/api/shipping/distance' && offline) response = reply(requestId, 200, { distance_km: distanceFixture });
       else if (path === '/api/orders/by-session') {
         receiptRequests++;
         response = reply(requestId, 200, { order: { order_id: 'fixture', order_number: 'TEST', status: 'paid', subtotal: 10, total: 10, tax: 0, currency: 'cad', items: [], private_details_available: false } });
@@ -137,7 +139,7 @@ try {
     check('product has its own canonical and title', await evaluate(`document.querySelector('link[rel=canonical]')?.href.endsWith(location.pathname) && document.title.includes(document.querySelector('h1').textContent)`));
   }
   const productId = productPath.split('/').at(-1);
-  const cart = [{ productId, name: 'Browser fixture', quantity: 1, price: 10 }];
+  const cart = [{ productId, name: 'Browser fixture', quantity: 1, price: 10, is_oversized: offline }];
   const seedCart = () => evaluate(`localStorage.setItem('tb_cart_v1', ${JSON.stringify(JSON.stringify(cart))})`);
   await seedCart();
   await navigate('/checkout/success');
@@ -186,6 +188,38 @@ try {
   await tab('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await waitFor("document.querySelector('[role=dialog]') === null");
   check('Escape closes confirmation without submitting', true);
+  if (offline) {
+    const shipping = method => evaluate(`(() => { const select=document.querySelector('select');select.value=${JSON.stringify(method)};select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+    const address = (part, value) => evaluate(`(() => { const el=document.querySelector('input[autocomplete="shipping ${part}"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+    await shipping('delivery_drop');
+    await waitFor("document.querySelector('input[autocomplete=\"shipping street-address\"]') !== null");
+    await address('street-address', '123 Test Street');
+    await address('address-level2', 'Test City');
+    await address('address-level1', 'Ontario');
+    await address('postal-code', 'K1A 0B1');
+    await waitFor("document.body.textContent.includes('Total shipping: $17.50')");
+    check('tier-one door delivery preserves the $17.50 rate', true);
+    await shipping('inhouse_drop');
+    await waitFor("document.body.textContent.includes('Total shipping: $180.00')");
+    check('tier-one in-house delivery includes the $135 oversized fee', true);
+    distanceFixture = 80;
+    await address('address-level2', 'Second Test City');
+    await waitFor("document.body.textContent.includes('Total shipping: $250.00')");
+    check('tier-two in-house delivery preserves the $115 base plus oversized fee', true);
+    await shipping('delivery_drop');
+    await waitFor("document.body.textContent.includes('Total shipping: $55.00')");
+    check('tier-two door delivery preserves the $55 rate', true);
+    await address('street-address', '');
+    await waitFor("document.body.textContent.includes('Enter your full address to calculate shipping.') && !document.body.textContent.includes('Total shipping: $55.00')");
+    check('clearing an address resets its distance estimate', true);
+    distanceFixture = 250;
+    await address('street-address', '123 Far Away Street');
+    await waitFor("document.body.textContent.includes('EMAIL FOR QUOTE')");
+    check('over-200km delivery requires a quote and disables payment', await evaluate("[...document.querySelectorAll('button')].some(b => b.textContent.includes('Proceed') && b.disabled)"));
+    await shipping('pickup');
+    await waitFor("document.body.textContent.includes('Pickup location') && !document.body.textContent.includes('EMAIL FOR QUOTE')");
+    check('returning to pickup clears delivery and quote state', await evaluate("document.querySelector('input[autocomplete=\"shipping street-address\"]') === null"));
+  }
   for (const path of offline ? ['/robots.txt'] : ['/robots.txt', '/sitemap.xml']) check(`${path} returns 200`, await evaluate(`fetch(${JSON.stringify(path)}).then(r => r.status === 200)`));
   assert.deepEqual(failures, [], 'Browser exceptions');
   writeFileSync(offline ? 'docs/maintenance-browser-results.json' : 'docs/fixes-browser-results.json', JSON.stringify({ inspectedAt: new Date().toISOString(), base, offline, passed, failures, payments: 'mocked; all browser writes blocked' }, null, 2));

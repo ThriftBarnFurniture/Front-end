@@ -8,6 +8,7 @@ import { rateLimitRequest } from "@/lib/request-limits";
 type Body = {
   sessionId?: string;
 };
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const limited = rateLimitRequest(req, "confirm-payment", 30, 60_000);
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
     const result = await fulfillStripeCheckoutSession(session);
 
-    if (!result.duplicate) {
+    if (!result.duplicate && !result.effectsManaged) {
       const emailPayload = {
         orderId: result.order_id,
         orderNumber: result.order_number,

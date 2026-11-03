@@ -89,7 +89,6 @@ export default function CartPage() {
     };
 
     if (items.length) load();
-    else setStockById({});
     return () => { cancelled = true; };
   }, [items]);
 
@@ -114,17 +113,20 @@ export default function CartPage() {
     return Math.max(1, Math.min(Math.floor(next || 1), max));
   };
 
-  // Distance estimate (matches checkout/server logic via /api/shipping/distance)
-  useEffect(() => {
-    const shouldLookup =
-      needsAddress && street.trim() && city.trim() && region.trim() && postal.trim() && country.trim();
-
+  const shouldLookup = Boolean(needsAddress && street.trim() && city.trim() && region.trim() && postal.trim() && country.trim());
+  const [hadCompleteAddress, setHadCompleteAddress] = useState(shouldLookup);
+  if (hadCompleteAddress !== shouldLookup) {
+    setHadCompleteAddress(shouldLookup);
     if (!shouldLookup) {
       setDistanceKm(null);
       setDistanceError(null);
       setDistanceLoading(false);
-      return;
     }
+  }
+
+  // Distance estimate (matches checkout/server logic via /api/shipping/distance)
+  useEffect(() => {
+    if (!shouldLookup) return;
 
     let cancelled = false;
 
@@ -174,7 +176,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [needsAddress, street, city, region, postal, country, mergedAddress]);
+  }, [shouldLookup, needsAddress, street, city, region, postal, country, mergedAddress]);
 
   const quoteRequired = useMemo(() => {
     if (!needsAddress) return false;

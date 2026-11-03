@@ -36,6 +36,7 @@ type InventoryCount = {
   location_id?: string;
   state?: string;
   quantity?: string;
+  calculated_at?: string;
 };
 
 export async function POST(req: Request) {
@@ -98,6 +99,21 @@ export async function POST(req: Request) {
 
       const newQty = Number(qtyStr);
       if (!Number.isSafeInteger(newQty) || newQty < 0) continue;
+
+      if (process.env.STRIPE_ATOMIC_FULFILLMENT === "true") {
+        if (!c.calculated_at || !Number.isFinite(Date.parse(c.calculated_at))) {
+          failed = true;
+          continue;
+        }
+        const { error: syncError } = await supabase.rpc("apply_square_inventory_count_v1", {
+          p_variation_id: variationId, p_quantity: newQty, p_calculated_at: c.calculated_at,
+        });
+        if (syncError) {
+          failed = true;
+          console.error("Square inventory reconciliation failed:", syncError.message);
+        }
+        continue;
+      }
 
       const { data: prod, error: findErr } = await supabase
         .from("products")

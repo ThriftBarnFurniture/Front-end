@@ -1,0 +1,92 @@
+{
+  "inspectedAt": "2026-11-03T15:47:55.793Z",
+  "scope": "Fresh unauthenticated public GET/HEAD requests; no forms or payments submitted; deployed revision not independently identified",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "title": "Affordable &amp; Vintage Furniture in Hawkesbury",
+      "canonical": "https://www.thriftbarnfurniture.ca",
+      "robots": "index, follow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "FURNITURE PROBLEMS?"
+      ]
+    },
+    {
+      "path": "/shop",
+      "status": 200,
+      "title": "Shop Furniture | Thrift Barn Furniture",
+      "canonical": "https://www.thriftbarnfurniture.ca/shop",
+      "robots": "index, follow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "Shop"
+      ]
+    },
+    {
+      "path": "/services",
+      "status": 200,
+      "title": "Services | Thrift Barn Furniture",
+      "canonical": "https://www.thriftbarnfurniture.ca/services",
+      "robots": "index, follow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "Services"
+      ]
+    },
+    {
+      "path": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "status": 200,
+      "title": "Wrought Iron Table and Zebra Chair Set | Thrift Barn Furniture",
+      "canonical": "https://www.thriftbarnfurniture.ca/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "robots": "index, follow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "Wrought Iron Table and Zebra Chair Set"
+      ]
+    },
+    {
+      "path": "/checkout/success",
+      "status": 200,
+      "title": "Thrift Barn Furniture | Affordable &amp; Vintage Furniture in Canada",
+      "robots": "noindex, nofollow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "No checkout to confirm"
+      ]
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "title": "Thrift Barn Furniture | Affordable &amp; Vintage Furniture in Canada",
+      "robots": "noindex, nofollow",
+      "mainCount": 1,
+      "h1Count": 1,
+      "h1": [
+        "Welcome back"
+      ]
+    }
+  ],
+  "sitemap": {
+    "status": 200,
+    "urls": 13,
+    "productUrls": 8,
+    "allShopLinksIncluded": true
+  },
+  "robots": {
+    "status": 200,
+    "apiDisallowed": true,
+    "sitemapAdvertised": true
+  },
+  "adminOrders": {
+    "status": 307,
+    "location": "/login"
+  },
+  "newAtomicFulfillment": "Local implementation only; not deployed or enabled"
+}

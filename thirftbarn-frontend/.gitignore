@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/.checkout-test-db/
+/.npm-review-cache/
 
 # next.js
 /.next/

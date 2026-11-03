@@ -4,6 +4,7 @@ import { setSquareInStockCount } from "@/lib/square/inventory";
 import { normalizeQuantity } from "@/lib/inventory";
 
 import { isPaymentSettled, normalizeCheckoutItems, readOrderItemSnapshot, validatePaymentSnapshot } from "@/lib/checkout-validation";
+import { deliverStripeOrderEffects } from "@/lib/stripe-order-effects";
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdmin>;
 
 type OrderDbRow = {
@@ -59,6 +60,8 @@ export type FulfilledOrderItem = {
 };
 
 export type FulfilledOrderSummary = {
+  effectsManaged?: boolean;
+  effectsPending?: boolean;
   duplicate: boolean;
   order_id: string;
   order_number: string | null;
@@ -224,7 +227,7 @@ async function getOrderRow(
   return data ?? null;
 }
 
-export async function fulfillStripeCheckoutSession(
+async function fulfillStripeCheckoutSessionLegacy(
   session: Stripe.Checkout.Session
 ): Promise<FulfilledOrderSummary> {
   const supabase = createSupabaseAdmin();
@@ -361,4 +364,51 @@ export async function fulfillStripeCheckoutSession(
   if (row) return orderRowToSummary(row, false);
 
   throw new Error("Confirmed order could not be loaded.");
+}
+
+export async function fulfillStripeCheckoutSession(session: Stripe.Checkout.Session): Promise<FulfilledOrderSummary> {
+  // Enable only after the additive migration is applied and verified. Keeping
+  // this off during rollout preserves checkout on the existing schema.
+  if (process.env.STRIPE_ATOMIC_FULFILLMENT !== "true") {
+    return fulfillStripeCheckoutSessionLegacy(session);
+  }
+  if (!isPaymentSettled(session.payment_status, session.amount_total)) {
+    throw new Error("Payment has not completed.");
+  }
+  const db = createSupabaseAdmin();
+  const snapshot = await getOrderRow(db, { orderId: session.metadata?.order_id, sessionId: session.id });
+  if (!snapshot) throw new Error("Order not found for this payment.");
+  const { data, error } = await db.rpc("finalize_stripe_checkout_v1", {
+    p_order_id: snapshot.order_id,
+    p_stripe_session_id: session.id,
+    p_payment_intent: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null,
+    p_amount_total_cents: session.amount_total,
+    p_currency: session.currency,
+    p_stripe_email: session.customer_details?.email ?? session.customer_email ?? null,
+  });
+  if (error) throw new Error(error.message);
+  const result = data as { duplicate: boolean; order: OrderDbRow } | null;
+  if (!result?.order || result.order.order_id !== snapshot.order_id || typeof result.duplicate !== "boolean") {
+    throw new Error("Invalid order confirmation result.");
+  }
+  const summary = orderRowToSummary(result.order, result.duplicate);
+  summary.effectsManaged = true;
+  try {
+    summary.effectsPending = await deliverStripeOrderEffects(summary);
+  } catch {
+    // Payment and stock are already committed. Keep external work retryable
+    // without telling the customer to pay for this confirmed order again.
+    summary.effectsPending = true;
+    console.error("Order notification delivery remains pending:", summary.order_id);
+  }
+  return summary;
+}
+
+export async function retryStripeOrderDelivery(orderId: string): Promise<boolean> {
+  if (process.env.STRIPE_ATOMIC_FULFILLMENT !== "true") throw new Error("Atomic fulfillment is not enabled.");
+  const row = await getOrderRow(createSupabaseAdmin(), { orderId, sessionId: "" });
+  if (!row || !["paid", "fulfilled", "refunded", "chargeback"].includes(String(row.status))) {
+    throw new Error("A confirmed order is required.");
+  }
+  return deliverStripeOrderEffects(orderRowToSummary(row, true));
 }
