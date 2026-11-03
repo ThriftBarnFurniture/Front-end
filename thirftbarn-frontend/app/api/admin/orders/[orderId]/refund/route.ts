@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -78,8 +79,8 @@ export async function POST(
     let refund;
     try {
       refund = await stripe.refunds.create({ payment_intent: order.payment_id });
-    } catch (err: any) {
-      const msg = String(err?.message ?? "");
+    } catch (err: unknown) {
+      const msg = String(errorMessage(err, ""));
 
       if (msg.toLowerCase().includes("charged back")) {
         // Optional: mark DB so UI can disable refund
@@ -109,7 +110,7 @@ export async function POST(
     if (updErr) throw new Error(updErr.message);
 
     return NextResponse.json({ ok: true, refund_id: refund.id });
-  } catch (e: any) {
-    return new NextResponse(e?.message ?? "Refund failed.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Refund failed."), { status: 500 });
   }
 }

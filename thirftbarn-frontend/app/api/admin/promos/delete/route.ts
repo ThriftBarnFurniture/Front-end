@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { requireUser } from "@/lib/require-user";
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Unknown error" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: errorMessage(e, "Unknown error") }, { status: 500 });
   }
 }

@@ -263,7 +263,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                       checked={selectedCategories.includes(c)}
                       onChange={() => toggleCategory(c)}
                     />
-                    <span>{c}</span>
+                    <span>{formatCollectionLabel(c)}</span>
                   </label>
                 ))
               )}
@@ -285,7 +285,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                           checked={selectedSubcategories.includes(s)}
                           onChange={() => setSelectedSubcategories((prev) => toggle(prev, s))}
                         />
-                        <span>{s}</span>
+                        <span>{formatCollectionLabel(s)}</span>
                       </label>
                     ))
                   )}
@@ -307,7 +307,7 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
                       checked={selectedRooms.includes(r)}
                       onChange={() => setSelectedRooms((prev) => toggle(prev, r))}
                     />
-                    <span>{r}</span>
+                    <span>{formatCollectionLabel(r)}</span>
                   </label>
                 ))
               )}
@@ -363,8 +363,9 @@ export default function ShopClient({ products }: { products: ProductUI[] }) {
           </div>
 
           <div className={styles.sortWrap}>
-            <label className={styles.sortLabel}>Sort by</label>
+            <label htmlFor="shop-sort" className={styles.sortLabel}>Sort by</label>
             <select
+              id="shop-sort"
               className={styles.sortSelect}
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}

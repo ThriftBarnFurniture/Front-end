@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -36,7 +37,7 @@ export async function POST(
     if (error) throw new Error(error.message);
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return new NextResponse(e?.message ?? "Failed to fulfill.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Failed to fulfill."), { status: 500 });
   }
 }

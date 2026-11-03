@@ -1,0 +1,825 @@
+{
+  "inspectedAt": "2026-10-29T23:23:50.358Z",
+  "scope": "Configured Supabase REST API; no SQL catalog access; GET and HEAD only; non-transactional snapshot",
+  "definitions": {
+    "orders": {
+      "required": [
+        "order_id",
+        "order_number",
+        "items",
+        "subtotal",
+        "tax",
+        "total",
+        "purchase_date",
+        "channel",
+        "status"
+      ],
+      "properties": {
+        "order_id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "order_number": {
+          "format": "text",
+          "type": "string"
+        },
+        "customer_email": {
+          "format": "text",
+          "type": "string"
+        },
+        "items": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "subtotal": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "tax": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "total": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "payment_method": {
+          "format": "text",
+          "type": "string"
+        },
+        "payment_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "purchase_date": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "channel": {
+          "enum": [
+            "website",
+            "app",
+            "pos"
+          ],
+          "format": "public.order_channel",
+          "type": "string"
+        },
+        "user_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "stripe_session_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "amount_total_cents": {
+          "format": "integer",
+          "type": "integer"
+        },
+        "currency": {
+          "format": "text",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "format": "text",
+          "type": "string"
+        },
+        "fulfilled_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "refunded_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "stripe_refund_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "shipping_address": {
+          "format": "text",
+          "type": "string"
+        },
+        "customer_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "customer_phone": {
+          "format": "text",
+          "type": "string"
+        },
+        "stripe_email": {
+          "format": "text",
+          "type": "string"
+        },
+        "shipping_cost": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "promo_code": {
+          "format": "text",
+          "type": "string"
+        },
+        "promo_discount": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "shipping_method": {
+          "format": "text",
+          "type": "string"
+        },
+        "shipping_distance_km": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "overweight_fee": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "promos": {
+      "required": [
+        "id",
+        "code",
+        "is_active",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "code": {
+          "format": "text",
+          "type": "string"
+        },
+        "percent_off": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "amount_off": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "is_active": {
+          "default": true,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "starts_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "ends_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "profiles": {
+      "required": [
+        "id",
+        "is_admin"
+      ],
+      "properties": {
+        "id": {
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "full_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "is_admin": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "phone": {
+          "format": "text",
+          "type": "string"
+        },
+        "address": {
+          "format": "text",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "products": {
+      "required": [
+        "id",
+        "sku",
+        "name",
+        "price",
+        "quantity",
+        "is_active",
+        "created_at",
+        "updated_at",
+        "image_urls",
+        "room_tags",
+        "collections",
+        "is_oversized",
+        "is_monthly_price_drop",
+        "monthly_drop_amount",
+        "is_barn_burner"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "sku": {
+          "format": "text",
+          "type": "string"
+        },
+        "barcode": {
+          "format": "text",
+          "type": "string"
+        },
+        "name": {
+          "format": "text",
+          "type": "string"
+        },
+        "description": {
+          "format": "text",
+          "type": "string"
+        },
+        "price": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "category": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "condition": {
+          "format": "text",
+          "type": "string"
+        },
+        "height": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "width": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "depth": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "quantity": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "is_active": {
+          "default": true,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "created_by": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "image_urls": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "image_url": {
+          "format": "text",
+          "type": "string"
+        },
+        "room_tags": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "subcategory": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "collections": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "colors": {
+          "format": "text[]",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "barn_burner_started_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "barn_burner_day": {
+          "format": "integer",
+          "type": "integer"
+        },
+        "barn_burner_last_tick": {
+          "format": "date",
+          "type": "string"
+        },
+        "is_oversized": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "is_monthly_price_drop": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "monthly_drop_started_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "monthly_drop_last_tick": {
+          "format": "date",
+          "type": "string"
+        },
+        "monthly_drop_amount": {
+          "default": 10,
+          "format": "numeric",
+          "type": "number"
+        },
+        "is_barn_burner": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "square_item_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "square_variation_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "square_image_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "initial_price": {
+          "format": "numeric",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "estate_sales": {
+      "required": [
+        "slug",
+        "name",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "slug": {
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "text",
+          "type": "string"
+        },
+        "name": {
+          "format": "text",
+          "type": "string"
+        },
+        "photo_url": {
+          "format": "text",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "rpcMetadata": {
+    "/rpc/is_admin": {
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "args",
+            "required": true,
+            "schema": {
+              "properties": {
+                "uid": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uid"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "$ref": "#/parameters/preferParams"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) is_admin"
+        ]
+      }
+    },
+    "/rpc/tick_price_programs": {
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "args",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          },
+          {
+            "$ref": "#/parameters/preferParams"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) tick_price_programs"
+        ]
+      }
+    },
+    "/rpc/finalize_order": {
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "args",
+            "required": true,
+            "schema": {
+              "properties": {
+                "p_amount_total_cents": {
+                  "format": "integer",
+                  "type": "integer"
+                },
+                "p_currency": {
+                  "format": "text",
+                  "type": "string"
+                },
+                "p_customer_email": {
+                  "format": "text",
+                  "type": "string"
+                },
+                "p_order_id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "p_payment_intent": {
+                  "format": "text",
+                  "type": "string"
+                },
+                "p_stripe_session_id": {
+                  "format": "text",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "p_order_id",
+                "p_stripe_session_id",
+                "p_payment_intent",
+                "p_amount_total_cents",
+                "p_currency",
+                "p_customer_email"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "$ref": "#/parameters/preferParams"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) finalize_order"
+        ]
+      }
+    },
+    "/rpc/decrement_product_quantity": {
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "args",
+            "required": true,
+            "schema": {
+              "properties": {
+                "p_amount": {
+                  "format": "integer",
+                  "type": "integer"
+                },
+                "p_id": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "p_id",
+                "p_amount"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "$ref": "#/parameters/preferParams"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) decrement_product_quantity"
+        ]
+      }
+    },
+    "/rpc/current_role": {
+      "get": {
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) current_role"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "args",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          },
+          {
+            "$ref": "#/parameters/preferParams"
+          }
+        ],
+        "produces": [
+          "application/json",
+          "application/vnd.pgrst.object+json;nulls=stripped",
+          "application/vnd.pgrst.object+json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "(rpc) current_role"
+        ]
+      }
+    }
+  },
+  "anonymousSchemaStatus": 401,
+  "anonymousRpcPaths": [],
+  "counts": {
+    "orders": {
+      "service": {
+        "status": 200,
+        "contentRange": "0-0/1"
+      },
+      "anonymous": {
+        "status": 200,
+        "contentRange": "*/0"
+      }
+    },
+    "promos": {
+      "service": {
+        "status": 200,
+        "contentRange": "*/0"
+      },
+      "anonymous": {
+        "status": 200,
+        "contentRange": "*/0"
+      }
+    },
+    "profiles": {
+      "service": {
+        "status": 206,
+        "contentRange": "0-0/7"
+      },
+      "anonymous": {
+        "status": 200,
+        "contentRange": "*/0"
+      }
+    },
+    "products": {
+      "service": {
+        "status": 206,
+        "contentRange": "0-0/9"
+      },
+      "anonymous": {
+        "status": 206,
+        "contentRange": "0-0/8"
+      }
+    },
+    "estate_sales": {
+      "service": {
+        "status": 200,
+        "contentRange": "0-0/1"
+      },
+      "anonymous": {
+        "status": 200,
+        "contentRange": "0-0/1"
+      }
+    }
+  },
+  "products": {
+    "total": 9,
+    "active": 8,
+    "unlimited": 0,
+    "negativeQuantity": 0,
+    "activeWithoutStock": 0,
+    "inactiveWithStock": 0,
+    "negativePrice": 0,
+    "zeroPrice": 0,
+    "missingInitialPrice": 0,
+    "missingImages": 0,
+    "primaryImageNotInGallery": 0,
+    "noCategory": 0,
+    "noColors": 0,
+    "duplicateSkuGroups": 0,
+    "duplicateBarcodeGroups": 0,
+    "duplicateSquareVariationGroups": 0,
+    "squareLinked": 9,
+    "creatorWithoutProfile": 0,
+    "barnBurner": 0,
+    "monthlyDrop": 0,
+    "bothPricePrograms": 0,
+    "barnBurnerWithoutStart": 0,
+    "monthlyWithoutStart": 0,
+    "barnBurnerWithTick": 0,
+    "monthlyWithTick": 0,
+    "estateReferencesMissingMetadata": 0,
+    "legacyEstatePhotoTags": 0
+  },
+  "orders": {
+    "total": 1,
+    "statuses": {
+      "fulfilled": 1
+    },
+    "channels": {
+      "website": 1
+    },
+    "currencies": {
+      "cad": 1
+    },
+    "shippingMethods": {
+      "delivery_drop": 1
+    },
+    "guestOrders": 1,
+    "userWithoutProfile": 0,
+    "duplicateOrderNumberGroups": 0,
+    "duplicateStripeSessionGroups": 0,
+    "duplicatePaymentGroups": 0,
+    "pendingOlderThan24Hours": 0,
+    "pendingWithoutSession": 0,
+    "paidWithoutPaymentId": 0,
+    "refundedWithoutRefundId": 0,
+    "emptyItems": 0,
+    "amountCentsMismatch": 0,
+    "totalBreakdownMismatch": 0,
+    "snapshotSubtotalMismatches": 0,
+    "items": {
+      "total": 1,
+      "strings": 1,
+      "objects": 0,
+      "invalidJson": 0,
+      "missingProduct": 0,
+      "invalidQuantity": 0,
+      "missingPrice": 0,
+      "keys": [
+        "name",
+        "product_id",
+        "quantity",
+        "unit_price_cents"
+      ]
+    },
+    "promoCodeNotInCurrentPromos": 0,
+    "distanceRecorded": 0,
+    "overweightFeeRecorded": 0
+  },
+  "promos": {
+    "total": 0,
+    "active": 0,
+    "duplicateCodeGroups": 0,
+    "invalidDiscountChoice": 0,
+    "invalidWindow": 0
+  },
+  "profiles": {
+    "total": 7,
+    "admins": 3
+  },
+  "estateSales": {
+    "total": 1,
+    "withoutPhoto": 0
+  }
+}

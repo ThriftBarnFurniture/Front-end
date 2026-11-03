@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { normalizeQuantity } from "@/lib/inventory";
+import { cache } from "react";
 
 export type Product = {
   id: string;
@@ -73,8 +74,8 @@ export function formatPrice(price: Product["price"]) {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 }
 
-export async function getProductById(id: string) {
-  if (!id) return null; // prevents UUID error
+export const getProductById = cache(async (id: string) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -92,7 +93,7 @@ export async function getProductById(id: string) {
     ...(data as Product),
     quantity: normalizeQuantity(data.quantity),
   };
-}
+});
 
 export function getAllImages(p: Pick<Product, "image_urls" | "image_url">) {
   const urls = [p.image_url, ...(p.image_urls ?? [])].filter(Boolean) as string[];

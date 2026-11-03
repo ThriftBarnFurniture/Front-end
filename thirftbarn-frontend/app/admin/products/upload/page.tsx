@@ -4,7 +4,7 @@ import { ProductForm } from "../ProductForm";
 
 export default function AdminProductsUploadPage() {
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <section className={styles.card}>
           <div className={styles.header}>
@@ -23,6 +23,6 @@ export default function AdminProductsUploadPage() {
           <ProductForm />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

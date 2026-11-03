@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 
 export const revalidate = 3600; // cache 1 hour (adjust as you want)
@@ -27,7 +28,7 @@ export async function GET() {
     const rating = Number(result?.rating ?? 0);
 
     return NextResponse.json({ count, rating });
-  } catch (e: any) {
-    return new NextResponse(e?.message || "Failed to fetch review count.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Failed to fetch review count."), { status: 500 });
   }
 }

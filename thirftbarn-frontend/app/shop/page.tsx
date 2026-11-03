@@ -2,6 +2,9 @@ import styles from "./shop.module.css";
 import ShopClient from "./shop-client";
 import { getShopProducts, getPrimaryImage, formatPrice } from "@/lib/products";
 import ScrollToTop from "@/components/ui/ScrollToTop";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata("Shop Furniture", "Browse available used and vintage furniture, prices, dimensions, and estate collections at Thrift Barn Furniture.", "/shop");
 
 export default async function ShopPage() {
   const products = await getShopProducts();
@@ -28,7 +31,7 @@ export default async function ShopPage() {
   const hasProducts = prepared.length > 0;
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <ScrollToTop />
       <header className={styles.header}>
         <div>
@@ -58,6 +61,6 @@ export default async function ShopPage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

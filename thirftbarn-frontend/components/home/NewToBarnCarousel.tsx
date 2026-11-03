@@ -57,8 +57,18 @@ export default function NewToBarnCarousel({
 
     if (paused || clean.length <= 1) return;
 
-    const id = window.setInterval(tick, intervalMs);
-    return () => window.clearInterval(id);
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let id: number | undefined;
+    const updateMotion = () => {
+      window.clearInterval(id);
+      if (!motion.matches) id = window.setInterval(tick, intervalMs);
+    };
+    updateMotion();
+    motion.addEventListener("change", updateMotion);
+    return () => {
+      window.clearInterval(id);
+      motion.removeEventListener("change", updateMotion);
+    };
   }, [paused, intervalMs, clean.length]);
 
   // --- drag handlers
@@ -124,6 +134,10 @@ export default function NewToBarnCarousel({
       className={styles.wrap}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
     >
       <div
         className={styles.track}

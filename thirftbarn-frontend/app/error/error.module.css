@@ -3,4 +3,12 @@
   padding-bottom: var(--space-10);
   background: var(--color-bg);
   color: black;
+  padding-inline: var(--gutter);
+  max-width: var(--container-max);
+  margin-inline: auto;
 }
+
+.page h1 { font-size: var(--fs-xl); font-weight: var(--fw-bold); }
+.page p { margin-block: var(--space-4); }
+.page a { color: var(--color-link); text-decoration: underline; }
+.page button { padding: 10px 16px; border: 1px solid currentColor; border-radius: var(--radius-sm); cursor: pointer; margin-right: 16px; }

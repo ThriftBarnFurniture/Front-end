@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState, useActionState } from "react";
+import React, { useMemo, useState, useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,15 @@ export default function ResetPasswordForm() {
   const [clientErrors, setClientErrors] = useState<State["fieldErrors"]>({});
   const [dismissedServerErrors, setDismissedServerErrors] = useState<{ password?: boolean }>({});
 
-  const [state, formAction, isPending] = useActionState(updatePassword as any, initialState);
+  const [state, formAction, isPending] = useActionState<State, FormData>(async (previous, formData) => {
+    const result = await updatePassword(previous, formData);
+    if (result.ok) {
+      setValues({ password: "" });
+      setClientErrors({});
+      setDismissedServerErrors({});
+    }
+    return result;
+  }, initialState);
 
   const serverErrorsFiltered = useMemo(() => {
     const se = state?.fieldErrors ?? {};
@@ -41,13 +49,7 @@ export default function ResetPasswordForm() {
     return Object.keys(clientErrors ?? {}).length ? clientErrors : serverErrorsFiltered;
   }, [clientErrors, serverErrorsFiltered]);
 
-  useEffect(() => {
-    if (state?.ok) {
-      setValues({ password: "" });
-      setClientErrors({});
-      setDismissedServerErrors({});
-    }
-  }, [state?.ok]);
+
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const password = values.password;
@@ -87,7 +89,7 @@ export default function ResetPasswordForm() {
   return (
     <Card className={styles.card}>
       <CardHeader className={styles.header}>
-        <CardTitle className={styles.title}>Choose a new password</CardTitle>
+        <CardTitle className={styles.title}><h1>Choose a new password</h1></CardTitle>
         <CardDescription className={styles.description}>
           Enter a new password for your account.
         </CardDescription>
@@ -95,12 +97,12 @@ export default function ResetPasswordForm() {
 
       <CardContent>
         {state?.ok ? (
-          <div className={styles.bannerSuccess}>
+          <div role="status" className={styles.bannerSuccess}>
             <p className={styles.bannerTitle}>Success</p>
             <p className={styles.bannerText}>{state.message}</p>
           </div>
         ) : state?.message ? (
-          <div className={styles.bannerError}>
+          <div role="alert" className={styles.bannerError}>
             <p className={styles.bannerTitle}>Couldn&apos;t update password</p>
             <p className={styles.bannerText}>{state.message}</p>
           </div>

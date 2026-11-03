@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/errors";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
@@ -67,10 +68,11 @@ export default function CartPage() {
     return parts.join(", ");
   }, [needsAddress, street, city, region, postal, country]);
 
-  const hasOversizedItem = useMemo(() => items.some((it: any) => Boolean(it?.is_oversized)), [items]);
+  const hasOversizedItem = useMemo(() => items.some((it) => Boolean(it?.is_oversized)), [items]);
 
   // Update cart page so Qty input clamps to available stock
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         const res = await fetch("/api/cart/stock", {
@@ -80,7 +82,7 @@ export default function CartPage() {
         });
         if (!res.ok) return;
         const data = (await res.json()) as { stock: Record<string, number | null> };
-        setStockById(data.stock || {});
+        if (!cancelled) setStockById(data.stock || {});
       } catch {
         // ignore — cart still works, just won't cap
       }
@@ -88,6 +90,7 @@ export default function CartPage() {
 
     if (items.length) load();
     else setStockById({});
+    return () => { cancelled = true; };
   }, [items]);
 
   // Auto-fix cart if stock drops while cart is open
@@ -99,7 +102,9 @@ export default function CartPage() {
       if (typeof stock !== "number") continue;
 
       const max = Math.max(stock, 0);
-      if (it.quantity > max) setQty(it.productId, Math.max(1, max));
+      // A zero-stock line stays visible for removal. Repeatedly assigning 1
+      // here caused a render/fetch loop because cart quantities cannot be zero.
+      if (max > 0 && it.quantity > max) setQty(it.productId, max);
     }
   }, [stockById, items, setQty]);
 
@@ -141,11 +146,11 @@ export default function CartPage() {
         const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : null;
 
         if (!res.ok) {
-          const text = data ? (data as any).error : await res.text();
+          const text = data ? (data as { error?: string }).error : await res.text();
           throw new Error(text || "Distance lookup failed.");
         }
 
-        const km = Number((data as any)?.distance_km);
+        const km = Number((data as { distance_km?: unknown } | null)?.distance_km);
         if (!isFinite(km) || km <= 0) throw new Error("Distance lookup returned an invalid distance.");
 
         if (cancelled) return;
@@ -155,10 +160,10 @@ export default function CartPage() {
         if (km > TIER_2_MAX_KM) {
           setShipping(""); // force user to pick up or see quote message
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
         setDistanceKm(null);
-        setDistanceError(e?.message ?? "Distance lookup failed.");
+        setDistanceError(errorMessage(e, "Distance lookup failed."));
       } finally {
         if (!cancelled) setDistanceLoading(false);
       }
@@ -256,7 +261,7 @@ export default function CartPage() {
   const totalCost = Math.max(0, taxableBase + taxes);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       {items.length === 0 ? (
         <div className={styles.empty}>
           <h1 className={styles.emptyTitle}>Your Cart is Empty</h1>
@@ -276,7 +281,7 @@ export default function CartPage() {
             <div className={styles.hr} />
 
             <div className={styles.list}>
-              {items.map((it: any) => {
+              {items.map((it) => {
                 const maxStock =
                   typeof stockById[it.productId] === "number"
                     ? Math.max(stockById[it.productId] as number, 0)
@@ -310,6 +315,7 @@ export default function CartPage() {
 
                           <input
                             className={styles.qtyInput}
+                            aria-label={`Quantity for ${it.name}`}
                             type="number"
                             min={1}
                             inputMode="numeric"
@@ -318,7 +324,6 @@ export default function CartPage() {
                               const raw = Number(e.target.value);
                               setQty(it.productId, clampQty(it.productId, raw));
                             }}
-                            aria-label="Quantity"
                           />
 
                           <button
@@ -404,6 +409,6 @@ export default function CartPage() {
           </aside>
         </div>
       )}
-    </main>
+    </div>
   );
 }

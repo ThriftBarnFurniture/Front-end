@@ -43,6 +43,7 @@ export default function ImageGallery({
               className={`${styles.thumbBtn} ${i === active ? styles.thumbActive : ""}`}
               onClick={() => setActive(i)}
               aria-label={`View image ${i + 1}`}
+              aria-pressed={i === active}
             >
               <div className={styles.thumbImgWrap}>
                 <Image

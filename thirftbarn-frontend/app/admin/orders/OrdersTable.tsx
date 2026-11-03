@@ -1,9 +1,11 @@
 "use client";
 
+import { errorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./orders.module.css";
+import ModalDialog from "@/components/ui/ModalDialog";
 
-type AnyObj = Record<string, any>;
+type AnyObj = Record<string, unknown>;
 
 type OrderItemUI = {
   name: string;
@@ -27,7 +29,7 @@ type OrderRow = {
   amount_total_cents: number | null;
 
   // stored JSON / array / whatever
-  items: any;
+  items: unknown;
 
   // optional extras (if present in your orders table)
   customer_name?: string | null;
@@ -70,12 +72,12 @@ function safeUpper(s: string | null | undefined) {
   return String(s ?? "").trim().toUpperCase() || "—";
 }
 
-function safeText(s: any) {
+function safeText(s: unknown) {
   const t = String(s ?? "").trim();
   return t || "—";
 }
 
-function parseItems(raw: any): OrderItemUI[] {
+function parseItems(raw: unknown): OrderItemUI[] {
   // If stored as JSON string wrapper
   if (typeof raw === "string") {
     try {
@@ -136,11 +138,11 @@ function parseItems(raw: any): OrderItemUI[] {
         }
 
         return {
-          id: it.product_id ?? it.productId ?? it.id ?? null,
+          id: (it.product_id ?? it.productId ?? it.id ?? null) as string | null,
           name,
           qty,
           unitPrice,
-          image_url: it.image_url ?? it.image ?? it.imageUrl ?? null,
+          image_url: (it.image_url ?? it.image ?? it.imageUrl ?? null) as string | null,
         };
       })
       .filter(Boolean) as OrderItemUI[];
@@ -188,8 +190,8 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
       if (!res.ok) throw new Error(await res.text());
 
       setOrders((prev) => prev.map((o) => (o.order_id === orderId ? { ...o, status: "fulfilled" } : o)));
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to fulfill.");
+    } catch (e: unknown) {
+      setErr(errorMessage(e, "Failed to fulfill."));
     } finally {
       setBusyId(null);
     }
@@ -206,8 +208,8 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
       if (!res.ok) throw new Error(await res.text());
 
       setOrders((prev) => prev.map((o) => (o.order_id === orderId ? { ...o, status: "refunded" } : o)));
-    } catch (e: any) {
-      setErr(e?.message ?? "Refund failed.");
+    } catch (e: unknown) {
+      setErr(errorMessage(e, "Refund failed."));
     } finally {
       setBusyId(null);
     }
@@ -362,11 +364,11 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
 
       {/* ✅ Details Modal */}
       {selected && (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={closeModal}>
+        <ModalDialog className={styles.modalOverlay} titleId="order-details-title" onClose={closeModal} onClick={closeModal}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <div className={styles.modalTitle}>
+                <div id="order-details-title" className={styles.modalTitle}>
                   Order {selected.order_number ?? selected.order_id}
                 </div>
                 <div className={styles.modalSubtitle}>
@@ -529,7 +531,7 @@ export default function OrdersTable({ initialOrders }: { initialOrders: OrderRow
               </button>
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
     </div>
   );

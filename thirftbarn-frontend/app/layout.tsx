@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Footer } from "@/components/footer/footer";
 import { Permanent_Marker, Montserrat } from "next/font/google";
 import { CartProvider } from "@/components/cart/CartProvider";
+import { SITE_URL } from "@/lib/seo";
 
 const permanentMarker = Permanent_Marker({
   weight: "400",
@@ -21,7 +22,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://thriftbarnfurniture.ca"),
+  metadataBase: new URL(SITE_URL),
 
   title: {
     default: "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
@@ -64,14 +65,10 @@ export const metadata: Metadata = {
     },
   },
 
-  alternates: {
-    canonical: "https://thriftbarnfurniture.ca",
-  },
-
   openGraph: {
     type: "website",
     locale: "en_CA",
-    url: "https://thriftbarnfurniture.ca",
+    url: SITE_URL,
     siteName: "Thrift Barn Furniture",
     title: "Thrift Barn Furniture | Affordable & Accessible Furniture Recycling in Canada",
     description:
@@ -91,7 +88,7 @@ export const metadata: Metadata = {
     title: "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
     description:
       "A Canadian marketplace for affordable, vintage, and second-hand furniture.",
-    images: ["/og-image.svg"],
+    images: ["/crest.jpg"],
   },
 
   category: "Furniture",
@@ -107,8 +104,9 @@ export default function RootLayout({
     <html lang="en" className={`${permanentMarker.variable} ${montserrat.variable}`}>
       <body className="flex min-h-full flex-col bg-white" suppressHydrationWarning>
         <CartProvider>
+        <a href="#main-content" className="skip-link">Skip to content</a>
         <Navbar />
-        <main className="flex-grow bg-white">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-grow bg-white">{children}</main>
         <Footer />
         <Analytics />
         <SpeedInsights />

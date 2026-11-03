@@ -680,7 +680,7 @@ export const PATCH = async (request: Request) => {
     const supabaseAdmin = createSupabaseAdmin();
     const { data: existingProduct, error: existingProductError } = await supabaseAdmin
       .from(tableName)
-      .select("image_url,image_urls")
+      .select("image_url,image_urls,is_barn_burner,barn_burner_day,barn_burner_started_at,barn_burner_last_tick,is_monthly_price_drop,monthly_drop_started_at,monthly_drop_last_tick")
       .eq("id", productId)
       .maybeSingle();
 
@@ -690,6 +690,16 @@ export const PATCH = async (request: Request) => {
 
     if (!existingProduct) {
       return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    // Editing a description/image must not restart an existing price program.
+    if (isBarnBurner && existingProduct.is_barn_burner && barnDay === existingProduct.barn_burner_day) {
+      productPayload.barn_burner_started_at = existingProduct.barn_burner_started_at;
+      productPayload.barn_burner_last_tick = existingProduct.barn_burner_last_tick;
+    }
+    if (isMonthlyPriceDrop && existingProduct.is_monthly_price_drop) {
+      productPayload.monthly_drop_started_at = existingProduct.monthly_drop_started_at;
+      productPayload.monthly_drop_last_tick = existingProduct.monthly_drop_last_tick;
     }
 
     const existingImageUrls = getProductImageUrls(existingProduct);
@@ -798,7 +808,7 @@ export const GET = async (request: Request) => {
       if (!Number.isNaN(n)) query = query.eq("price", n);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await query.returns<Array<Record<string, unknown> & { quantity: number | null }>>();
     if (error) {
       const msg = error.message.toLowerCase();
       const schemaMismatch = msg.includes("column") || msg.includes("does not exist");
@@ -828,7 +838,7 @@ export const GET = async (request: Request) => {
     }
 
     return NextResponse.json(
-      (data ?? []).map((product: any) => ({
+      (data ?? []).map((product) => ({
         ...product,
         quantity: normalizeQuantity(product.quantity),
       })),

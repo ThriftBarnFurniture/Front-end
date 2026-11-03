@@ -7,6 +7,13 @@ import NewToBarnCarousel from "@/components/home/NewToBarnCarousel";
 import BarnBurnerSection from "@/components/home/BarnBurnerSection";
 import EstateSaleSection from "@/components/home/EstateSaleSection";
 import Reveal from "@/components/ui/Reveal";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata(
+  "Affordable & Vintage Furniture in Hawkesbury",
+  "Shop affordable used and vintage furniture at Thrift Barn Furniture in Hawkesbury, Ontario. Explore estate collections, delivery, and moving services.",
+  "/"
+);
 
 
 type NewProduct = {
@@ -25,6 +32,7 @@ async function getNewestProducts(limit = 5): Promise<NewProduct[]> {
   const { data, error } = await supabase
     .from("products")
     .select("id,name,price,initial_price,image_url,image_urls,created_at")
+    .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -58,7 +66,7 @@ export default async function Home() {
     },
   };
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       {/* ===== HERO ===== */}
       <section id="hero" className={styles.hero}>
         {/* Background image */}
@@ -371,6 +379,6 @@ export default async function Home() {
       {/* ===== RED DIVIDER LINE ===== */}
       <div className={styles.redDivider} />
 
-    </main>
+    </div>
   );
 }

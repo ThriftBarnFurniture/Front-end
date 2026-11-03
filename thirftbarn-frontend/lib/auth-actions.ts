@@ -102,7 +102,7 @@ export async function signInWithGoogle() {
 
   const base =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "https://thriftbarnfurniture.ca/";
+    "https://thriftbarnfurniture.ca";
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -135,7 +135,7 @@ export async function requestPasswordReset(
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 
   const base =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://thriftbarnfurniture.ca/";
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://thriftbarnfurniture.ca";
 
   // Supabase will email a reset link. We tell it where to send the user after they click it.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

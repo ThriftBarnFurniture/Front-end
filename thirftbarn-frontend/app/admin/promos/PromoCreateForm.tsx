@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import styles from "./promos.module.css";
 
@@ -78,8 +79,8 @@ export default function PromoCreateForm() {
       });
 
       window.location.reload();
-    } catch (err: any) {
-      setError(err?.message ?? "Unknown error");
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Unknown error"));
     } finally {
       setSaving(false);
     }

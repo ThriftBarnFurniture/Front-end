@@ -43,11 +43,14 @@ export default function AddToCartButton({
     return Math.max(0, maxQty - inCartQty);
   }, [maxQty, inCartQty]);
 
-  // keep the quantity input within allowed bounds as cart changes
-  useEffect(() => {
-    if (!Number.isFinite(remaining)) return;
-    setQtyInput((prev) => Math.max(1, Math.min(prev, Math.max(1, remaining))));
-  }, [remaining]);
+  // Adjust before committing the render so the field never shows stale stock.
+  const [previousRemaining, setPreviousRemaining] = useState(remaining);
+  if (previousRemaining !== remaining) {
+    setPreviousRemaining(remaining);
+    if (Number.isFinite(remaining)) {
+      setQtyInput((prev) => Math.max(1, Math.min(prev, Math.max(1, remaining))));
+    }
+  }
 
   useEffect(() => {
     if (!justAdded) return;

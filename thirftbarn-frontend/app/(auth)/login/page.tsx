@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const message = sp.message;
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       {message ? (
         <div className="mb-4 w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-bold">
           {decodeURIComponent(message)}
@@ -20,6 +20,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       ) : null}
 
       <LoginForm initialError={error ? decodeURIComponent(error) : undefined} />
-    </main>
+    </div>
   );
 }

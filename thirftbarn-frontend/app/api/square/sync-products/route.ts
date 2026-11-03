@@ -36,7 +36,7 @@ function toSquareProduct(p: ProductRow) {
 }
 
 export async function POST(req: Request) {
-  // Simple protection so random people can’t trigger mass sync
+  // External sync jobs use the shared secret; without one, require an admin.
   const secret = process.env.POS_SYNC_SECRET;
   if (secret) {
     const provided = req.headers.get("x-pos-sync-secret");
@@ -46,6 +46,18 @@ export async function POST(req: Request) {
   }
 
   const supabase = await createClient();
+
+  if (!secret) {
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles").select("is_admin").eq("id", auth.user.id).single();
+    if (profileError || !profile?.is_admin) {
+      return NextResponse.json({ error: "Admins only" }, { status: 403 });
+    }
+  }
 
   // Pull active products only
   const { data, error } = await supabase

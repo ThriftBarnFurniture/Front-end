@@ -110,6 +110,7 @@ export default function ProfileForm({ userId, initial }: Props) {
         <div className={`${styles.v} ${styles.inlineGrid}`}>
           <input
             className={styles.input}
+            aria-label="First name"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder="First name"
@@ -117,6 +118,7 @@ export default function ProfileForm({ userId, initial }: Props) {
           />
           <input
             className={styles.input}
+            aria-label="Last name"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             placeholder="Last name"
@@ -135,6 +137,7 @@ export default function ProfileForm({ userId, initial }: Props) {
         <div className={styles.v}>
           <input
             className={styles.input}
+            aria-label="Phone"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="(613) 555-0123"
@@ -148,6 +151,7 @@ export default function ProfileForm({ userId, initial }: Props) {
         <div className={`${styles.v} ${styles.inlineGrid}`}>
           <input
             className={styles.input}
+            aria-label="Street address"
             value={street}
             onChange={(e) => setStreet(e.target.value)}
             placeholder="123 Main St • Apt / Unit"
@@ -155,6 +159,7 @@ export default function ProfileForm({ userId, initial }: Props) {
           />
           <input
             className={styles.input}
+            aria-label="City"
             value={city}
             onChange={(e) => setCity(e.target.value)}
             placeholder="City"
@@ -168,14 +173,16 @@ export default function ProfileForm({ userId, initial }: Props) {
           <div className={`${styles.v} ${styles.inlineGrid}`}>
             <input
               className={styles.input}
-              value={region}
+              aria-label="Province"
+            value={region}
               onChange={(e) => setRegion(e.target.value)}
               placeholder="Province"
               autoComplete="shipping address-level1"
             />
             <input
               className={styles.input}
-              value={postal}
+              aria-label="Postal code"
+            value={postal}
               onChange={(e) => {
                 const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
                 setPostal(raw);
@@ -185,7 +192,8 @@ export default function ProfileForm({ userId, initial }: Props) {
             />
             <input
               className={styles.input}
-              value={country}
+              aria-label="Country"
+            value={country}
               onChange={(e) => setCountry(e.target.value)}
               placeholder="Country"
               autoComplete="shipping country-name"
@@ -198,7 +206,7 @@ export default function ProfileForm({ userId, initial }: Props) {
         <button className={styles.dangerBtn} onClick={onSave} disabled={saving}>
           {saving ? "Saving..." : "Save changes"}
         </button>
-        {msg ? <span className={styles.mutedNote}>{msg}</span> : null}
+        {msg ? <span role="status" className={styles.mutedNote}>{msg}</span> : null}
       </div>
     </div>
   );

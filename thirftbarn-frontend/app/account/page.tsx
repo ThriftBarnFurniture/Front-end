@@ -17,7 +17,7 @@ export default async function AccountHome() {
     "Account";
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <header className={styles.header}>
           <div className={styles.titleWrap}>
@@ -70,6 +70,6 @@ export default async function AccountHome() {
           </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

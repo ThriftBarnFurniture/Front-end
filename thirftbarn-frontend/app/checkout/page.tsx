@@ -5,6 +5,7 @@ import styles from "./checkout.module.css";
 import { useCart } from "@/components/cart/CartProvider";
 import { createClient } from "@/utils/supabase/client";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import ModalDialog from "@/components/ui/ModalDialog";
 
 type PromoRow = {
   code: string;
@@ -78,7 +79,7 @@ function computeBaseShippingFromKm(method: ShippingMethod, km: number | null) {
 
 export default function CheckoutPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { items, subtotal } = useCart();
+  const { items, subtotal, isReady } = useCart();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -115,6 +116,7 @@ export default function CheckoutPage() {
   const [distanceError, setDistanceError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     const run = async () => {
       setLoading(true);
       setError(null);
@@ -157,10 +159,10 @@ export default function CheckoutPage() {
 
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isReady]);
 
   const cartItemsCount = useMemo(
-    () => items.reduce((sum, it) => sum + Math.max(1, Number((it as any).quantity || 1)), 0),
+    () => items.reduce((sum, it) => sum + Math.max(1, Number(it.quantity || 1)), 0),
     [items]
   );
 
@@ -180,7 +182,7 @@ export default function CheckoutPage() {
   }, [needsAddress, street, city, region, postal, country]);
 
   const hasOversizedItem = useMemo(() => {
-    return items.some((it: any) => Boolean(it?.is_oversized));
+    return items.some((it) => Boolean(it?.is_oversized));
   }, [items]);
 
   const baseShipping = useMemo(() => {
@@ -237,11 +239,11 @@ export default function CheckoutPage() {
         const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : null;
 
         if (!res.ok) {
-          const text = data ? (data as any).error : await res.text();
+          const text = data ? data.error : await res.text();
           throw new Error(text || "Distance lookup failed.");
         }
 
-        const km = Number((data as any)?.distance_km);
+        const km = Number(data?.distance_km);
         if (!isFinite(km) || km <= 0) throw new Error("Distance lookup returned an invalid distance.");
 
         if (cancelled) return;
@@ -252,10 +254,10 @@ export default function CheckoutPage() {
         if (km > TIER_2_MAX_KM) {
           setShippingMethod("quote");
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
         setDistanceKm(null);
-        setDistanceError(e?.message ?? "Distance lookup failed.");
+        setDistanceError(e instanceof Error ? e.message : "Distance lookup failed.");
       } finally {
         if (!cancelled) setDistanceLoading(false);
       }
@@ -330,10 +332,10 @@ export default function CheckoutPage() {
       setPromo(data as PromoRow);
       setAppliedPromo(code);
       setPromoStatus("Promo applied.");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setPromo(null);
       setAppliedPromo("");
-      setPromoStatus(e?.message ?? "Promo lookup failed.");
+      setPromoStatus(e instanceof Error ? e.message : "Promo lookup failed.");
     } finally {
       setPromoLoading(false);
     }
@@ -418,7 +420,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      const payloadItems = items.map((it: any) => ({
+      const payloadItems = items.map((it) => ({
         productId: it.productId,
         quantity: it.quantity,
       }));
@@ -448,18 +450,18 @@ export default function CheckoutPage() {
       const data = contentType.includes("application/json") ? await res.json().catch(() => ({})) : null;
 
       if (!res.ok) {
-        const text = data ? (data as any).error : await res.text();
+        const text = data ? data.error : await res.text();
         throw new Error(text || "Checkout failed.");
       }
 
-      if (data && (data as any).url) {
-        window.location.href = (data as any).url;
+      if (data && data.url) {
+        window.location.href = data.url;
         return;
       }
 
       throw new Error("Stripe session missing url.");
-    } catch (e: any) {
-      setError(e?.message ?? "Something went wrong.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
       setSubmitting(false);
       setConfirmOpen(false);
     }
@@ -497,10 +499,10 @@ export default function CheckoutPage() {
     }
 
     return "";
-  }, [shippingMethod, distanceLoading, distanceError, distanceKm, oversizedFee, hasOversizedItem]);
+  }, [shippingMethod, distanceLoading, distanceError, distanceKm, oversizedFee]);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.shell}>
         {/* LEFT: Checkout Info */}
         <section className={styles.leftCard}>
@@ -785,7 +787,7 @@ export default function CheckoutPage() {
           <div className={styles.hr} />
 
           <div className={styles.cartList}>
-            {items.map((it: any) => (
+            {items.map((it) => (
               <div key={it.productId} className={styles.cartRow}>
                 <div className={styles.cartRowLeft}>
                   <div className={styles.thumb}>
@@ -868,10 +870,10 @@ export default function CheckoutPage() {
 
       {/* Confirmation popup */}
       {confirmOpen && (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+        <ModalDialog className={styles.modalOverlay} titleId="checkout-confirm-title" descriptionId="checkout-confirm-description" onClose={() => setConfirmOpen(false)} busy={submitting}>
           <div className={styles.modal}>
-            <h2 className={styles.modalTitle}>Proceed to payment?</h2>
-            <p className={styles.modalText}>
+            <h2 id="checkout-confirm-title" className={styles.modalTitle}>Proceed to payment?</h2>
+            <p id="checkout-confirm-description" className={styles.modalText}>
               You will be redirected to a payment provider. Once you choose a payment method, you will be charged and
               the order will begin processing.
             </p>
@@ -903,8 +905,8 @@ export default function CheckoutPage() {
               </p>
             ) : null}
           </div>
-        </div>
+        </ModalDialog>
       )}
-    </main>
+    </div>
   );
 }

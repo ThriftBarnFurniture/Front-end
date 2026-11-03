@@ -24,7 +24,7 @@ export default async function AdminPromosPage() {
     .limit(12);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.h1}>Promo codes</h1>
@@ -44,6 +44,6 @@ export default async function AdminPromosPage() {
           <RecentPromos initialPromos={(promos ?? []) as PromoRow[]} />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

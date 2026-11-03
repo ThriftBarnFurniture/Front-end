@@ -24,7 +24,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.titleWrap}>
@@ -56,6 +56,6 @@ export default async function ProfilePage() {
           />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

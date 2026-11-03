@@ -44,7 +44,7 @@ export default async function AdminProductsEditPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <section className={styles.card}>
           <header className={styles.header}>
@@ -67,6 +67,6 @@ export default async function AdminProductsEditPage() {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

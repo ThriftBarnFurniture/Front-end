@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { createClient } from "@/utils/supabase/server";
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const ids = Array.isArray(body?.ids) ? body.ids : [];
-    const clean = ids.map((x: any) => String(x)).filter(Boolean);
+    const clean = ids.map((x: unknown) => String(x)).filter(Boolean);
 
     if (clean.length === 0) return NextResponse.json({ products: {} });
 
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
     for (const p of data ?? []) map[p.id] = { image_url: p.image_url ?? null };
 
     return NextResponse.json({ products: map });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Unauthorized" }, { status: 403 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: errorMessage(e, "Unauthorized") }, { status: 403 });
   }
 }

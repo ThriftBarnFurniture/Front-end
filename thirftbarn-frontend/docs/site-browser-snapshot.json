@@ -1,0 +1,212 @@
+{
+  "inspectedAt": "2026-10-29T23:29:51.759Z",
+  "pages": [
+    {
+      "width": 1440,
+      "requestedPath": "/",
+      "url": "/",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "FURNITURE PROBLEMS?"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [],
+      "itemPath": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "bodyBytes": 101218,
+      "transferBytes": 1811526,
+      "navigationMs": 2800.5,
+      "browserErrors": []
+    },
+    {
+      "width": 1440,
+      "requestedPath": "/shop",
+      "url": "/shop",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Shop"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [
+        {
+          "name": "",
+          "type": "select-one"
+        }
+      ],
+      "itemPath": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "bodyBytes": 43174,
+      "transferBytes": 118352,
+      "navigationMs": 460.6999999284744,
+      "browserErrors": []
+    },
+    {
+      "width": 1440,
+      "requestedPath": "/services",
+      "url": "/services",
+      "title": "Services | Thrift Barn | Thrift Barn Furniture",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Services"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [
+        {
+          "name": "website",
+          "type": "text",
+          "placeholder": ""
+        }
+      ],
+      "bodyBytes": 45030,
+      "transferBytes": 2647607,
+      "navigationMs": 312.5,
+      "browserErrors": []
+    },
+    {
+      "width": 1440,
+      "requestedPath": "/checkout/success",
+      "url": "/checkout/success",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Payment successful ✅"
+      ],
+      "mainCount": 1,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [],
+      "bodyBytes": 30565,
+      "transferBytes": 32160,
+      "navigationMs": 448.7999999523163,
+      "browserErrors": []
+    },
+    {
+      "width": 390,
+      "requestedPath": "/",
+      "url": "/",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "FURNITURE PROBLEMS?"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [],
+      "itemPath": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "bodyBytes": 99974,
+      "transferBytes": 6986,
+      "navigationMs": 829.3000000715256,
+      "browserErrors": []
+    },
+    {
+      "width": 390,
+      "requestedPath": "/shop",
+      "url": "/shop",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Shop"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [
+        {
+          "name": "",
+          "type": "select-one"
+        }
+      ],
+      "itemPath": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "bodyBytes": 42966,
+      "transferBytes": 17826,
+      "navigationMs": 625.6000000238419,
+      "browserErrors": []
+    },
+    {
+      "width": 390,
+      "requestedPath": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "url": "/item/b59ab72a-6b95-4898-af1b-8c53beae6593",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Wrought Iron Table and Zebra Chair Set"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [],
+      "bodyBytes": 37704,
+      "transferBytes": 15272,
+      "navigationMs": 568,
+      "browserErrors": []
+    },
+    {
+      "width": 390,
+      "requestedPath": "/services",
+      "url": "/services",
+      "title": "Services | Thrift Barn | Thrift Barn Furniture",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Services"
+      ],
+      "mainCount": 2,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [
+        {
+          "name": "website",
+          "type": "text",
+          "placeholder": ""
+        }
+      ],
+      "bodyBytes": 45030,
+      "transferBytes": 8593,
+      "navigationMs": 154,
+      "browserErrors": []
+    },
+    {
+      "width": 390,
+      "requestedPath": "/checkout/success",
+      "url": "/checkout/success",
+      "title": "Thrift Barn Furniture | Affordable & Vintage Furniture in Canada",
+      "canonical": "https://thriftbarnfurniture.ca/",
+      "robots": "index, follow",
+      "h1": [
+        "Payment successful ✅"
+      ],
+      "mainCount": 1,
+      "horizontalOverflow": false,
+      "unloadedImages": [],
+      "unnamedInputs": [],
+      "bodyBytes": 30374,
+      "transferBytes": 10367,
+      "navigationMs": 190.10000002384186,
+      "browserErrors": []
+    }
+  ],
+  "endpointStatuses": [
+    {
+      "path": "/robots.txt",
+      "status": 404
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 404
+    }
+  ]
+}

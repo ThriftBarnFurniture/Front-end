@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeQuantity } from "@/lib/inventory";
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
     for (const p of data || []) stock[p.id] = normalizeQuantity(p.quantity);
 
     return NextResponse.json({ stock });
-  } catch (e: any) {
-    return new NextResponse(e?.message || "Failed to fetch stock.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Failed to fetch stock."), { status: 500 });
   }
 }

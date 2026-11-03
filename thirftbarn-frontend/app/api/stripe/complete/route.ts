@@ -2,24 +2,28 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
 import { sendAdminOrderEmail, sendCustomerOrderEmail } from "@/lib/brevo";
+import { isPaymentSettled } from "@/lib/checkout-validation";
+import { rateLimitRequest } from "@/lib/request-limits";
 
 type Body = {
   sessionId?: string;
 };
 
 export async function POST(req: Request) {
+  const limited = rateLimitRequest(req, "confirm-payment", 30, 60_000);
+  if (limited) return limited;
   try {
     const stripe = getStripe();
     const body = (await req.json()) as Body;
     const sessionId = String(body?.sessionId || "");
-    if (!sessionId) {
+    if (!/^cs_(test_|live_)?[a-zA-Z0-9]+$/.test(sessionId) || sessionId.length > 255) {
       return new NextResponse("Missing session id.", { status: 400 });
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (session.payment_status !== "paid") {
-      return new NextResponse("Payment not completed.", { status: 400 });
+    if (!isPaymentSettled(session.payment_status, session.amount_total)) {
+      return NextResponse.json({ confirmed: false, status: "pending" }, { status: 202, headers: { "Cache-Control": "no-store" } });
     }
 
     const result = await fulfillStripeCheckoutSession(session);
@@ -62,9 +66,12 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ received: true, ...result });
+    // Customer details are only returned by the receipt endpoint after its
+    // separate access check. This endpoint verifies and completes payment.
+    return NextResponse.json({ received: true, confirmed: true, status: result.status }, { headers: { "Cache-Control": "no-store" } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to finalize checkout.";
-    return new NextResponse(message, { status: 500 });
+    console.error("Checkout completion failed:", message);
+    return NextResponse.json({ error: "We could not confirm your order yet. Please try again shortly." }, { status: 500 });
   }
 }

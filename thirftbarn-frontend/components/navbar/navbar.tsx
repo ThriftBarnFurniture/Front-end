@@ -31,7 +31,6 @@ export const Navbar = () => {
 
   useEffect(() => {
     if (pathname !== "/") {
-      setActiveHomeSection("");
       return;
     }
 
@@ -130,7 +129,8 @@ export const Navbar = () => {
         const res = await fetch("/api/google/reviews-count", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as { count: number; rating: number };
-        if (!cancelled) setGoogleReviewCount(Number(data.count) || 0);
+        const count = Number(data.count);
+        if (!cancelled && Number.isFinite(count) && count > 0) setGoogleReviewCount(Math.floor(count));
       } catch {
         // ignore - fallback text will show
       }
@@ -146,14 +146,12 @@ export const Navbar = () => {
   useEffect(() => {
     // ✅ Force announcement bar on all non-home pages
     if (pathname !== "/") {
-      setCompact(false);
       return;
     }
 
     // Home page: allow it to collapse when hero leaves view
     const hero = document.getElementById("hero");
     if (!hero) {
-      setCompact(false);
       return;
     }
 
@@ -168,7 +166,7 @@ export const Navbar = () => {
 
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth > 400) setMobileOpen(false);
+      if (window.innerWidth > 850) setMobileOpen(false);
     };
 
     window.addEventListener("resize", onResize);
@@ -186,7 +184,16 @@ export const Navbar = () => {
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAccountOpen(false);
+      if (e.key === "Escape") {
+        if (accountOpen) {
+          setAccountOpen(false);
+          accountWrapRef.current?.querySelector("button")?.focus();
+        }
+        if (mobileOpen) {
+          setMobileOpen(false);
+          menuButtonRef.current?.focus();
+        }
+      }
     };
 
     document.addEventListener("mousedown", onDown);
@@ -195,7 +202,7 @@ export const Navbar = () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [accountOpen]);
+  }, [accountOpen, mobileOpen]);
 
 
   // ---- load user + react to login/logout ----
@@ -326,13 +333,13 @@ export const Navbar = () => {
 
 
   return (
-    <header className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
+    <header className={`${styles.header} ${pathname === "/" && compact ? styles.headerCompact : ""}`}>
       {/* Announcement bar (collapses when header is compact) */}
       <div className={styles.announcement}>
         <div className={styles.marquee} aria-label="Store announcement">
           {Array.from({ length: 14 }).map((_, i) => (
-            <span className={styles.marqueeItem} key={i}>
-              {`${googleReviewCount ?? 250} 5-STAR REVIEWS ON GOOGLE • OPEN EVERY FRI, SAT & SUN FROM 10AM - 5PM`}
+            <span className={styles.marqueeItem} key={i} aria-hidden={i > 0 ? true : undefined}>
+              {`${googleReviewCount !== null ? `${googleReviewCount} REVIEWS ON GOOGLE • ` : ""}OPEN EVERY FRI, SAT & SUN FROM 10AM - 5PM`}
             </span>
           ))}
         </div>
@@ -346,6 +353,7 @@ export const Navbar = () => {
           className={styles.menuButton}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
           onClick={() => setMobileOpen((v) => !v)}
         >
           <span className={styles.menuBar} />
@@ -498,7 +506,7 @@ export const Navbar = () => {
       </nav>
 
       {/* Mobile dropdown (only visible under 400px via CSS) */}
-      <div ref={mobileMenuRef} className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
+      <div id="mobile-navigation" ref={mobileMenuRef} inert={!mobileOpen} className={`${styles.mobileMenu} ${mobileOpen ? styles.mobileMenuOpen : ""}`}>
         <Link href="/shop" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
           Shop
         </Link>

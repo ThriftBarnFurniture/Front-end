@@ -18,7 +18,7 @@ type OrderRow = {
 
   purchase_date: string | null;
 
-  items: any; // text[]
+  items: unknown; // text[]
   shipping_address: string | null;
   customer_name: string | null;
   customer_email: string | null;
@@ -59,7 +59,7 @@ function titleCase(s: string) {
     .replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function parseItems(raw: any): Item[] {
+function parseItems(raw: unknown): Item[] {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : [];
   return arr
@@ -107,7 +107,7 @@ export default async function OrderDetailsPage({
     )
     .eq("order_id", order_id)
     .eq("user_id", auth.user.id)
-    .single();
+    .single<OrderRow>();
 
   if (error || !order) return notFound();
 
@@ -123,7 +123,7 @@ export default async function OrderDetailsPage({
     )
   );
 
-  let prodMap: Record<string, ProductMini> = {};
+  const prodMap: Record<string, ProductMini> = {};
   if (productIds.length) {
     const { data: products } = await supabase
       .from("products")

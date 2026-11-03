@@ -44,7 +44,7 @@ export default async function EditProductPage({
   const product = await res.json();
 
   return (
-    <main className={pageStyles.page}>
+    <div className={pageStyles.page}>
       <div className={pageStyles.container}>
         <section className={pageStyles.card}>
           <header className={pageStyles.header}>
@@ -74,6 +74,6 @@ export default async function EditProductPage({
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

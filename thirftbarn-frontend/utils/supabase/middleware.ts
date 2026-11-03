@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Runs before every request, keeps supabase session alive, refreshes expired tokens
@@ -15,42 +15,18 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+        setAll(cookiesToSet) {
+          // Refresh tokens may span several cookies. Rebuilding the response
+          // for each individual cookie discarded the preceding cookie writes.
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          const previousCookies = response.cookies.getAll()
+          response = NextResponse.next({ request: { headers: request.headers } })
+          previousCookies.forEach(cookie => response.cookies.set(cookie))
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+          response.headers.set('Cache-Control', 'private, no-store')
         },
       },
     }

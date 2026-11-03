@@ -42,6 +42,7 @@ function priceForDay(day: number) {
 
 export default async function BarnBurnerSection() {
   const counts = await getBarnBurnerDayCounts();
+  if (!Object.values(counts).some(count => count > 0)) return null;
 
   const days: DayBucket[] = Array.from({ length: 7 }, (_, i) => {
     const day = i + 1;
@@ -59,7 +60,7 @@ export default async function BarnBurnerSection() {
           <Reveal delayMs={80}>
             <p className={styles.barnBurnerExplain}>
               Items start at <strong>$40</strong> and drop <strong>$5 every day</strong>! <br/>
-              Grab it while it's still hot!
+              Grab it while it&apos;s still hot!
             </p>
           </Reveal>
         </div>

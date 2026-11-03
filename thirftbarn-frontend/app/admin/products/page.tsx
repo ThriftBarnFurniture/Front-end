@@ -3,7 +3,7 @@ import styles from "./page.module.css";
 
 export default function AdminProductsPage() {
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <header className={styles.header}>
           <div className={styles.titleWrap}>
@@ -41,6 +41,6 @@ export default function AdminProductsPage() {
           </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

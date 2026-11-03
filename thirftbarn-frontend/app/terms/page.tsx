@@ -1,8 +1,11 @@
 import styles from "./terms.module.css";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata("Terms & Conditions", "Terms and conditions for shopping with Thrift Barn Furniture.", "/terms");
 
 export default function TermsPage() {
   return (
-    <main className={styles.container}>
+    <div className={styles.container}>
       <h1 className={styles.title}>Terms & Conditions</h1>
       <p className={styles.updated}>Last updated: December 2025</p>
 
@@ -44,6 +47,6 @@ export default function TermsPage() {
           thriftbarnfurniture@gmail.com
         </a>
       </p>
-    </main>
+    </div>
   );
 }

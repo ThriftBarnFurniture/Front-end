@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState, useActionState } from "react";
+import React, { useMemo, useState, useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,10 +24,15 @@ export default function ForgotPasswordForm() {
   const [clientErrors, setClientErrors] = useState<State["fieldErrors"]>({});
   const [dismissedServerErrors, setDismissedServerErrors] = useState<{ email?: boolean }>({});
 
-  const [state, formAction, isPending] = useActionState(
-    requestPasswordReset as any,
-    initialState
-  );
+  const [state, formAction, isPending] = useActionState<State, FormData>(async (previous, formData) => {
+    const result = await requestPasswordReset(previous, formData);
+    if (result.ok) {
+      setValues({ email: "" });
+      setClientErrors({});
+      setDismissedServerErrors({});
+    }
+    return result;
+  }, initialState);
 
   const serverErrorsFiltered = useMemo(() => {
     const se = state?.fieldErrors ?? {};
@@ -39,13 +44,7 @@ export default function ForgotPasswordForm() {
     return Object.keys(clientErrors ?? {}).length ? clientErrors : serverErrorsFiltered;
   }, [clientErrors, serverErrorsFiltered]);
 
-  useEffect(() => {
-    if (state?.ok) {
-      setValues({ email: "" });
-      setClientErrors({});
-      setDismissedServerErrors({});
-    }
-  }, [state?.ok]);
+
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const email = values.email.trim();
@@ -85,7 +84,7 @@ export default function ForgotPasswordForm() {
   return (
     <Card className={styles.card}>
       <CardHeader className={styles.header}>
-        <CardTitle className={styles.title}>Reset your password</CardTitle>
+        <CardTitle className={styles.title}><h1>Reset your password</h1></CardTitle>
         <CardDescription className={styles.description}>
           We’ll email you a link to create a new password.
         </CardDescription>
@@ -93,12 +92,12 @@ export default function ForgotPasswordForm() {
 
       <CardContent>
         {state?.ok ? (
-          <div className={styles.bannerSuccess}>
+          <div role="status" className={styles.bannerSuccess}>
             <p className={styles.bannerTitle}>Check your email</p>
             <p className={styles.bannerText}>{state.message}</p>
           </div>
         ) : state?.message ? (
-          <div className={styles.bannerError}>
+          <div role="alert" className={styles.bannerError}>
             <p className={styles.bannerTitle}>Couldn&apos;t send email</p>
             <p className={styles.bannerText}>{state.message}</p>
           </div>

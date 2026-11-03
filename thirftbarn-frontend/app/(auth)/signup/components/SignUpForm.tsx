@@ -6,7 +6,7 @@ Uses React.useActionState (Next.js 16.1+) for server action feedback.
 */
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState, useActionState } from "react";
+import React, { useMemo, useState, useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +55,21 @@ export function SignUpForm() {
     Partial<Record<FieldName, boolean>>
   >({});
 
-  const [state, formAction, isPending] = useActionState(signup as any, initialState);
+  const [state, formAction, isPending] = useActionState<SignUpState, FormData>(async (previous, formData) => {
+    const result = await signup(previous, formData);
+    if (!result.ok) return result;
+
+    setValues({
+      "first-name": "",
+      "last-name": "",
+      email: "",
+      password: "",
+      "verify-password": "",
+    });
+    setClientErrors({});
+    setDismissedServerErrors({});
+    return result;
+  }, initialState);
 
   const serverErrorsFiltered = useMemo(() => {
     const se = state?.fieldErrors ?? {};
@@ -72,19 +86,7 @@ export function SignUpForm() {
     return Object.keys(clientErrors ?? {}).length ? clientErrors : serverErrorsFiltered;
   }, [clientErrors, serverErrorsFiltered]);
 
-  useEffect(() => {
-    if (!state?.ok) return;
 
-    setValues({
-      "first-name": "",
-      "last-name": "",
-      email: "",
-      password: "",
-      "verify-password": "",
-    });
-    setClientErrors({});
-    setDismissedServerErrors({});
-  }, [state?.ok]);
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const first = values["first-name"].trim();
@@ -146,7 +148,7 @@ export function SignUpForm() {
   return (
     <Card className={styles.card}>
       <CardHeader className={styles.header}>
-        <CardTitle className={styles.title}>Create account</CardTitle>
+        <CardTitle className={styles.title}><h1>Create account</h1></CardTitle>
         <CardDescription className={styles.description}>
           Join Thrift Barn Furniture
         </CardDescription>
@@ -154,7 +156,7 @@ export function SignUpForm() {
 
       <CardContent>
         {state?.ok ? (
-          <div className={styles.bannerSuccess}>
+          <div role="status" className={styles.bannerSuccess}>
             <p className={styles.bannerTitle}>Success</p>
             <p className={styles.bannerText}>
               Your account has been successfully created! Please check your inbox or junk 
@@ -162,8 +164,8 @@ export function SignUpForm() {
             </p>
           </div>
         ) : state?.message ? (
-          <div className={styles.bannerError}>
-            <p className={styles.bannerTitle}>Couldn't create account</p>
+          <div role="alert" className={styles.bannerError}>
+            <p className={styles.bannerTitle}>Couldn&apos;t create account</p>
             <p className={styles.bannerText}>{state.message}</p>
           </div>
         ) : null}

@@ -15,6 +15,7 @@ type CartToast = { id: string; message: string };
 
 type CartContextValue = {
   items: CartItem[];
+  isReady: boolean;
   totalItems: number;
   subtotal: number;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
@@ -30,24 +31,26 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isReady, setIsReady] = useState(false);
   const [toasts, setToasts] = useState<CartToast[]>([]);
 
   useEffect(() => {
-  const loaded = readCart();
-
-  // migrate old carts that don't have is_oversized
-  const migrated = loaded.map((it) => ({
-    ...it,
-    is_oversized: Boolean(it.is_oversized),
-  }));
-
-  setItems(migrated);
-}, []);
+    const loaded = readCart();
+    // Migrate old carts after hydration so server and first browser render agree.
+    const migrated = loaded.map((it) => ({
+      ...it,
+      is_oversized: Boolean(it.is_oversized),
+    }));
+    // Browser storage is external state and is unavailable during server rendering.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setItems(migrated);
+    setIsReady(true);
+  }, []);
 
 
   useEffect(() => {
-    writeCart(items);
-  }, [items]);
+    if (isReady) writeCart(items);
+  }, [items, isReady]);
 
   const toast = useCallback((message: string) => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -76,9 +79,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const setQty = useCallback<CartContextValue["setQty"]>((productId, quantity) => {
     const qty = Math.max(1, Math.floor(quantity || 1));
-    setItems((prev) =>
-      prev.map((p) => (p.productId === productId ? { ...p, quantity: qty } : p))
-    );
+    setItems((prev) => {
+      if (!prev.some((p) => p.productId === productId && p.quantity !== qty)) return prev;
+      return prev.map((p) => (p.productId === productId ? { ...p, quantity: qty } : p));
+    });
   }, []);
 
   const clear = useCallback(() => {
@@ -97,8 +101,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<CartContextValue>(
-    () => ({ items, totalItems, subtotal, addItem, removeItem, setQty, clear, toast }),
-    [items, totalItems, subtotal, addItem, removeItem, setQty, clear, toast]
+    () => ({ items, isReady, totalItems, subtotal, addItem, removeItem, setQty, clear, toast }),
+    [items, isReady, totalItems, subtotal, addItem, removeItem, setQty, clear, toast]
   );
 
   return (

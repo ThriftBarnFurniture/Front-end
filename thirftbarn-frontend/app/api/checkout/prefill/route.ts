@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
@@ -80,7 +81,7 @@ export async function GET() {
       postal,
       country,
     });
-  } catch (e: any) {
-    return new NextResponse(e?.message ?? "Failed to prefill.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Failed to prefill."), { status: 500 });
   }
 }

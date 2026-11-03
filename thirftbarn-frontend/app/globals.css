@@ -277,3 +277,6 @@ body {
     opacity: 1 !important;
   }
 }
+
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 1000000; padding: 12px 20px; background: white; color: #8b0000; border: 2px solid currentColor; transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }

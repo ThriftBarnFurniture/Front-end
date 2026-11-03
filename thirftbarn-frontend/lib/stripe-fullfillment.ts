@@ -3,7 +3,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { setSquareInStockCount } from "@/lib/square/inventory";
 import { normalizeQuantity } from "@/lib/inventory";
 
-type WantedItem = { productId: string; quantity: number };
+import { isPaymentSettled, normalizeCheckoutItems, readOrderItemSnapshot, validatePaymentSnapshot } from "@/lib/checkout-validation";
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdmin>;
 
 type OrderDbRow = {
@@ -81,21 +81,6 @@ export type FulfilledOrderSummary = {
   stripe_email: string | null;
   items: FulfilledOrderItem[];
 };
-
-function parsePackedCart(packed: string): WantedItem[] {
-  if (!packed) return [];
-
-  return packed
-    .split(",")
-    .map((pair) => {
-      const [productId, qty] = pair.split(":");
-      return {
-        productId,
-        quantity: Math.max(1, Math.floor(Number(qty || 1))),
-      };
-    })
-    .filter((x) => x.productId);
-}
 
 function toFiniteNumber(v: unknown): number | null {
   const n =
@@ -191,53 +176,6 @@ function orderRowToSummary(row: OrderDbRow, duplicate: boolean): FulfilledOrderS
   };
 }
 
-function fallbackSummaryFromSession(args: {
-  session: Stripe.Checkout.Session;
-  duplicate: boolean;
-  orderId?: string | null;
-  items?: FulfilledOrderItem[];
-}): FulfilledOrderSummary {
-  const { session, duplicate } = args;
-
-  const shippingCents = Number(session.metadata?.shipping_cost_cents ?? 0);
-  const promoCents = Number(session.metadata?.promo_discount_cents ?? 0);
-  const paymentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
-
-  const stripeEmail =
-    session.customer_details?.email ?? (session.customer_email as string | null) ?? null;
-
-  const customerName = String(session.metadata?.customer_name ?? "").trim() || null;
-  const customerEmail = String(session.metadata?.customer_email ?? "").trim() || stripeEmail;
-  const customerPhone = String(session.metadata?.customer_phone ?? "").trim() || null;
-
-  return {
-    duplicate,
-    order_id: String(args.orderId ?? session.metadata?.order_id ?? "").trim() || session.id,
-    order_number: String(session.metadata?.order_number ?? "").trim() || null,
-    status: "paid",
-    purchase_date: new Date().toISOString(),
-    subtotal: null,
-    tax: null,
-    shipping_cost: Number.isFinite(shippingCents) ? Math.max(0, shippingCents / 100) : null,
-    promo_code: String(session.metadata?.promo_code ?? "").trim() || null,
-    promo_discount: Number.isFinite(promoCents) ? Math.max(0, promoCents / 100) : null,
-    total:
-      typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
-        ? session.amount_total / 100
-        : null,
-    currency: String(session.currency ?? "cad").toUpperCase(),
-    customer_name: customerName,
-    customer_email: customerEmail,
-    customer_phone: customerPhone,
-    shipping_address: String(session.metadata?.shipping_address ?? "").trim() || null,
-    shipping_method: String(session.metadata?.shipping_method ?? "").trim() || null,
-    payment_id: paymentId,
-    stripe_session_id: session.id,
-    stripe_email: stripeEmail,
-    items: args.items ?? [],
-  };
-}
-
 async function getOrderRow(
   supabase: SupabaseAdminClient,
   opts: { orderId?: string | null; sessionId: string }
@@ -291,35 +229,31 @@ export async function fulfillStripeCheckoutSession(
 ): Promise<FulfilledOrderSummary> {
   const supabase = createSupabaseAdmin();
 
-  const metaOrderId = String(session.metadata?.order_id || "");
-  const packed = session.metadata?.cart || "";
-  const wanted = parsePackedCart(packed);
-
-  const { data: existing } = await supabase
-    .from("orders")
-    .select("order_id,status")
-    .eq("stripe_session_id", session.id)
-    .maybeSingle();
-
-  const st = String(existing?.status ?? "").toLowerCase();
-  if (existing?.order_id && (st === "paid" || st === "fulfilled" || st === "refunded")) {
-    const existingRow = await getOrderRow(supabase, {
-      orderId: existing.order_id,
-      sessionId: session.id,
-    });
-
-    if (existingRow) return orderRowToSummary(existingRow, true);
-
-    return fallbackSummaryFromSession({
-      session,
-      duplicate: true,
-      orderId: existing.order_id,
-    });
+  if (!isPaymentSettled(session.payment_status, session.amount_total)) {
+    throw new Error("Payment has not completed.");
   }
-
-  if (!wanted.length) {
-    throw new Error("No cart metadata found on session.");
+  const snapshot = await getOrderRow(supabase, {
+    orderId: session.metadata?.order_id,
+    sessionId: session.id,
+  });
+  if (!snapshot) throw new Error("Order not found for this payment.");
+  if (snapshot.stripe_session_id && snapshot.stripe_session_id !== session.id) {
+    throw new Error("Payment session does not match this order.");
   }
+  const status = String(snapshot.status ?? "").toLowerCase();
+  if (["paid", "fulfilled", "refunded", "chargeback"].includes(status)) {
+    return orderRowToSummary(snapshot, true);
+  }
+  if (status !== "pending") throw new Error("Order is not awaiting payment.");
+
+  // The order snapshot is the price contract made at checkout. Never rebuild
+  // it from current catalog prices, which can change while Stripe is open.
+  const items = readOrderItemSnapshot(snapshot.items);
+  const wanted = normalizeCheckoutItems(items.map(item => ({ productId: item.product_id, quantity: item.quantity })));
+  validatePaymentSnapshot({
+    items, wanted, subtotal: snapshot.subtotal, total: snapshot.total,
+    currency: snapshot.currency, amountTotal: session.amount_total, paymentCurrency: session.currency,
+  });
 
   const ids = wanted.map((w) => w.productId);
 
@@ -352,38 +286,10 @@ export async function fulfillStripeCheckoutSession(
     typeof session.metadata?.customer_email === "string" ? session.metadata.customer_email : null;
   const paymentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-  const items = wanted.map((w) => {
-    const p = pMap.get(w.productId)!;
-    return {
-      product_id: p.id,
-      quantity: w.quantity,
-      unit_price_cents: Math.round(Number(p.price) * 100),
-      name: p.name,
-    };
-  });
-
-  const subtotalCents = items.reduce(
-    (sum, it) => sum + it.unit_price_cents * it.quantity,
-    0
-  );
-
-  const metaShippingCents = Number(session.metadata?.shipping_cost_cents ?? 0);
-  const shippingCents = Number.isFinite(metaShippingCents) ? Math.max(0, metaShippingCents) : 0;
-
-  const metaPromoCents = Number(session.metadata?.promo_discount_cents ?? 0);
-  const promoCents = Number.isFinite(metaPromoCents) ? Math.max(0, metaPromoCents) : 0;
-
-  const promoCode =
-    typeof session.metadata?.promo_code === "string" ? session.metadata.promo_code : null;
-
-  const taxCents = Math.max(0, amountTotalCents - (subtotalCents - promoCents) - shippingCents);
-
   const updatePayload: Record<string, unknown> = {
     stripe_session_id: session.id,
     stripe_email: stripeEmail,
-    items,
-    subtotal: subtotalCents / 100,
-    tax: taxCents / 100,
+    // Preserve items, subtotal, tax, shipping and discounts from checkout.
     total: amountTotalCents / 100,
     amount_total_cents: amountTotalCents,
     currency,
@@ -391,43 +297,24 @@ export async function fulfillStripeCheckoutSession(
     payment_id: paymentId,
     status: "paid",
     purchase_date: new Date().toISOString(),
-    shipping_cost: shippingCents / 100,
-    promo_code: promoCode,
-    promo_discount: promoCents / 100,
   };
 
   if (customerEmail) {
     updatePayload.customer_email = customerEmail;
   }
 
-  const updateQuery = metaOrderId
-    ? supabase
-        .from("orders")
-        .update(updatePayload)
-        .eq("order_id", metaOrderId)
-        .eq("status", "pending")
-    : supabase
-        .from("orders")
-        .update(updatePayload)
-        .eq("stripe_session_id", session.id)
-        .eq("status", "pending");
+  const updateQuery = supabase.from("orders").update(updatePayload)
+    .eq("order_id", snapshot.order_id).eq("status", "pending");
 
   const { data: updated, error: updErr } = await updateQuery.select("order_id").maybeSingle();
   if (updErr) throw new Error(updErr.message);
 
   if (!updated?.order_id) {
-    const duplicateRow = await getOrderRow(supabase, {
-      orderId: metaOrderId || null,
-      sessionId: session.id,
-    });
-
-    if (duplicateRow) return orderRowToSummary(duplicateRow, true);
-
-    return fallbackSummaryFromSession({
-      session,
-      duplicate: true,
-      orderId: metaOrderId || null,
-    });
+    const row = await getOrderRow(supabase, { orderId: snapshot.order_id, sessionId: session.id });
+    if (row && ["paid", "fulfilled", "refunded", "chargeback"].includes(String(row.status))) {
+      return orderRowToSummary(row, true);
+    }
+    throw new Error("Order confirmation is not yet available.");
   }
 
   const orderId = updated.order_id as string;
@@ -473,23 +360,5 @@ export async function fulfillStripeCheckoutSession(
   const row = await getOrderRow(supabase, { orderId, sessionId: session.id });
   if (row) return orderRowToSummary(row, false);
 
-  const fallbackItems: FulfilledOrderItem[] = items.map((it) => {
-    const qty = Math.max(1, Number(it.quantity ?? 1));
-    const unitPrice = Number(it.unit_price_cents ?? 0) / 100;
-
-    return {
-      productId: String(it.product_id ?? "").trim() || null,
-      name: String(it.name ?? "Item"),
-      qty,
-      unitPrice,
-      lineTotal: Number((unitPrice * qty).toFixed(2)),
-    };
-  });
-
-  return fallbackSummaryFromSession({
-    session,
-    duplicate: false,
-    orderId,
-    items: fallbackItems,
-  });
+  throw new Error("Confirmed order could not be loaded.");
 }

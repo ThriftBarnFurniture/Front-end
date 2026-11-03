@@ -4,6 +4,10 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 // OPTIONAL (recommended): attach logged-in user_id to orders
 import { createClient } from "@/utils/supabase/server";
 import { normalizeQuantity } from "@/lib/inventory";
+import { CheckoutValidationError, normalizeCheckoutItems } from "@/lib/checkout-validation";
+import { createReceiptToken, receiptCookieName, RECEIPT_MAX_AGE } from "@/lib/receipt-token";
+import { rateLimitRequest } from "@/lib/request-limits";
+import type Stripe from "stripe";
 
 type Body = {
   items: { productId: string; quantity: number }[];
@@ -97,22 +101,26 @@ async function getDistanceKm(origin: string, destination: string) {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimitRequest(req, "checkout", 15, 60_000);
+  if (limited) return limited;
   try {
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (!siteUrl) throw new Error("Missing NEXT_PUBLIC_SITE_URL");
 
     const body = (await req.json()) as Body;
-    if (!body?.items?.length) {
-      return new NextResponse("No items in cart.", { status: 400 });
-    }
+    const wanted = normalizeCheckoutItems(body?.items);
 
     const customer_name = String(body?.customer_name ?? "").trim();
     const customer_email = String(body?.customer_email ?? "").trim();
     const customer_phone = String(body?.customer_phone ?? "").trim();
+    if (customer_name.length > 150 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email) || customer_email.length > 254 || customer_phone.length > 40) {
+      return NextResponse.json({ error: "Please check your name, email, and phone number." }, { status: 400 });
+    }
 
     const shipping_method = (body?.shipping_method ?? "") as Body["shipping_method"] | "";
     const shipping_address = String(body?.shipping_address ?? "").trim();
+    if (shipping_address.length > 500) return NextResponse.json({ error: "Delivery address is too long." }, { status: 400 });
 
     const promo_code = String(body?.promo_code ?? "").trim().toUpperCase();
     const supabase = createSupabaseAdmin();
@@ -157,13 +165,6 @@ export async function POST(req: Request) {
     }
 
     // Normalize & validate quantities
-    const wanted = body.items
-      .map((it) => ({
-        productId: String(it.productId),
-        quantity: Math.max(1, Math.floor(Number(it.quantity || 1))),
-      }))
-      .slice(0, 50);
-
     const ids = wanted.map((w) => w.productId);
 
     // Fetch products by IDs (server-trusted)
@@ -231,7 +232,7 @@ export async function POST(req: Request) {
     const shipping_cost_cad = Math.max(0, base_shipping_cad + oversized_fee_cad);
 
     // Build Stripe line items from Supabase prices (secure)
-    const line_items: any[] = wanted.map((w) => {
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = wanted.map((w) => {
       const p = map.get(w.productId)!;
 
       return {
@@ -247,10 +248,7 @@ export async function POST(req: Request) {
       };
     });
 
-    // Store cart in metadata as compact "id:qty,id:qty"
-    const packed = wanted.map((w) => `${w.productId}:${w.quantity}`).join(",");
-
-    // Build an "items" snapshot for your orders table (jsonb)
+    // The database stores one JSON-encoded string per item in orders.items (text[]).
     const orderItems = wanted.map((w) => {
       const p = map.get(w.productId)!;
       return {
@@ -258,7 +256,7 @@ export async function POST(req: Request) {
         quantity: w.quantity,
         unit_price_cents: toCents(Number(p.price)),
         name: p.name,
-        is_oversized: Boolean((p as any).is_oversized),
+        is_oversized: Boolean(p.is_oversized),
       };
     });
 
@@ -328,15 +326,12 @@ export async function POST(req: Request) {
 
     // OPTIONAL: attach logged-in user_id so it shows in /account/orders
     let userId: string | null = null;
-    let userEmail: string | null = null;
     try {
       const supabaseServer = await createClient();
       const { data } = await supabaseServer.auth.getUser();
       userId = data.user?.id ?? null;
-      userEmail = data.user?.email ?? null;
     } catch {
       userId = null;
-      userEmail = null;
     }
 
     // Create pending order FIRST (so webhook updates it)
@@ -375,7 +370,7 @@ export async function POST(req: Request) {
         // distance_km: distance_km,
         // overweight_fee: overweight_fee_cad,
 
-        items: orderItems,
+        items: orderItems.map((item) => JSON.stringify(item)),
         subtotal: subtotal_cents / 100,
         tax: tax_cents / 100,
         total: total_cents / 100,
@@ -403,13 +398,13 @@ export async function POST(req: Request) {
       success_url: `${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cart`,
       metadata: {
-        cart: packed,
+        // Cart and prices are preserved in the order snapshot. Avoid Stripe's
+        // per-value metadata size limit for larger carts.
         order_id: orderId,
         order_number,
         user_id: userId ?? "",
         customer_name,
         customer_email,
-        stripe_email: null,
         customer_phone,
 
         shipping_method,
@@ -432,8 +427,15 @@ export async function POST(req: Request) {
 
     if (updErr) throw new Error(updErr.message);
 
-    return NextResponse.json({ url: session.url });
-  } catch (err: any) {
-    return new NextResponse(err?.message || "Checkout failed.", { status: 500 });
+    const response = NextResponse.json({ url: session.url });
+    response.cookies.set(receiptCookieName(session.id), createReceiptToken(session.id, process.env.SUPABASE_SERVICE_ROLE_KEY!), {
+      httpOnly: true, secure: new URL(req.url).protocol === "https:", sameSite: "lax", path: "/", maxAge: RECEIPT_MAX_AGE,
+    });
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  } catch (err: unknown) {
+    const invalid = err instanceof CheckoutValidationError || err instanceof SyntaxError;
+    console.error("Checkout creation failed:", err);
+    return NextResponse.json({ error: invalid ? (err as Error).message : "Checkout could not be started. Please try again." }, { status: invalid ? 400 : 500 });
   }
 }

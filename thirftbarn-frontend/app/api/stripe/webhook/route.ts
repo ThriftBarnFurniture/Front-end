@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { fulfillStripeCheckoutSession } from "@/lib/stripe-fullfillment";
 import { sendAdminOrderEmail, sendCustomerOrderEmail } from "@/lib/brevo";
+import { isPaymentSettled } from "@/lib/checkout-validation";
 
 export const runtime = "nodejs";
 
@@ -27,9 +28,12 @@ export async function POST(req: Request) {
   }
 
   // Only process what we care about, but always return 200 for known events
-  if (event.type === "checkout.session.completed") {
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     try {
       const session = event.data.object as Stripe.Checkout.Session;
+      if (!isPaymentSettled(session.payment_status, session.amount_total)) {
+        return NextResponse.json({ received: true, awaitingPayment: true });
+      }
       const order = await fulfillStripeCheckoutSession(session);
 
       if (!order.duplicate) {

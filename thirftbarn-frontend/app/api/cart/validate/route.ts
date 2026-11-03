@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/errors";
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { isOutOfStock } from "@/lib/inventory";
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
         .map((p) => ({ id: p.id, name: p.name })) ?? [];
 
     return NextResponse.json({ ok: outOfStock.length === 0, outOfStock });
-  } catch (e: any) {
-    return new NextResponse(e?.message || "Failed to validate cart.", { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(errorMessage(e, "Failed to validate cart."), { status: 500 });
   }
 }

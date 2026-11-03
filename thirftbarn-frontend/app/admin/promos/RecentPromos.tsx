@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { errorMessage } from "@/lib/errors";
+import { useMemo, useState } from "react";
 import styles from "./promos.module.css";
+import ModalDialog from "@/components/ui/ModalDialog";
 
 export type PromoRow = {
   id: string;
@@ -42,7 +44,6 @@ function toLocalInputValue(iso: string | null) {
 export default function RecentPromos({ initialPromos }: { initialPromos: PromoRow[] }) {
   const [promos, setPromos] = useState<PromoRow[]>(initialPromos ?? []);
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<PromoRow | null>(null);
 
   const [form, setForm] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -60,7 +61,6 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
   }, [form]);
 
   function openModal(p: PromoRow) {
-    setActive(p);
     setError(null);
     setOpen(true);
 
@@ -78,22 +78,12 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
 
   function closeModal() {
     setOpen(false);
-    setActive(null);
     setForm(null);
     setError(null);
     setSaving(false);
     setDeleting(false);
   }
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
 
   async function onUpdate() {
     if (!form) return;
@@ -122,8 +112,8 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
       const updated: PromoRow = json.promo;
       setPromos((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       closeModal();
-    } catch (e: any) {
-      setError(e?.message ?? "Unknown error");
+    } catch (e: unknown) {
+      setError(errorMessage(e, "Unknown error"));
     } finally {
       setSaving(false);
     }
@@ -148,8 +138,8 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
 
       setPromos((prev) => prev.filter((x) => x.id !== form.id));
       closeModal();
-    } catch (e: any) {
-      setError(e?.message ?? "Unknown error");
+    } catch (e: unknown) {
+      setError(errorMessage(e, "Unknown error"));
     } finally {
       setDeleting(false);
     }
@@ -189,10 +179,10 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
       </div>
 
       {open && form && (
-        <div
+        <ModalDialog
           className={styles.modalOverlay}
-          role="dialog"
-          aria-modal="true"
+          titleId="edit-promo-title"
+          onClose={closeModal}
           onMouseDown={(e) => {
             // click outside closes
             if (e.target === e.currentTarget) closeModal();
@@ -200,7 +190,7 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
         >
           <div className={styles.modalCard}>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitle}>Edit promo</div>
+              <div id="edit-promo-title" className={styles.modalTitle}>Edit promo</div>
               <button type="button" className={styles.modalClose} onClick={closeModal} aria-label="Close">
                 ✕
               </button>
@@ -348,7 +338,7 @@ export default function RecentPromos({ initialPromos }: { initialPromos: PromoRo
               </button>
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
     </>
   );

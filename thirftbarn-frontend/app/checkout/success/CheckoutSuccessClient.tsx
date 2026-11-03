@@ -16,7 +16,8 @@ type OrderRow = {
   tax: number | null;
   total: number | null;
   purchase_date: string | null;
-  items: any;
+  items: unknown;
+  private_details_available?: boolean;
 
   customer_name: string | null;
   customer_email: string | null;
@@ -27,6 +28,11 @@ type OrderRow = {
   shipping_cost?: number | null;
   promo_code?: string | null;
   promo_discount?: number | null;
+};
+
+type OrderDisplayItem = {
+  product_id?: string; productId?: string; name?: string; quantity?: number; qty?: number;
+  unit_price_cents?: number; unitPriceCents?: number;
 };
 
 type ProductMini = {
@@ -44,7 +50,7 @@ export default function CheckoutSuccessClient() {
   const sessionId = params.get("session_id");
   const orderIdParam = params.get("order_id");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(sessionId || orderIdParam));
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,112 +64,69 @@ export default function CheckoutSuccessClient() {
   }, []);
 
 
-  // Clear cart after successful checkout
+  // Confirm payment first, then fetch the receipt. Never clear the cart just
+  // because a redirect URL contains a session ID.
   useEffect(() => {
-    if (!sessionId) return;
-    clear();
-  }, [sessionId, clear]);
-
-  // Load order by stripe_session_id (guest-safe via server endpoint)
-  useEffect(() => {
-    if (!sessionId) return;
-
-    let cancelled = false;
-
-    async function loadOrder() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const res = await fetch("/api/orders/by-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || "Failed to load order.");
-
-        if (!cancelled) setOrder((json?.order ?? null) as OrderRow | null);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load order.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadOrder();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (sessionId) return; // session flow already handles it
-    if (!orderIdParam) return;
-
-    let cancelled = false;
-
-    async function loadOrderById() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const supabase = createClient();
-
-        const { data: auth } = await supabase.auth.getUser();
-        if (!auth.user) throw new Error("Please log in to view this order.");
-
-        // RLS should restrict to own orders; adding user_id check is extra safe.
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("order_id", orderIdParam)
-          .eq("user_id", auth.user.id)
-          .single();
-
-        if (error) throw new Error(error.message);
-
-        if (!cancelled) setOrder((data ?? null) as OrderRow | null);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load order.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadOrderById();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, orderIdParam]);
-
-
-  // Finalize checkout
-  useEffect(() => {
-    if (!sessionId) return;
-
     const controller = new AbortController();
+    const signal = controller.signal;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const pause = (ms: number) => new Promise<void>((resolve) => {
+      retryTimer = setTimeout(resolve, ms);
+      signal.addEventListener("abort", () => { clearTimeout(retryTimer); resolve(); }, { once: true });
+    });
 
-    async function finalizeCheckout() {
+    async function load() {
+      setLoading(true);
+      setError(null);
+      setOrder(null);
       try {
-        await fetch("/api/stripe/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-          signal: controller.signal,
-        });
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        console.error("Failed to finalize checkout.", e);
+        if (sessionId) {
+          let confirmed = false;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            if (signal.aborted) return;
+            const response = await fetch("/api/stripe/complete", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId }), signal,
+            });
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result.confirmed === true) { confirmed = true; break; }
+            if (response.status >= 400 && response.status < 500) {
+              throw new Error(result.error || "This checkout link could not be verified.");
+            }
+            if (attempt < 3) await pause(1500 * (attempt + 1));
+          }
+          if (!confirmed) throw new Error("Payment confirmation is still pending. Please refresh shortly or contact us before paying again.");
+          if (signal.aborted) return;
+          const response = await fetch("/api/orders/by-session", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }), signal,
+          });
+          const result = await response.json();
+          if (!response.ok || !result.order) throw new Error(result.error || "Your receipt is not ready yet. Please refresh shortly.");
+          if (!signal.aborted) {
+            setOrder(result.order as OrderRow);
+            if (["paid", "fulfilled"].includes(String(result.order.status))) clear();
+          }
+        } else if (orderIdParam) {
+          const client = createClient();
+          const { data: auth } = await client.auth.getUser();
+          if (!auth.user) throw new Error("Please log in to view this order.");
+          const { data, error: lookupError } = await client.from("orders").select("*")
+            .eq("order_id", orderIdParam).eq("user_id", auth.user.id).single();
+          if (lookupError || !data) throw new Error("This order could not be loaded.");
+          if (!signal.aborted) setOrder({ ...data, private_details_available: true } as OrderRow);
+        }
+      } catch (err: unknown) {
+        if (!signal.aborted) setError(err instanceof Error ? err.message : "Unable to confirm this checkout.");
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
     }
+    void load();
+    return () => { controller.abort(); clearTimeout(retryTimer); };
+  }, [sessionId, orderIdParam, clear]);
 
-    finalizeCheckout();
-    return () => controller.abort();
-  }, [sessionId]);
-
-  const items: any[] = useMemo(() => {
+  const items: OrderDisplayItem[] = useMemo(() => {
     const raw = order?.items;
     if (!raw) return [];
     const arr = Array.isArray(raw) ? raw : [];
@@ -171,17 +134,17 @@ export default function CheckoutSuccessClient() {
     return arr
       .map((x) => {
         if (!x) return null;
-        if (typeof x === "object") return x;
+        if (typeof x === "object") return x as OrderDisplayItem;
         if (typeof x === "string") {
           try {
-            return JSON.parse(x);
+            return JSON.parse(x) as OrderDisplayItem;
           } catch {
             return null;
           }
         }
         return null;
       })
-      .filter(Boolean);
+      .filter((item): item is OrderDisplayItem => item !== null);
   }, [order]);
 
   // Fetch images (and name fallback) from products table using product_id(s)
@@ -189,7 +152,7 @@ export default function CheckoutSuccessClient() {
     if (!order) return;
 
     const productIds = items
-      .map((it) => String((it as any)?.product_id ?? (it as any)?.productId ?? ""))
+      .map((it) => String(it.product_id ?? it.productId ?? ""))
       .filter(Boolean);
 
     const unique = Array.from(new Set(productIds));
@@ -229,8 +192,17 @@ export default function CheckoutSuccessClient() {
 
   return (
     <div className={styles.wrap}>
-      <h1 className={styles.title}>Payment successful ✅</h1>
-      <p className={styles.subtitle}>Thank you! Your order is being processed.</p>
+      <h1 className={styles.title}>
+        {loading ? "Confirming your order" : order?.status === "refunded" ? "Order refunded" :
+          order?.status === "chargeback" ? "Order payment disputed" :
+          order && ["paid", "fulfilled"].includes(String(order.status)) ? "Payment confirmed" :
+          sessionId || orderIdParam ? "Order confirmation pending" : "No checkout to confirm"}
+      </h1>
+      <p className={styles.subtitle}>
+        {order && ["paid", "fulfilled"].includes(String(order.status))
+          ? "Thank you! Your payment has been confirmed."
+          : "Your cart is kept until payment is confirmed. You can return to the shop or check your order history."}
+      </p>
 
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Order details</h2>
@@ -238,7 +210,7 @@ export default function CheckoutSuccessClient() {
         {loading && <p className={styles.muted}>Loading order…</p>}
 
         {!loading && error && (
-          <p className={styles.muted}>
+          <p className={styles.muted} role="alert">
             Couldn’t load your order yet. Try refreshing.
             <br />
             <span className={styles.error}>({error})</span>
@@ -256,7 +228,7 @@ export default function CheckoutSuccessClient() {
               <strong>{String(order.status ?? "").toUpperCase()}</strong>
             </p>
 
-            <div className={styles.clientBox}>
+            {order.private_details_available !== false ? <div className={styles.clientBox}>
               <div className={styles.clientTitle}>Client information</div>
 
               <div className={styles.clientGrid}>
@@ -280,12 +252,12 @@ export default function CheckoutSuccessClient() {
                   <strong>{order.shipping_address ?? "—"}</strong>
                 </div>
               </div>
-            </div>
+            </div> : <p className={styles.muted}>For your privacy, contact and delivery details are available in the browser used for checkout or your signed-in account.</p>}
 
             {items.length > 0 && (
               <div className={styles.items}>
                 {items.map((it, idx) => {
-                  const anyIt = it as any;
+                  const anyIt = it;
 
                   const pid = String(anyIt?.product_id ?? anyIt?.productId ?? "");
                   const p = pid ? prodMap[pid] : undefined;

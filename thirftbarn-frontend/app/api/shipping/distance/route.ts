@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimitRequest } from "@/lib/request-limits";
 
 /**
  * Expects:
@@ -18,6 +19,8 @@ import { NextResponse } from "next/server";
  */
 
 export async function POST(req: Request) {
+  const limited = rateLimitRequest(req, "shipping-distance", 30, 60_000);
+  if (limited) return limited;
   try {
     const body = await req.json();
     const origin = String(body?.origin || "").trim();
@@ -28,6 +31,9 @@ export async function POST(req: Request) {
         { error: "Origin and destination are required." },
         { status: 400 }
       );
+    }
+    if (origin.length > 500 || destination.length > 500 || origin.includes("|") || destination.includes("|")) {
+      return NextResponse.json({ error: "Please provide one valid origin and destination address." }, { status: 400 });
     }
 
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -71,9 +77,9 @@ export async function POST(req: Request) {
     const distance_km = meters / 1000;
 
     return NextResponse.json({ distance_km });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err?.message ?? "Distance calculation failed." },
+      { error: err instanceof Error ? err.message : "Distance calculation failed." },
       { status: 500 }
     );
   }

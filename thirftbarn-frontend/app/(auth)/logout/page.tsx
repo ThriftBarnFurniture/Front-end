@@ -23,9 +23,9 @@ export default function LogoutPage() {
   }, [router]);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <p className={styles.text}>Signing you out…</p>
       <p className={styles.sub}>Redirecting to the home page.</p>
-    </main>
+    </div>
   );
 }

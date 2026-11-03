@@ -65,9 +65,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
       ].join(" ")}
     >
       <CardHeader className="text-center">
-        <CardTitle className="text-3xl font-black tracking-wide">
-          Welcome back
-        </CardTitle>
+        <CardTitle className="text-3xl font-black tracking-wide"><h1>Welcome back</h1></CardTitle>
         <CardDescription className="text-[var(--color-muted)]">
           Sign in to your account
         </CardDescription>

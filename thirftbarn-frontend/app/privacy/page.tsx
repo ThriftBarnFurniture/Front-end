@@ -1,8 +1,11 @@
 import styles from "./privacy.module.css";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata("Privacy Policy", "How Thrift Barn Furniture handles your personal information.", "/privacy");
 
 export default function Privacy() {
   return (
-    <main className={styles.container}>
+    <div className={styles.container}>
       <h1 className={styles.title}>Privacy Policy</h1>
       <p className={styles.updated}>Last updated: December 2025</p>
 
@@ -46,6 +49,6 @@ export default function Privacy() {
           thriftbarnfurniture@gmail.com
         </a>
       </p>
-    </main>
+    </div>
   );
 }

@@ -5,6 +5,21 @@ import { formatPrice, getAllImages, getProductById } from "@/lib/products";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import ScrollToTop from "../../../components/ui/ScrollToTop";
 import { formatCollectionLabel, isEstateSaleCollection, isEstateSalePhotoCollection } from "@/lib/estate-sales";
+import { pageMetadata } from "@/lib/seo";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getProductById(id);
+  if (!product?.is_active) return { title: "Item unavailable", robots: { index: false, follow: false } };
+  const metadata = pageMetadata(product.name, product.description?.slice(0, 160) || `View ${product.name}, pricing, dimensions and availability at Thrift Barn Furniture.`, `/item/${product.id}`);
+  const images = getAllImages(product);
+  if (images.length) {
+    metadata.openGraph = { ...metadata.openGraph, images: [{ url: images[0], alt: product.name }] };
+    metadata.twitter = { card: "summary_large_image", title: product.name, description: metadata.description ?? undefined, images: [images[0]] };
+  }
+  return metadata;
+}
 
 export default async function ItemPage({
   params,
@@ -49,7 +64,7 @@ export default async function ItemPage({
     .map(formatCollectionLabel);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <ScrollToTop />
       <div className={styles.layout}>
         <section className={styles.left}>
@@ -129,6 +144,6 @@ export default async function ItemPage({
           </ul>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

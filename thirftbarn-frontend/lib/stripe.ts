@@ -12,7 +12,8 @@ export function getStripe() {
 
   if (!cached) {
     cached = new Stripe(key, {
-      apiVersion: "2024-09-30.acacia" as any,
+      // Preserve the account's existing API contract when updating SDK types.
+      apiVersion: "2024-09-30.acacia" as Stripe.LatestApiVersion,
     });
   }
 

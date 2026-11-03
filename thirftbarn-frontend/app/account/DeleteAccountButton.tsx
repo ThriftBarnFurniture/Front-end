@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import styles from "./account.module.css";
+import { errorMessage } from "@/lib/errors";
 
 export default function DeleteAccountButton() {
   const router = useRouter();
@@ -18,23 +19,24 @@ export default function DeleteAccountButton() {
 
     setLoading(true);
 
-    // 1) Sign out FIRST so UI immediately flips to guest mode
-    await supabase.auth.signOut();
+    try {
+      // The server needs the current session to authorize the deletion.
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      const payload = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : null;
+      if (!res.ok || res.redirected || payload?.ok !== true) {
+        throw new Error(payload?.error || (payload ? "Unable to delete your account." : await res.text()));
+      }
 
-    // 2) Then delete on server (uses admin key)
-    const res = await fetch("/api/account/delete", { method: "POST" });
-
-    setLoading(false);
-
-    if (!res.ok) {
-      alert(await res.text());
-      router.push("/login");
+      await supabase.auth.signOut();
+      router.push("/");
       router.refresh();
-      return;
+    } catch (error) {
+      alert(errorMessage(error, "Unable to delete your account. Please try again."));
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/");
-    router.refresh();
   };
 
   return (

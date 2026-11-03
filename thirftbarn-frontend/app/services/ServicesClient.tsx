@@ -36,7 +36,7 @@ export default function ServicesClient() {
   }, [selected]);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <ScrollToTop />
       <div className={styles.container}>
         <header className={styles.header}>
@@ -59,12 +59,13 @@ export default function ServicesClient() {
                   isActive ? styles.serviceCardActive : ""
                 }`}
                 onClick={() => setSelected(service.id)}
-                aria-selected={isActive}
+                aria-pressed={isActive}
+                aria-controls="service-request-panel"
               >
                 <div className={styles.serviceImageWrap}>
                   <img
                     src={`/services/${service.id}.png`}
-                    alt={service.title}
+                    alt=""
                     className={styles.serviceImage}
                     loading="lazy"
                   />
@@ -77,7 +78,7 @@ export default function ServicesClient() {
         </section>
 
         {/* Form */}
-        <section className={styles.panel}>
+        <section id="service-request-panel" className={styles.panel}>
           <div className={styles.panelCard}>
             <ServiceForm serviceId={selected}>
               <ActiveInnerForm serviceId={selected} />
@@ -85,6 +86,6 @@ export default function ServicesClient() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

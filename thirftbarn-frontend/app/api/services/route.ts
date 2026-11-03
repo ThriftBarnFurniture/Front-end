@@ -1,6 +1,7 @@
 // app/api/services/route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { rateLimitRequest } from "@/lib/request-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -156,6 +157,12 @@ async function readPhotos(fd: FormData) {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimitRequest(req, "service-email", 5, 15 * 60_000);
+  if (limited) return limited;
+  const contentLength = Number(req.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > 6 * 1024 * 1024) {
+    return NextResponse.json({ error: "The request is too large. Please reduce the attached photos." }, { status: 413 });
+  }
   try {
     const fd = await req.formData();
 
@@ -170,7 +177,7 @@ export async function POST(req: Request) {
     const contactEmail = (fd.get("contact_email") ?? "").toString().trim();
     const contactPhone = (fd.get("contact_phone") ?? "").toString().trim();
 
-    if (!serviceId) {
+    if (!["moving", "junk_removal", "furniture_assembly", "marketplace_pickup_delivery", "donation_pickup"].includes(serviceId)) {
       return NextResponse.json(
         { ok: false, error: "Missing service_id." },
         { status: 400 }
@@ -182,6 +189,15 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (contactName.length > 150 || contactPhone.length > 40 || contactEmail.length > 254 || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(contactEmail)) {
+      throw new ValidationError("Please check your name, email, and phone number.");
+    }
+    let textLength = 0;
+    for (const [key, value] of fd) {
+      if (key.length > 100) throw new ValidationError("Invalid form field.");
+      if (typeof value === "string") textLength += value.length;
+    }
+    if (textLength > 20000) throw new ValidationError("Your request is too long. Please shorten the details.");
 
     const title = serviceTitle(serviceId);
 
